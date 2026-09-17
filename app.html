@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=9 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=10 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -795,7 +795,7 @@ function renderSettings(){
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     (P && typeof P.setGithub === 'function' ?
       '<h2>GitHub</h2><p class="hint">Permet à Poupous de reconstruire et installer lui-même son application.</p>' +
-      '<div class="keybox" style="padding-top:8px"><input id="ghkey-input" type="password" autocomplete="off" placeholder="github_pat_…" value="" aria-label="Jeton d\'accès GitHub"><div class="row" style="border:0;padding:0"><span class="hint">' + (P.hasGithub() ? 'Jeton enregistré' : 'Aucun jeton') + '</span><button class="btn primary" id="save-gh-btn">Enregistrer le jeton</button></div></div>' : '') +
+      '<div class="keybox" style="padding-top:8px"><input id="ghkey-input" type="password" autocomplete="off" placeholder="github_pat_…" value="" aria-label="Jeton d\'accès GitHub"><div class="row" style="border:0;padding:0"><span class="hint" id="gh-status-hint">' + (P.hasGithub() ? 'Jeton enregistré' : 'Aucun jeton') + '</span><button class="btn primary" id="save-gh-btn">Enregistrer le jeton</button></div></div>' : '') +
     '<h2>Améliorer Poupous</h2>' +
     '<p class="hint">Décris le changement voulu, puis choisis où l\'appliquer.</p>' +
     '<input id="amelio" class="bar-input" style="width:100%;box-sizing:border-box;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit" placeholder="Ex. : écouter « Poupous » même appli fermée">' +
