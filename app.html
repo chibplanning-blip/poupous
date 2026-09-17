@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=5 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=6 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -719,7 +719,8 @@ function openKey(){
   $('#sheet').hidden = false;
   $('#key-cancel').onclick = () => { $('#sheet').hidden = true; };
   $('#key-save').onclick = () => {
-    const k = $('#apikey').value.trim();
+    const k = $('#apikey').value.replace(/\s+/g, '');
+    if (!/^sk-ant-/.test(k) && k.length >= 20) { store.set('geminiKey', k); store.set('geminiModel', ''); S.reglages.cerveau = 'gemini'; store.set('reglages', S.reglages); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !'); return; }
     if (!/^sk-ant-/.test(k)) { $('#apikey').style.borderColor = '#ff6b6b'; return; }
     P.setKey(k); $('#sheet').hidden = true; sys('Clé enregistrée. Je suis prêt !');
   };
@@ -733,8 +734,8 @@ function openGeminiKey(){
   $('#sheet').hidden = false;
   $('#gem-cancel').onclick = () => { $('#sheet').hidden = true; };
   $('#gem-save').onclick = () => {
-    const k = $('#gemkey').value.trim();
-    if (!/^AIza[\w-]{20,}$/.test(k)) { $('#gemkey').style.borderColor = '#ff6b6b'; return; }
+    const k = $('#gemkey').value.replace(/\s+/g, '');
+    if (k.length < 20) { $('#gemkey').style.borderColor = '#ff6b6b'; return; }
     store.set('geminiKey', k); store.set('geminiModel', ''); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !');
   };
 }
