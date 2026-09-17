@@ -1,0 +1,37 @@
+name: Poupous APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'poupous-android.zip'
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Construire l'APK
+        run: |
+          unzip -o poupous-android.zip -d build-src
+          cd build-src
+          bash prepare.sh "$GITHUB_REPOSITORY"
+          gradle assembleDebug --no-daemon
+      - name: Publier l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build-src/app/build/outputs/apk/debug/app-debug.apk poupous.apk
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk poupous.apk --title "Poupous" --notes "Dernière version de l'APK Poupous"
