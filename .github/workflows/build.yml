@@ -1,52 +1,6 @@
-          gh release create apk poupous.apk --title "Poupous" --notes "Dernière version de l'APK Poupous"
-name: Poupous APK
-
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - 'poupous-android*.zip'
-      - 'app*.html'
-      - '.github/workflows/**'
-
-permissions:
-  contents: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Ranger les fichiers
-        run: |
-          newest() { for f in $1; do [ -e "$f" ] && echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -1 | cut -d' ' -f2-; }
-          Z=$(newest 'poupous-android*.zip')
-          H=$(newest 'app*.html')
-          git config user.name "poupous-bot"
-          git config user.email "poupous-bot@users.noreply.github.com"
-          changed=0
-          if [ "$Z" != "poupous-android.zip" ]; then cp "$Z" /tmp/z.zip; git rm -q poupous-android*.zip; cp /tmp/z.zip poupous-android.zip; git add poupous-android.zip; changed=1; fi
-          if [ "$H" != "app.html" ]; then cp "$H" /tmp/a.html; git rm -q app*.html; cp /tmp/a.html app.html; git add app.html; changed=1; fi
-          if [ "$changed" = 1 ]; then git commit -m "Ranger les fichiers Poupous" && git push; fi
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-      - name: Construire l'APK
-        run: |
-          unzip -o poupous-android.zip -d build-src
-          cd build-src
-          bash prepare.sh "$GITHUB_REPOSITORY"
-          gradle assembleDebug --no-daemon
-      - name: Publier l'APK
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cp build-src/app/build/outputs/apk/debug/app-debug.apk poupous.apk
-          gh release delete apk --yes --cleanup-tag || true
-          gh release create apk poupous.apk --title "Poupous" --notes "Dernière version de l'APK Poupous"
+{"name":"Poupous APK","on":{"workflow_dispatch":{},"push":{"paths":["poupous-android*.zip","app*.html",".github/workflows/**"]}},"permissions":{"contents":"write"},"jobs":{"build":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v4","with":{"fetch-depth":0}},
+{"name":"Ranger les fichiers","run":"newest() { for f in $1; do [ -e \"$f\" ] && echo \"$(git log -1 --format=%ct -- \"$f\") $f\"; done | sort -n | tail -1 | cut -d\" \" -f2-; }\nZ=$(newest \"poupous-android*.zip\")\nH=$(newest \"app*.html\")\ngit config user.name poupous-bot\ngit config user.email poupous-bot@users.noreply.github.com\nchanged=0\nif [ \"$Z\" != \"poupous-android.zip\" ]; then cp \"$Z\" /tmp/z.zip; git rm -q poupous-android*.zip; cp /tmp/z.zip poupous-android.zip; git add poupous-android.zip; changed=1; fi\nif [ \"$H\" != \"app.html\" ]; then cp \"$H\" /tmp/a.html; git rm -q app*.html; cp /tmp/a.html app.html; git add app.html; changed=1; fi\nif [ \"$changed\" = 1 ]; then git commit -m \"Ranger les fichiers Poupous\" && git push; fi"},
+{"uses":"actions/setup-java@v4","with":{"distribution":"temurin","java-version":"17"}},
+{"uses":"gradle/actions/setup-gradle@v4","with":{"gradle-version":"8.9"}},
+{"name":"Construire","run":"unzip -o poupous-android.zip -d build-src\ncd build-src\nbash prepare.sh \"$GITHUB_REPOSITORY\"\ngradle assembleDebug --no-daemon"},
+{"name":"Publier","env":{"GH_TOKEN":"${{ github.token }}"},"run":"cp build-src/app/build/outputs/apk/debug/app-debug.apk poupous.apk\ngh release delete apk --yes --cleanup-tag || true\ngh release create apk poupous.apk --title Poupous --notes \"Derniere version de l'APK Poupous\""}]}}}
