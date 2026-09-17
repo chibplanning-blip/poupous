@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=15 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=16 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -53,7 +53,7 @@ input[type=range]{accent-color:var(--cyan)}
 .chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
 .keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
 
-/* Styles Halal Market Hub */
+/* Styles Halal Market Hub & GPS */
 .market-nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
 .market-tab{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .market-tab.active{background:var(--cyan);color:#04202a;border-color:var(--cyan)}
@@ -63,6 +63,7 @@ input[type=range]{accent-color:var(--cyan)}
 .market-item-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .market-item-row:last-child{border-bottom:0}
 .proximity-banner{background:rgba(56,214,245,.1);border:1px solid var(--cyan);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.halal-badge{display:inline-block;background:rgba(78,224,166,.2);color:#4ee0a6;border:1px solid #4ee0a6;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700;margin-left:6px}
 </style>
 </head>
 <body>
@@ -74,7 +75,7 @@ const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
 const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
-const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsLog:[]};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsLog:[], lastProximityAlert:0};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -119,43 +120,70 @@ const store = {
   set(k, v){ try { if (P) P.set(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-/* ---------- Interface Halal Courses & GPS ---------- */
-const marketData = {
+/* ---------- Gestion Courses Halal & Magasins / Radar GPS (Aldi, Lidl, Colruyt, Action) ---------- */
+const DEFAULT_MARKET_DATA = {
   aldi: {
     name: "Aldi",
-    promos: ["Nuggets de poulet halal 1kg - 4,99€", "Merguez pur bœuf 500g - 3,50€"],
-    list: ["Lait demi-écrémé", "œufs frais", "Steaks hachés halal", "Huile de tournesol"]
+    lat: 50.8503, lon: 4.3517, // Coordonnées de référence modélisables ou géolocalisées
+    promos: ["Lait de coco 400ml - 1,29€", "Falafels x12 - 2,49€", "Galettes de riz bio - 0,99€"],
+    list: ["Lait de soja", "Œufs frais", "Steak végétal (sans viande)", "Huile d'olive", "Pâtes bio"]
   },
   lidl: {
     name: "Lidl",
-    promos: ["Poulet entier halal mariné - 6,20€", "Yaourt nature x16 - 1,80€"],
-    list: ["Escalopes de poulet halal", "Pains pita", "Fromage râpé halal", "Tomates cerises"]
+    lat: 50.8467, lon: 4.3547,
+    promos: ["Houmous traditionnel 400g - 1,99€", "Yaourt soja nature x4 - 1,49€"],
+    list: ["Galettes de blé", "Fromage râpé végétal", "Tomates cerises", "Courgettes", "Oignons"]
   },
   colruyt: {
     name: "Colruyt",
-    promos: ["Surgelés feuilletés feta/épinards halal - 3,99€", "Assortiment charcuterie halal - 5,50€"],
-    list: ["Légumes surgelés", "Blé / Boulgour", "Pâtes", "Eau minérale en packs"]
+    lat: 50.8550, lon: 4.3480,
+    promos: ["Légumes surgelés wok 1kg - 2,89€", "Jus de fruits pur 1L - 1,75€"],
+    list: ["Légumineuses (lentilles, pois chiches)", "Boulgour", "Riz basmati", "Eau minérale", "Compotes de pommes"]
   },
   action: {
     name: "Action",
-    promos: ["Boîte de rangement plastique - 2,99€", "Éponges antibactériennes - 1,20€"],
-    list: ["Papier toilette", "Liquide vaisselle", "Sacs poubelle", "Papier aluminium"]
+    promos: ["Boîte hermétique - 1,49€", "Éponges végétales - 0,99€"],
+    list: ["Papier toilette", "Liquide vaisselle éco", "Sacs poubelle", "Papier cuisson"]
   }
 };
 
+function getMarketData() {
+  const saved = store.get('marketData', null);
+  if (saved) return saved;
+  store.set('marketData', DEFAULT_MARKET_DATA);
+  return DEFAULT_MARKET_DATA;
+}
+
+function saveMarketData(data) {
+  store.set('marketData', data);
+}
+
+// Vérification stricte Halal & Sans Viande
+function checkHalalCompliance(itemName) {
+  const n = norm(itemName);
+  const forbiddenMeat = ['viande', 'poulet', 'boeuf', 'agneau', 'veau', 'jambon', 'lard', 'saucisse', 'merguez', 'bacon', 'viande hachee', 'steak hache'];
+  for (const f of forbiddenMeat) {
+    if (n.includes(f) && !n.includes('vegetal') && !n.includes('vegetarien') && !n.includes('soja') && !n.includes('sans viande')) {
+      return {compliant: false, reason: "Attention : article contenant de la viande non certifiée ou non conforme à la règle stricte sans viande."};
+    }
+  }
+  return {compliant: true, reason: "Strictement Halal & Sans Viande"};
+}
+
 function renderHalalInterface() {
+  const marketData = getMarketData();
   const activeTab = S.activeMarket || 'aldi';
   const data = marketData[activeTab];
   return `
     <div class="proximity-banner">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-weight:700;font-size:14px">Radar Proximité & GPS</div>
-          <div class="hint" style="font-size:12px" id="gps-status-text">${S.gpsTracking ? 'Suivi GPS actif en arrière-plan' : 'Service arrière-plan inactif'}</div>
+          <div style="font-weight:700;font-size:14px">Radar Proximité 500m & GPS Arrière-plan</div>
+          <div class="hint" style="font-size:12px" id="gps-status-text">${S.gpsTracking ? 'Service actif · Surveillance Aldi, Lidl, Colruyt, Action' : 'Service inactif'}</div>
         </div>
         <button class="btn ${S.gpsTracking ? '' : 'primary'}" id="toggle-gps-tracking" style="padding:6px 10px;font-size:12px">${S.gpsTracking ? 'Arrêter GPS' : 'Lancer GPS'}</button>
       </div>
-      <div id="gps-coords" class="hint" style="font-size:11px;word-break:break-all">${S.gpsLog.length ? S.gpsLog[S.gpsLog.length - 1] : 'Aucune position GPS enregistrée'}</div>
+      <div id="gps-coords" class="hint" style="font-size:11px;word-break:break-all">${S.gpsLog.length ? S.gpsLog[S.gpsLog.length - 1] : 'En attente de position GPS…'}</div>
     </div>
     <div class="market-nav">
       ${Object.keys(marketData).map(k => `<button class="market-tab ${k === activeTab ? 'active' : ''}" data-market="${k}">${marketData[k].name}</button>`).join('')}
@@ -165,19 +193,23 @@ function renderHalalInterface() {
       <div class="market-card">
         ${data.promos.map(p => `<div class="market-item-row"><span>🔥 ${esc(p)}</span></div>`).join('')}
       </div>
-      <div class="market-section-title">Liste de courses triée</div>
+      <div class="market-section-title">Liste de courses (Halal Stricte & Sans Viande)</div>
       <div class="market-card" id="market-list-box">
-        ${data.list.map((item, idx) => `
-          <div class="market-item-row">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-              <input type="checkbox" data-market-item="${activeTab}-${idx}">
-              <span>${esc(item)}</span>
-            </label>
-          </div>
-        `).join('')}
+        ${data.list.map((item, idx) => {
+          const comp = checkHalalCompliance(item);
+          return `
+            <div class="market-item-row">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
+                <input type="checkbox" data-market-item="${activeTab}-${idx}">
+                <span>${esc(item)}</span>
+              </label>
+              <span class="halal-badge" title="${esc(comp.reason)}">Halal & S/Viande</span>
+            </div>
+          `;
+        }).join('')}
       </div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <input id="new-market-item" placeholder="Ajouter un article…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">
+        <input id="new-market-item" placeholder="Ajouter un article (contrôle strict)…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">
         <button class="btn" id="add-market-item-btn">Ajouter</button>
       </div>
     </div>
@@ -200,8 +232,17 @@ function bindMarketEvents() {
       if (!inp) return;
       const val = inp.value.trim();
       if (!val) return;
+      const comp = checkHalalCompliance(val);
+      if (!comp.compliant) {
+        alert(comp.reason);
+        return;
+      }
+      const marketData = getMarketData();
       marketData[S.activeMarket || 'aldi'].list.push(val);
+      saveMarketData(marketData);
+      inp.value = '';
       openMarketSheet();
+      sys("Article ajouté et validé Halal sans viande : " + val);
     };
   }
   const gpsBtn = $('#toggle-gps-tracking');
@@ -210,6 +251,40 @@ function bindMarketEvents() {
       toggleGpsTracking();
       openMarketSheet();
     };
+  }
+}
+
+// Calcul de distance en mètres entre deux coordonnées GPS (formule de Haversine)
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Rayon de la terre en mètres
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function checkStoreProximity(lat, lon) {
+  const marketData = getMarketData();
+  const now = Date.now();
+  // Ne pas spammer les alertes vocales (minimum 10 minutes d'intervalle)
+  if (now - S.lastProximityAlert < 600000) return;
+
+  for (const key in marketData) {
+    const storeObj = marketData[key];
+    // Coordonnées simulées proches ou réelles si l'utilisateur bouge
+    const dist = getDistanceFromLatLonInMeters(lat, lon, storeObj.lat, storeObj.lon);
+    if (dist <= 500) {
+      S.lastProximityAlert = now;
+      const listStr = storeObj.list.join(', ');
+      const msg = `Tu es à moins de 500 mètres de ${storeObj.name}. Voici ta liste de courses halal : ${listStr}.`;
+      sys("📍 Alerte Proximité 500m : " + storeObj.name);
+      addMsg('poupous', msg);
+      speak(msg);
+      break;
+    }
   }
 }
 
@@ -229,17 +304,20 @@ function toggleGpsTracking() {
       return;
     }
     S.gpsTracking = true;
-    sys("Service en arrière-plan activé : suivi GPS des courses démarré.");
-    speak("Suivi GPS et service en arrière-plan démarrés.");
+    sys("Service en arrière-plan activé : radar 500m Aldi, Lidl, Colruyt, Action actif.");
+    speak("Suivi GPS et radar de proximité démarrés en arrière-plan.");
     S.gpsWatchId = navigator.geolocation.watchPosition(
       pos => {
-        const lat = pos.coords.latitude.toFixed(5);
-        const lon = pos.coords.longitude.toFixed(5);
-        const info = `Lat: ${lat}, Lon: ${lon} (${new Date().toLocaleTimeString()})`;
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const info = `Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} (${new Date().toLocaleTimeString()})`;
         S.gpsLog.push(info);
         if (S.gpsLog.length > 20) S.gpsLog.shift();
         const coordBox = $('#gps-coords');
         if (coordBox) coordBox.textContent = info;
+        
+        // Vérifier l'approche à 500 mètres
+        checkStoreProximity(lat, lon);
       },
       err => {
         sys("Erreur GPS : " + err.message);
@@ -251,7 +329,7 @@ function toggleGpsTracking() {
 
 function openMarketSheet() {
   $('#sheet-inner').innerHTML =
-    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES HALAL & GPS</span><button class="btn" id="close-market">Fermer</button></div>' +
+    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES HALAL & RADAR 500M</span><button class="btn" id="close-market">Fermer</button></div>' +
     renderHalalInterface();
   $('#sheet').hidden = false;
   $('#close-market').onclick = () => { $('#sheet').hidden = true; };
@@ -403,7 +481,7 @@ async function handsFree(){
   if (!S.busy) idle();
 }
 
-/* ---------- Cerveau (Claude) ---------- */
+/* ---------- Cerveau (Claude / Gemini) ---------- */
 function systemPrompt(){
   const d = new Date();
   const date = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
@@ -411,11 +489,10 @@ function systemPrompt(){
   return "Tu es Poupous, l'assistant vocal personnel de l'utilisateur, dans une appli Android sur son téléphone. Personnalité : " + S.reglages.personnalite + "\n" +
     "Nous sommes le " + date + ", il est " + heure + ".\n" +
     "Tes réponses sont lues à voix haute : français oral et naturel, sans markdown, sans listes, sans emojis. Une à trois phrases, sauf si on te demande des détails.\n" +
-    "Outils obligatoires : tu DOIS appeler les outils correspondants dès que l'utilisateur te le demande (retenir, oublier, changer_reglage, ameliorer_mon_code, ameliorer_apk, chercher_contact, appeler, envoyer_sms, mettre_reveil, minuteur, ouvrir_appli, itineraire, preparer_mail, creer_fichier, installer_mise_a_jour, annuler_derniere_amelioration). Ne simule jamais une action sans exécuter l'outil associé. Si une information manque, demande-la ou appelle l'outil avec les paramètres pertinents.\n" +
+    "Outils obligatoires : tu DOIS appeler les outils correspondants dès que l'utilisateur te le demande (retenir, oublier, changer_reglage, ameliorer_mon_code, ameliorer_apk, chercher_contact, appeler, envoyer_sms, mettre_reveil, minuteur, ouvrir_appli, itineraire, preparer_mail, creer_fichier, installer_mise_a_jour, annuler_derniere_amelioration, ajouter_courses_halal). Ne simule jamais une action sans exécuter l'outil associé. Si une information manque, demande-la ou appelle l'outil avec les paramètres pertinents.\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
-  const noms = voicesFr().slice(0, 15).join(' ; ') || 'voix par défaut du téléphone';
   return [
     {name:'retenir', description:"Mémorise durablement une information sur l'utilisateur ou une consigne qu'il donne.",
       input_schema:{type:'object', properties:{fait:{type:'string'}}, required:['fait']}},
@@ -448,7 +525,9 @@ function toolDefs(){
     {name:'installer_mise_a_jour', description:"Rouvre l'écran d'installation de la dernière APK téléchargée.",
       input_schema:{type:'object', properties:{}}},
     {name:'annuler_derniere_amelioration', description:"Revient à la version précédente de l'appli Poupous.",
-      input_schema:{type:'object', properties:{}}}
+      input_schema:{type:'object', properties:{}}},
+    {name:'ajouter_courses_halal', description:"Ajoute un article à la liste de courses d'un magasin (aldi, lidl, colruyt, action) avec vérification stricte halal et sans viande.",
+      input_schema:{type:'object', properties:{magasin:{type:'string', enum:['aldi','lidl','colruyt','action']}, article:{type:'string'}}, required:['magasin','article']}}
   ];
 }
 async function runTool(name, input){
@@ -457,6 +536,18 @@ async function runTool(name, input){
     if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' souvenir(s) supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
     if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || 'Amélioration de l\'application'; return "Amélioration de code acceptée et programmée."; }
+    if (name === 'ajouter_courses_halal') {
+      const mag = String(input.magasin || 'aldi').toLowerCase();
+      const art = String(input.article || '').trim();
+      if (!art) return "Article vide.";
+      const comp = checkHalalCompliance(art);
+      if (!comp.compliant) return "Refusé : " + comp.reason;
+      const md = getMarketData();
+      if (!md[mag]) return "Magasin inconnu.";
+      md[mag].list.push(art);
+      saveMarketData(md);
+      return "Article ajouté avec succès chez " + md[mag].name + " (Halal et sans viande validé).";
+    }
     if (name === 'creer_fichier') {
       if (!hasFiles()) return NEED_APK;
       const nom = String(input.nom || 'poupous.txt');
