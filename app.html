@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=10 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=11 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -52,6 +52,17 @@ input[type=range]{accent-color:var(--cyan)}
 .chipfile span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
 .keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
+
+/* Styles Halal Market Hub */
+.market-nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
+.market-tab{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.market-tab.active{background:var(--cyan);color:#04202a;border-color:var(--cyan)}
+.market-content{display:flex;flex-direction:column;gap:12px}
+.market-section-title{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan);margin:8px 0 2px;font-weight:700}
+.market-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px}
+.market-item-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.market-item-row:last-child{border-bottom:0}
+.proximity-banner{background:rgba(56,214,245,.1);border:1px solid var(--cyan);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 </style>
 </head>
 <body>
@@ -108,10 +119,73 @@ const store = {
   set(k, v){ try { if (P) P.set(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-/* ---------- Interface ---------- */
+/* ---------- Interface Halal Courses ---------- */
+const marketData = {
+  aldi: {
+    name: "Aldi",
+    promos: ["Nuggets de poulet halal 1kg - 4,99€", "Merguez pur bœuf 500g - 3,50€"],
+    list: ["Lait demi-écrémé", "œufs frais", "Steaks hachés halal", "Huile de tournesol"]
+  },
+  lidl: {
+    name: "Lidl",
+    promos: ["Poulet entier halal mariné - 6,20€", "Yaourt nature x16 - 1,80€"],
+    list: ["Escalopes de poulet halal", "Pains pita", "Fromage râpé halal", "Tomates cerises"]
+  },
+  colruyt: {
+    name: "Colruyt",
+    promos: ["Surgelés feuilletés feta/épinards halal - 3,99€", "Assortiment charcuterie halal - 5,50€"],
+    list: ["Légumes surgelés", "Blé / Boulgour", "Pâtes", "Eau minérale en packs"]
+  },
+  action: {
+    name: "Action",
+    promos: ["Boîte de rangement plastique - 2,99€", "Éponges antibactériennes - 1,20€"],
+    list: ["Papier toilette", "Liquide vaisselle", "Sacs poubelle", "Papier aluminium"]
+  }
+};
+
+function renderHalalInterface() {
+  const activeTab = S.activeMarket || 'aldi';
+  const data = marketData[activeTab];
+  return `
+    <div class="proximity-banner">
+      <div>
+        <div style="font-weight:700;font-size:14px">Radar Proximité Halal</div>
+        <div class="hint" style="font-size:12px">Aucun magasin favori à moins de 500m</div>
+      </div>
+      <button class="btn primary" id="check-proximity" style="padding:6px 10px;font-size:12px">Scanner</button>
+    </div>
+    <div class="market-nav">
+      ${Object.keys(marketData).map(k => `<button class="market-tab ${k === activeTab ? 'active' : ''}" data-market="${k}">${marketData[k].name}</button>`).join('')}
+    </div>
+    <div class="market-content">
+      <div class="market-section-title">Promos du moment chez ${data.name}</div>
+      <div class="market-card">
+        ${data.promos.map(p => `<div class="market-item-row"><span>🔥 ${esc(p)}</span></div>`).join('')}
+      </div>
+      <div class="market-section-title">Liste de courses triée</div>
+      <div class="market-card" id="market-list-box">
+        ${data.list.map((item, idx) => `
+          <div class="market-item-row">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" data-market-item="${activeTab}-${idx}">
+              <span>${esc(item)}</span>
+            </label>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input id="new-market-item" placeholder="Ajouter un article…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">
+        <button class="btn" id="add-market-item-btn">Ajouter</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Interface Principale ---------- */
 $('#app').innerHTML =
   '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div></div>' +
-  '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></header>' +
+  '<div style="display:flex;gap:8px"><button class="icon-btn" id="open-market" aria-label="Courses Halal" style="color:var(--cyan)">🛒</button>' +
+  '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
   '<div class="log" id="log" aria-live="polite"></div>' +
   '<div class="attach" id="attach"></div>' +
@@ -119,6 +193,47 @@ $('#app').innerHTML =
   '<input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
   '<button class="mic" id="mic" aria-label="Parler à Poupous">' + MIC + '</button></div>' +
   '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
+
+function bindMarketEvents() {
+  document.querySelectorAll('.market-tab').forEach(btn => {
+    btn.onclick = () => {
+      S.activeMarket = btn.dataset.market;
+      const logBox = $('#log');
+      // If we are displaying courses in the log or a dedicated sheet, let's refresh sheet if open
+      if (!$('#sheet').hidden && $('#sheet-inner').querySelector('.market-nav')) {
+        openMarketSheet();
+      }
+    };
+  });
+  const addBtn = $('#add-market-item-btn');
+  if (addBtn) {
+    addBtn.onclick = () => {
+      const inp = $('#new-market-item');
+      if (!inp) return;
+      const val = inp.value.trim();
+      if (!val) return;
+      if (!marketData[S.activeMarket || 'aldi'].customList) marketData[S.activeMarket || 'aldi'].customList = [];
+      marketData[S.activeMarket || 'aldi'].list.push(val);
+      openMarketSheet();
+    };
+  }
+  const scanBtn = $('#check-proximity');
+  if (scanBtn) {
+    scanBtn.onclick = () => {
+      sys("Radar de proximité : Aucun magasin partenaire détecté à moins de 500m. Vous êtes loin d'Aldi, Lidl, Colruyt et Action.");
+      speak("Aucun magasin partenaire détecté à proximité.");
+    };
+  }
+}
+
+function openMarketSheet() {
+  $('#sheet-inner').innerHTML =
+    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES HALAL & PROMOS</span><button class="btn" id="close-market">Fermer</button></div>' +
+    renderHalalInterface();
+  $('#sheet').hidden = false;
+  $('#close-market').onclick = () => { $('#sheet').hidden = true; };
+  bindMarketEvents();
+}
 
 function setState(s){ S.state = s; $('#status').textContent = STATES[s][1]; }
 function idle(){ setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
@@ -839,6 +954,7 @@ function renderSettings(){
 /* ---------- Démarrage ---------- */
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
+$('#open-market').onclick = () => openMarketSheet();
 $('#fichier').onchange = e => {
   for (const f of Array.from(e.target.files || [])) {
     if (f.size > 10 * 1024 * 1024) { sys('« ' + f.name + ' » est trop gros (10 Mo maximum).'); continue; }
