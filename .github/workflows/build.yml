@@ -1,10 +1,12 @@
+          gh release create apk poupous.apk --title "Poupous" --notes "Dernière version de l'APK Poupous"
 name: Poupous APK
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'poupous-android.zip'
+      - 'poupous-android*.zip'
+      - 'app*.html'
       - '.github/workflows/**'
 
 permissions:
@@ -15,6 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ranger les fichiers
+        run: |
+          newest() { for f in $1; do [ -e "$f" ] && echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -1 | cut -d' ' -f2-; }
+          Z=$(newest 'poupous-android*.zip')
+          H=$(newest 'app*.html')
+          git config user.name "poupous-bot"
+          git config user.email "poupous-bot@users.noreply.github.com"
+          changed=0
+          if [ "$Z" != "poupous-android.zip" ]; then cp "$Z" /tmp/z.zip; git rm -q poupous-android*.zip; cp /tmp/z.zip poupous-android.zip; git add poupous-android.zip; changed=1; fi
+          if [ "$H" != "app.html" ]; then cp "$H" /tmp/a.html; git rm -q app*.html; cp /tmp/a.html app.html; git add app.html; changed=1; fi
+          if [ "$changed" = 1 ]; then git commit -m "Ranger les fichiers Poupous" && git push; fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
