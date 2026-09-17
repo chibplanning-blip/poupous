@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=14 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=15 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -74,7 +74,7 @@ const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
 const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
-const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsLog:[]};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsLog:[]};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -363,7 +363,7 @@ function findWake(text){
   return null;
 }
 async function followUps(){
-  while (S.lastOk && !S.pendingUpgrade && !S.pendingRollback) {
+  while (S.lastOk && !S.pendingUpgrade && !S.pendingApkUpgrade && !S.pendingRollback) {
     setState('ecoute'); $('#mic').classList.add('on');
     const r = await listenOnce(); $('#mic').classList.remove('on');
     if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { micError(r.err); break; }
@@ -456,7 +456,7 @@ async function runTool(name, input){
     if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé avec succès'; }
     if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' souvenir(s) supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
-    if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Amélioration de code acceptée et programmée."; }
+    if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || 'Amélioration de l\'application'; return "Amélioration de code acceptée et programmée."; }
     if (name === 'creer_fichier') {
       if (!hasFiles()) return NEED_APK;
       const nom = String(input.nom || 'poupous.txt');
@@ -467,7 +467,7 @@ async function runTool(name, input){
     if (name === 'ameliorer_apk') {
       if (!hasSelfApk()) return NEED_APK;
       if (!P.hasGithub()) return "Jeton GitHub manquant. Impossible de modifier l'APK sans jeton dans les réglages.";
-      S.pendingApkUpgrade = String(input.demande || '').trim() || null;
+      S.pendingApkUpgrade = String(input.demande || '').trim() || 'Amélioration de l\'application Android';
       return "Amélioration APK acceptée et programmée.";
     }
     if (name === 'installer_mise_a_jour') {
