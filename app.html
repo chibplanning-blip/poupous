@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=3 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=5 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -45,6 +45,12 @@ input[type=range]{accent-color:var(--cyan)}
 .btn.primary{background:var(--cyan);color:#04202a;border-color:var(--cyan);font-weight:700}
 .hint{color:var(--muted);font-size:13px}
 .keybox{display:flex;flex-direction:column;gap:12px}
+.clip{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
+.attach{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
+.attach:empty{display:none}
+.chipfile{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 12px;font-size:13px;max-width:100%}
+.chipfile span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
 .keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
 </style>
 </head>
@@ -56,8 +62,8 @@ input[type=range]{accent-color:var(--cyan)}
 const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
-const DEFAUT = {vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
-const S = {state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false};
+const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -74,6 +80,7 @@ const STATES = {
   erreur:['#ff6b6b','Un souci est survenu']
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
 const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
 
 /* ---------- Pont avec l'appli Android ---------- */
@@ -87,7 +94,13 @@ window.__listenDone = (id, text, err) => settle(id, {text, err});
 window.__listenPartial = t => { $('#live').textContent = t; };
 window.__listenReady = () => {};
 window.__contactsDone = (id, json) => settle(id, json);
+window.__githubDone = (id, status, text) => settle(id, {status, text});
+window.__installDone = (id, result) => settle(id, result);
+window.__sharedAvailable = () => loadShared();
+const hasFiles = () => !!(P && typeof P.saveFile === 'function');
+const hasSelfApk = () => !!(P && typeof P.buildZipBase64 === 'function');
 const hasPhone = () => !!(P && typeof P.dial === 'function');
+const NEED_APK = "Cette action demande la version 1.2 de l'APK Poupous. Elle doit être installée une fois à la main depuis la page Releases du dépôt GitHub.";
 const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
 window.__onBack = () => { if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
 const store = {
@@ -101,7 +114,9 @@ $('#app').innerHTML =
   '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
   '<div class="log" id="log" aria-live="polite"></div>' +
-  '<div class="bar"><input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
+  '<div class="attach" id="attach"></div>' +
+  '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden>' +
+  '<input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
   '<button class="mic" id="mic" aria-label="Parler à Poupous">' + MIC + '</button></div>' +
   '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
 
@@ -249,7 +264,9 @@ function systemPrompt(){
     "ameliorer_mon_code : tu peux VRAIMENT modifier ton propre programme (interface, fonctionnalités, comportement) quand l'utilisateur le demande. Ne dis jamais que c'est impossible. Si la demande est floue, pose d'abord une courte question, puis donne à l'outil une demande détaillée. " +
     "annuler_derniere_amelioration : revenir à la version précédente.\n" +
     "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
-    "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute écran éteint pour l'instant.\n" +
+    "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
+    "Tu as deux façons de t'améliorer, et c'est TOI qui fais ces mises à jour : ne dis jamais de contacter un développeur. ameliorer_mon_code change ta page (interface, comportement, logique), c'est immédiat. ameliorer_apk change ton application Android (nouvelles autorisations, accès au téléphone, fonctions natives, services en arrière-plan) : tu réécris ton code Java, GitHub reconstruit l'APK en 5 à 10 minutes, puis tu la télécharges et ouvres l'écran d'installation où l'utilisateur touche Mettre à jour. Il faut un jeton GitHub dans les réglages. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas encore dans window.Poupous. installer_mise_a_jour : relance l'installation de l'APK déjà téléchargée.\n" +
+    "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas encore d'écoute écran éteint (possible via ameliorer_apk).\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
@@ -279,6 +296,12 @@ function toolDefs(){
       input_schema:{type:'object', properties:{destination:{type:'string'}}, required:['destination']}},
     {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt (destinataire facultatif, objet, texte) ; l'utilisateur appuie sur Envoyer.",
       input_schema:{type:'object', properties:{destinataire:{type:'string'}, objet:{type:'string'}, texte:{type:'string'}}, required:['objet','texte']}},
+    {name:'creer_fichier', description:"Crée un fichier texte (txt, md, csv, html, json…) avec ce contenu, l'enregistre dans Téléchargements/Poupous et, si partager est vrai, ouvre le menu de partage pour l'envoyer.",
+      input_schema:{type:'object', properties:{nom:{type:'string', description:'nom avec extension, par exemple liste-courses.txt'}, contenu:{type:'string'}, partager:{type:'boolean'}}, required:['nom','contenu']}},
+    {name:'ameliorer_apk', description:"Modifie réellement l'application Android de Poupous (code Java, autorisations, fonctions natives) selon une demande détaillée, la fait reconstruire sur GitHub puis lance son installation. Démarre juste après ta réponse et prend 5 à 15 minutes.",
+      input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
+    {name:'installer_mise_a_jour', description:"Rouvre l'écran d'installation de la dernière APK Poupous téléchargée (par exemple après que l'utilisateur a autorisé l'installation d'applis).",
+      input_schema:{type:'object', properties:{}}},
     {name:'annuler_derniere_amelioration', description:"Revient à la version précédente de l'appli Poupous juste après ta réponse, puis recharge.",
       input_schema:{type:'object', properties:{}}}
   ];
@@ -289,6 +312,23 @@ async function runTool(name, input){
     if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
     if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Accepté. L'amélioration démarre juste après ta réponse : préviens que ça prend une à trois minutes et que l'appli va se recharger."; }
+    if (name === 'creer_fichier') {
+      if (!hasFiles()) return NEED_APK;
+      const nom = String(input.nom || 'poupous.txt');
+      const ext = (nom.split('.').pop() || '').toLowerCase();
+      const mime = ({txt:'text/plain', md:'text/markdown', csv:'text/csv', html:'text/html', htm:'text/html', json:'application/json', xml:'text/xml'})[ext] || 'text/plain';
+      return P.saveFile(nom, mime, b64utf8(String(input.contenu || '')), input.partager !== false);
+    }
+    if (name === 'ameliorer_apk') {
+      if (!hasSelfApk()) return NEED_APK;
+      if (!P.hasGithub()) return "Impossible pour l'instant : il manque le jeton GitHub. Explique à l'utilisateur de l'ajouter dans les réglages (roue en haut à droite, rubrique GitHub).";
+      S.pendingApkUpgrade = String(input.demande || '').trim() || null;
+      return "Accepté. La modification de l'APK démarre juste après ta réponse : préviens que ça prend 5 à 15 minutes, que l'appli doit rester ouverte, et qu'à la fin il faudra toucher Mettre à jour.";
+    }
+    if (name === 'installer_mise_a_jour') {
+      if (!hasSelfApk()) return NEED_APK;
+      return String(await waitFor('i', id => P.installDownloaded(id)));
+    }
     const PHONE_TOOLS = ['chercher_contact','appeler','envoyer_sms','mettre_reveil','minuteur','ouvrir_appli','itineraire','preparer_mail'];
     if (PHONE_TOOLS.includes(name) && !hasPhone()) return OLD_APK;
     if (name === 'chercher_contact') return await waitFor('k', id => P.findContact(id, String(input.nom || '')));
@@ -321,7 +361,150 @@ async function callClaude(body){
   err.status = r.status; err.type = data && data.error ? data.error.type : 'network';
   throw err;
 }
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+function provider(){ return S.reglages.cerveau === 'claude' ? 'claude' : 'gemini'; }
+function geminiKey(){ return store.get('geminiKey', ''); }
+function brainReady(){ return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
+function openBrainKey(){ if (provider() === 'gemini') openGeminiKey(); else openKey(); }
+function toGeminiSchema(s){
+  if (!s || typeof s !== 'object') return s;
+  const o = {};
+  for (const k in s) {
+    if (k === 'type') o.type = String(s.type).toUpperCase();
+    else if (k === 'properties') { o.properties = {}; for (const q in s.properties) o.properties[q] = toGeminiSchema(s.properties[q]); }
+    else if (k === 'items') o.items = toGeminiSchema(s.items);
+    else o[k] = s[k];
+  }
+  return o;
+}
+function geminiTools(){
+  return [{functionDeclarations: toolDefs().map(t => {
+    const d = {name:t.name, description:t.description};
+    if (t.input_schema && t.input_schema.properties && Object.keys(t.input_schema.properties).length) d.parameters = toGeminiSchema(t.input_schema);
+    return d;
+  })}];
+}
+async function geminiCall(body){
+  if (!P || typeof P.github !== 'function') { const e = new Error("L'APK 1.2 est nécessaire pour Gemini."); e.status = 0; throw e; }
+  const saved = store.get('geminiModel', '');
+  const models = (saved ? [saved] : []).concat(GEMINI_MODELS.filter(m => m !== saved));
+  let lastErr = null;
+  for (const m of models) {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(geminiKey());
+    const r = await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
+    let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+    if (r.status === 200 && data) { if (m !== saved) store.set('geminiModel', m); return data; }
+    const msg = data && data.error ? String(data.error.message || '') : String(r.text || '');
+    const err = new Error(msg); err.status = r.status; err.gemini = true; lastErr = err;
+    if (r.status === 404 || (r.status === 429 && /limit:\s*0|free_tier/i.test(msg))) continue;
+    throw err;
+  }
+  throw lastErr;
+}
+function geminiParts(content){
+  const parts = [];
+  if (typeof content === 'string') parts.push({text:content});
+  else for (const b of content) {
+    if (b.type === 'text') parts.push({text:b.text});
+    else if ((b.type === 'image' || b.type === 'document') && b.source) parts.push({inlineData:{mimeType:b.source.media_type, data:b.source.data}});
+  }
+  return parts;
+}
+async function askGemini(messages, onText){
+  const contents = [];
+  for (const m of messages) {
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    const parts = geminiParts(m.content);
+    if (!parts.length) continue;
+    if (contents.length && contents[contents.length - 1].role === role) contents[contents.length - 1].parts.push(...parts);
+    else contents.push({role, parts});
+  }
+  while (contents.length && contents[0].role !== 'user') contents.shift();
+  let answer = '';
+  for (let round = 0; round < 6; round++) {
+    const data = await geminiCall({systemInstruction:{parts:[{text:systemPrompt()}]}, contents, tools:geminiTools(), generationConfig:{maxOutputTokens:8192}});
+    const cand = (data.candidates || [])[0];
+    if (!cand || !cand.content) break;
+    const parts = cand.content.parts || [];
+    const texts = parts.filter(x => x.text && !x.thought).map(x => x.text).join(' ').trim();
+    if (texts) { answer = clean(texts); onText(answer); }
+    const calls = parts.filter(x => x.functionCall);
+    if (!calls.length) break;
+    contents.push({role:'model', parts});
+    const responses = [];
+    for (const c of calls) responses.push({functionResponse:{name:c.functionCall.name, response:{resultat:String(await runTool(c.functionCall.name, c.functionCall.args || {}))}}});
+    contents.push({role:'user', parts:responses});
+  }
+  return answer;
+}
+async function complete(system, user, maxTokens){
+  if (provider() === 'gemini') {
+    const data = await geminiCall({systemInstruction:{parts:[{text:system}]}, contents:[{role:'user', parts:[{text:user}]}], generationConfig:{maxOutputTokens:65536}});
+    const c = (data.candidates || [])[0] || {};
+    const text = ((c.content && c.content.parts) || []).filter(x => x.text && !x.thought).map(x => x.text).join('');
+    return {text, truncated: c.finishReason === 'MAX_TOKENS'};
+  }
+  const data = await callClaude({model:UPGRADE_MODEL, max_tokens:maxTokens, system, messages:[{role:'user', content:user}]});
+  return {text:(data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), truncated: data.stop_reason === 'max_tokens'};
+}
+function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
+function utf8b64(b){ try { return decodeURIComponent(escape(atob(b))); } catch (e) { return atob(b); } }
+async function gh(method, path, body){
+  const r = await waitFor('g', id => P.github(id, method, path, body ? JSON.stringify(body) : ''));
+  let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+  return {status:r.status, data, text:r.text};
+}
+async function pushFile(path, contentB64, message){
+  const repo = P.repo();
+  const cur = await gh('GET', '/repos/' + repo + '/contents/' + encodeURI(path));
+  const body = {message, content:contentB64};
+  if (cur.status === 200 && cur.data && cur.data.sha) body.sha = cur.data.sha;
+  const r = await gh('PUT', '/repos/' + repo + '/contents/' + encodeURI(path), body);
+  if (r.status !== 200 && r.status !== 201) {
+    const why = r.status === 401 ? 'jeton GitHub refusé' : r.status === 403 || r.status === 404 ? 'jeton GitHub sans accès en écriture au dépôt' : ((r.data && r.data.message) || r.text || '').slice(0, 160);
+    throw new Error('GitHub ' + r.status + ' : ' + why);
+  }
+}
+function attachmentBlocks(list){
+  const blocks = [];
+  for (const a of list) {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(a.type)) blocks.push({type:'image', source:{type:'base64', media_type:a.type, data:a.base64}});
+    else if (a.type === 'application/pdf') blocks.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:a.base64}});
+    else if (/^text\/|json|xml|csv|javascript/.test(a.type) || /\.(txt|md|csv|json|html?|xml|js|py|java|kt|log)$/i.test(a.nom)) blocks.push({type:'text', text:'Fichier « ' + a.nom + ' » :\n' + utf8b64(a.base64).slice(0, 100000)});
+    else blocks.push({type:'text', text:'(Fichier « ' + a.nom + ' » de type ' + a.type + ' reçu : je ne peux pas lire ce format.)'});
+  }
+  return blocks;
+}
+function renderAttachments(){
+  const box = $('#attach'); box.innerHTML = '';
+  S.attachments.forEach((a, i) => {
+    const c = document.createElement('div'); c.className = 'chipfile';
+    const s = document.createElement('span'); s.textContent = a.nom; c.appendChild(s);
+    const b = document.createElement('button'); b.textContent = '×'; b.setAttribute('aria-label', 'Retirer ' + a.nom);
+    b.onclick = () => { S.attachments.splice(i, 1); renderAttachments(); };
+    c.appendChild(b); box.appendChild(c);
+  });
+}
+function addAttachment(nom, type, base64){
+  if (base64.length > 14000000) { sys('« ' + nom + ' » est trop gros (10 Mo maximum).'); return; }
+  S.attachments.push({nom, type: type || 'application/octet-stream', base64}); renderAttachments();
+}
+function loadShared(){
+  if (!P || typeof P.takeShared !== 'function') return;
+  let d = null; try { const s = P.takeShared(); d = s ? JSON.parse(s) : null; } catch (e) {}
+  if (!d) return;
+  if (d.base64) { addAttachment(d.nom || 'fichier', d.type, d.base64); sys('Fichier reçu : ' + (d.nom || 'fichier') + '. Dis-moi ce que je dois en faire.'); }
+  if (d.texte) { $('#texte').value = d.texte; if (!d.base64) sys('Texte reçu. Complète ta demande puis envoie.'); }
+}
 function errCopy(e){
+  if (e.gemini) {
+    if (e.status === 400 && /api key|API_KEY/i.test(e.message || '')) return "Ma clé Gemini est refusée. Vérifie-la dans les réglages.";
+    if (e.status === 403) return "Ma clé Gemini n'a pas accès à ce modèle. Vérifie-la dans les réglages.";
+    if (e.status === 429) return "J'ai atteint la limite gratuite de Gemini. Réessaie dans une minute, ou demain si c'est la limite du jour.";
+    if (e.status >= 500) return "Gemini est surchargé, redemande-moi dans un instant.";
+    if (!e.status) return "Pas de connexion internet, je ne peux pas réfléchir.";
+    return "J'ai eu un souci avec Gemini (" + e.status + ").";
+  }
   if (e.status === 401) return "Ma clé API est refusée. Vérifie-la dans les réglages.";
   if (e.status === 402 || /credit|billing/i.test(e.message || '')) return "Il n'y a plus de crédit sur ta clé API. Recharge-la sur console.anthropic.com.";
   if (e.status === 429) return "Trop de demandes d'un coup. Attends un peu et redemande-moi.";
@@ -333,15 +516,20 @@ async function ask(text){
   if (S.busy) return;
   S.busy = true; S.lastOk = false;
   addMsg('toi', text);
-  if (!P || !P.hasKey()) { const m = "Il me faut ta clé API pour réfléchir. Ouvre les réglages."; addMsg('poupous', m); S.busy = false; idle(); openKey(); return; }
-  S.turns.push({role:'user', content:text});
+  if (!brainReady()) { const m = provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."; addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
+  const joints = S.attachments.splice(0); renderAttachments();
+  if (joints.length) sys('Fichiers joints : ' + joints.map(a => a.nom).join(', '));
+  S.turns.push({role:'user', content: text + (joints.length ? '\n[Fichiers joints : ' + joints.map(a => a.nom).join(', ') + ']' : '')});
   setState('reflexion');
   const p = addMsg('poupous', '…');
   const messages = S.turns.slice(-20).map(x => ({role:x.role, content:x.content}));
   while (messages.length && messages[0].role !== 'user') messages.shift();
+  if (joints.length) messages[messages.length - 1] = {role:'user', content: attachmentBlocks(joints).concat([{type:'text', text}])};
   let answer = '';
   try {
-    for (let round = 0; round < 6; round++) {
+    if (provider() === 'gemini') {
+      answer = await askGemini(messages, t => { p.textContent = t; scrollLog(); });
+    } else for (let round = 0; round < 6; round++) {
       const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, system:systemPrompt(), tools:toolDefs(), messages});
       const texts = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
       if (texts) { answer = clean(texts); p.textContent = answer; scrollLog(); }
@@ -359,7 +547,8 @@ async function ask(text){
   if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
   await speak(answer);
   S.busy = false;
-  if (S.pendingUpgrade) { const d = S.pendingUpgrade; S.pendingUpgrade = null; await runUpgrade(d); }
+  if (S.pendingApkUpgrade) { const d = S.pendingApkUpgrade; S.pendingApkUpgrade = null; S.pendingUpgrade = null; await runApkUpgrade(d); }
+  else if (S.pendingUpgrade) { const d = S.pendingUpgrade; S.pendingUpgrade = null; await runUpgrade(d); }
   else if (S.pendingRollback) { S.pendingRollback = false; rollback(); }
   else idle();
 }
@@ -374,19 +563,19 @@ async function runUpgrade(demande){
   if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
   const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
   const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
-    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom). Ces fonctions ne peuvent pas changer.\n" +
+    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), hasGithub(), setGithub(jeton), repo(), github(id, methode, chemin, corps) (réponse via window.__githubDone(id, status, texte)), sourceFiles(), buildZipBase64(fichiersJson), downloadAndInstall(id, url) et installDownloaded(id) (résultat via window.__installDone(id, resultat)), nativeVersion(). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
     "Contraintes impératives :\n" +
     "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
     "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
-    "- Garde les outils ameliorer_mon_code et annuler_derniere_amelioration, la fonction runUpgrade, et la ligne window.__poupousOK = true.\n" +
+    "- Garde les outils ameliorer_mon_code, ameliorer_apk, installer_mise_a_jour et annuler_derniere_amelioration, les fonctions runUpgrade et runApkUpgrade, et la ligne window.__poupousOK = true.\n" +
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
   let out = '';
   try {
-    const data = await callClaude({model:UPGRADE_MODEL, max_tokens:32000, system:rules, messages:[{role:'user', content:"DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source}]});
-    if (data.stop_reason === 'max_tokens') return upgradeFail("Le nouveau code était trop long et a été coupé. Je n'ai rien changé.");
-    out = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source, 32000);
+    if (res.truncated) return upgradeFail("Le nouveau code était trop long et a été coupé. Je n'ai rien changé.");
+    out = res.text;
   } catch (e) { return upgradeFail(errCopy(e) + " Je n'ai rien changé."); }
   const iR = out.indexOf(MK('RESUME')), iH = out.indexOf(MK('HTML')), iF = out.lastIndexOf(MK('FIN'));
   if (iH < 0 || iF < iH) return upgradeFail("Je n'ai pas reçu un code complet. Je n'ai rien changé.");
@@ -397,10 +586,111 @@ async function runUpgrade(demande){
   }
   const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
   for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return upgradeFail("Le nouveau code contient une erreur : " + e.message + ". Je n'ai rien changé."); } }
+  let finalHtml = html;
+  if (hasSelfApk() && P.hasGithub()) {
+    const bumped = html.replace(/POUPOUS_VERSION\s*=\s*\d+/, 'POUPOUS_VERSION=' + (parseInt(version, 10) + 1));
+    try { await pushFile('app.html', b64utf8(bumped), 'Poupous : ' + resume.slice(0, 60)); finalHtml = bumped; }
+    catch (e) { sys("Sauvegarde sur GitHub impossible (" + e.message + ") : la modification reste seulement sur ce téléphone."); }
+  }
   store.set('maj', {resume, vu:false});
   await speak("C'est prêt, je me recharge.");
-  const r = P.saveApp(html);
+  const r = P.saveApp(finalHtml);
   if (r !== 'ok') { store.set('maj', null); upgradeFail("L'enregistrement a échoué (" + r + ")."); }
+}
+const FSTART = '=' + '==FICHIER ', FEND = '=' + '==', FDONE = '=' + '==FIN_FICHIER===';
+async function runApkUpgrade(demande){
+  S.busy = true; setState('amelioration');
+  if (!hasSelfApk()) return upgradeFail(NEED_APK);
+  if (!P.hasGithub()) return upgradeFail("Il me faut un jeton GitHub pour modifier mon application. Ajoute-le dans les réglages.");
+  sys('Modification de mon application Android : ' + demande);
+  let files = {}; try { files = JSON.parse(P.sourceFiles()); } catch (e) {}
+  const MAIN = 'app/src/main/java/com/poupous/app/MainActivity.java', GRADLE = 'app/build.gradle', MANIFEST = 'app/src/main/AndroidManifest.xml';
+  if (!files[MAIN] || !files[GRADLE]) return upgradeFail("Je ne trouve pas mon code Android.");
+  const repo = P.repo();
+  const oldCode = parseInt((files[GRADLE].match(/versionCode\s+(\d+)/) || [])[1] || '1', 10);
+  const rules = "Tu es un développeur Android expert. Tu modifies le projet Android de Poupous : Java uniquement, sans AndroidX ni aucune dépendance, compileSdk 34, minSdk 26, construit par Gradle 8.9 et Android Gradle Plugin 8.5.2 sur GitHub Actions. L'appli est une WebView qui charge app.html et expose l'objet JavaScript window.Poupous via la classe interne Bridge (@JavascriptInterface).\n" +
+    "Contraintes impératives :\n" +
+    "- Renvoie uniquement les fichiers modifiés ou nouveaux, chacun EN ENTIER.\n" +
+    "- Ne supprime ni ne renomme aucune méthode existante du Bridge (la page en dépend), ni FilesProvider, ni le mécanisme de mise à jour (checkForUpdate, saveApp, restoreBackup, github, sourceFiles, buildZipBase64, downloadAndInstall, installDownloaded).\n" +
+    "- Incrémente versionCode et versionName dans app/build.gradle.\n" +
+    "- N'ajoute aucune dépendance ni aucun dépôt Maven.\n" +
+    "- Ne touche pas à la signature (signingConfigs, keystore) ni à prepare.sh.\n" +
+    "- Déclare toute nouvelle autorisation dans AndroidManifest.xml et demande les autorisations dangereuses à l'exécution ; un service en arrière-plan doit être un service au premier plan avec notification et le bon foregroundServiceType.\n" +
+    "- Pour chaque nouvelle capacité, ajoute une méthode @JavascriptInterface au Bridge et fais incrémenter nativeVersion().\n" +
+    "- Le code doit compiler du premier coup : imports complets, API compatibles avec minSdk 26 (teste Build.VERSION.SDK_INT sinon), pas de lambda qui capture une variable modifiée.\n" +
+    "Format de réponse exact, sans markdown : première ligne RESUME: une ou deux phrases en français qui décrivent le changement et les nouvelles méthodes JavaScript disponibles. Puis pour chaque fichier : une ligne " + FSTART + "chemin/relatif" + FEND + ", le contenu complet du fichier, puis une ligne " + FDONE + ".";
+  let lastLog = '', resume = demande;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const prog = sys(attempt === 1 ? 'Écriture du nouveau code Android…' : 'La construction a échoué, je corrige mon code…');
+    const listing = Object.keys(files).sort().map(k => FSTART + k + FEND + '\n' + files[k] + '\n' + FDONE).join('\n');
+    const userMsg = "DEMANDE DE L'UTILISATEUR :\n" + demande + (lastLog ? "\n\nLA CONSTRUCTION DE TA VERSION PRÉCÉDENTE A ÉCHOUÉ. CORRIGE L'ERREUR. FIN DU JOURNAL :\n" + lastLog : '') + "\n\nFICHIERS ACTUELS DU PROJET :\n" + listing;
+    let out = '';
+    try {
+      const res = await complete(rules, userMsg, 32000);
+      if (res.truncated) return upgradeFail("Le nouveau code Android était trop long et a été coupé. Je n'ai rien changé.");
+      out = res.text;
+    } catch (e) { return upgradeFail(errCopy(e) + " Je n'ai rien changé."); }
+    const rm = out.match(/RESUME:\s*(.+)/);
+    if (rm) resume = rm[1].trim().slice(0, 300);
+    const changed = {};
+    for (const part of out.split(FSTART).slice(1)) {
+      const nl = part.indexOf('\n'); if (nl < 0) continue;
+      const path = part.slice(0, nl).replace(/=+\s*$/, '').trim();
+      let body = part.slice(nl + 1);
+      const end = body.lastIndexOf(FDONE); if (end >= 0) body = body.slice(0, end);
+      body = body.replace(/^\s*```\w*\n|\n```\s*$/g, '').replace(/\s+$/, '') + '\n';
+      if (!path || path.includes('..') || path.startsWith('/') || path.endsWith('.keystore') || path === 'prepare.sh') continue;
+      changed[path] = body;
+    }
+    if (!Object.keys(changed).length) return upgradeFail("Je n'ai reçu aucun fichier modifié. Je n'ai rien changé.");
+    const next = Object.assign({}, files, changed);
+    for (const k of ['class Bridge', 'buildZipBase64', 'downloadAndInstall', 'installDownloaded', 'saveApp', 'sourceFiles', 'github(']) {
+      if (!next[MAIN].includes(k)) return upgradeFail("Le nouveau code Android perdait une partie essentielle (" + k + "). Je n'ai rien changé.");
+    }
+    if (next[MANIFEST] && !next[MANIFEST].includes('FilesProvider')) return upgradeFail("Le nouveau manifeste perdait le partage de fichiers. Je n'ai rien changé.");
+    let newCode = parseInt((next[GRADLE].match(/versionCode\s+(\d+)/) || [])[1] || '0', 10);
+    if (!(newCode > oldCode)) {
+      newCode = oldCode + 1;
+      next[GRADLE] = next[GRADLE].replace(/versionCode\s+\d+/, 'versionCode ' + newCode).replace(/versionName\s+'[^']*'/, "versionName '1." + (newCode - 1) + "'");
+    }
+    prog.textContent = 'Envoi du code sur GitHub…';
+    const zip = P.buildZipBase64(JSON.stringify(next));
+    if (!zip || zip.startsWith('erreur')) return upgradeFail("Impossible de préparer le paquet : " + zip);
+    const started = Date.now();
+    try { await pushFile('poupous-android-auto-' + newCode + '.zip', zip, 'Poupous APK ' + newCode + ' : ' + resume.slice(0, 60)); }
+    catch (e) { return upgradeFail("Envoi sur GitHub impossible : " + e.message + ". Je n'ai rien changé."); }
+    await speak("Code envoyé. GitHub construit ma nouvelle version, ça prend quelques minutes. Garde l'appli ouverte.");
+    setState('amelioration');
+    let run = null;
+    for (let i = 0; i < 60; i++) {
+      await sleep(20000);
+      const r = await gh('GET', '/repos/' + repo + '/actions/runs?per_page=10');
+      const runs = (r.data && r.data.workflow_runs) || [];
+      const mine = runs.filter(x => new Date(x.created_at).getTime() > started - 180000).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0];
+      if (!mine) { prog.textContent = 'En attente du démarrage de la construction…'; continue; }
+      prog.textContent = 'Construction en cours sur GitHub… (' + Math.round((Date.now() - started) / 60000) + ' min)';
+      if (mine.status === 'completed') { run = mine; break; }
+    }
+    if (!run) return upgradeFail("La construction sur GitHub prend trop de temps. Regarde l'onglet Actions du dépôt, puis dis-moi « installe la mise à jour » quand elle est finie.");
+    if (run.conclusion === 'success') {
+      prog.textContent = 'Téléchargement de la nouvelle version…';
+      store.set('maj', {resume:'Application Android mise à jour. ' + resume, vu:false});
+      const res = String(await waitFor('i', id => P.downloadAndInstall(id, 'https://github.com/' + repo + '/releases/download/apk/poupous.apk')));
+      S.busy = false;
+      if (res === 'ok') { await speak("La nouvelle version est prête : touche Mettre à jour."); idle(); return; }
+      if (res === 'permission') { await speak("Autorise Poupous à installer des applis dans l'écran qui vient de s'ouvrir, puis dis-moi « installe la mise à jour »."); idle(); return; }
+      store.set('maj', null);
+      return upgradeFail("Le téléchargement de la nouvelle version a échoué : " + res);
+    }
+    lastLog = '';
+    try {
+      const jobs = await gh('GET', '/repos/' + repo + '/actions/runs/' + run.id + '/jobs');
+      const job = ((jobs.data && jobs.data.jobs) || [])[0];
+      if (job) { const logs = await gh('GET', '/repos/' + repo + '/actions/jobs/' + job.id + '/logs'); lastLog = (logs.text || '').slice(-8000); }
+    } catch (e) {}
+    files = next;
+    if (attempt === 2) return upgradeFail("La construction a encore échoué, je n'installe rien. Ta version actuelle reste intacte.");
+  }
 }
 async function rollback(){
   S.busy = true; setState('amelioration');
@@ -434,6 +724,38 @@ function openKey(){
     P.setKey(k); $('#sheet').hidden = true; sys('Clé enregistrée. Je suis prêt !');
   };
 }
+function openGeminiKey(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">CLÉ GEMINI (GRATUITE)</span>' +
+    '<p class="hint">1. Ouvre aistudio.google.com/apikey dans Chrome, connecté à ton compte Google.<br>2. Touche « Create API key » et copie la clé (elle commence par AIza).<br>3. Colle-la ici. Elle reste enregistrée uniquement sur ce téléphone.</p>' +
+    '<input id="gemkey" type="password" autocomplete="off" placeholder="AIza…" aria-label="Clé Gemini">' +
+    '<div class="row" style="border:0"><button class="btn" id="gem-cancel">Plus tard</button><button class="btn primary" id="gem-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#gem-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#gem-save').onclick = () => {
+    const k = $('#gemkey').value.trim();
+    if (!/^AIza[\w-]{20,}$/.test(k)) { $('#gemkey').style.borderColor = '#ff6b6b'; return; }
+    store.set('geminiKey', k); store.set('geminiModel', ''); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !');
+  };
+}
+function openGithub(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">JETON GITHUB</span>' +
+    '<p class="hint">Colle un jeton GitHub (il commence par github_pat_) avec accès au dépôt ' + esc(P.repo()) + ' : Contents en lecture et écriture, Actions en lecture. Il reste enregistré uniquement sur ce téléphone.</p>' +
+    '<input id="ghkey" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="Jeton GitHub">' +
+    '<div class="row" style="border:0"><button class="btn" id="gh-cancel">Annuler</button><button class="btn primary" id="gh-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#gh-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#gh-save').onclick = async () => {
+    const k = $('#ghkey').value.trim();
+    if (!/^(github_pat_|ghp_)/.test(k)) { $('#ghkey').style.borderColor = '#ff6b6b'; return; }
+    P.setGithub(k); $('#sheet').hidden = true;
+    const r = await gh('GET', '/repos/' + P.repo());
+    if (r.status === 200 && r.data && r.data.permissions && r.data.permissions.push) sys('Jeton GitHub enregistré : je peux maintenant me reconstruire moi-même.');
+    else if (r.status === 200) sys("Jeton enregistré, mais il n'a pas le droit d'écrire dans le dépôt. Donne-lui Contents en lecture et écriture.");
+    else sys('Jeton enregistré, mais GitHub le refuse (' + r.status + '). Vérifie qu\'il donne accès au dépôt ' + P.repo() + '.');
+  };
+}
 function renderSettings(){
   const r = S.reglages, vs = voicesFr();
   $('#sheet-inner').innerHTML =
@@ -448,10 +770,15 @@ function renderSettings(){
     '<h2>Ce que Poupous retient</h2>' +
     (S.faits.length ? S.faits.map((f, i) => '<div class="chip"><span>' + esc(f) + '</span><button class="btn" data-del="' + i + '">Oublier</button></div>').join('')
       : '<p class="hint">Rien pour l\'instant. Dis par exemple « retiens que je bois mon café noir ».</p>') +
-    '<h2>Clé API</h2>' +
-    '<div class="row"><span>' + (P && P.hasKey() ? 'Clé enregistrée' : 'Aucune clé') + '</span><button class="btn" id="change-key">Changer</button></div>' +
+    '<h2>Cerveau</h2>' +
+    '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option></select></div>' +
+    '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    (P && typeof P.setGithub === 'function' ?
+      '<h2>GitHub</h2><p class="hint">Permet à Poupous de reconstruire et installer lui-même son application.</p>' +
+      '<div class="row"><span>' + (P.hasGithub() ? 'Jeton enregistré' : 'Aucun jeton') + '</span><button class="btn" id="change-gh">' + (P.hasGithub() ? 'Changer' : 'Ajouter') + '</button></div>' : '') +
     '<h2>Versions</h2>' +
-    '<p class="hint">Demande « améliore-toi… » et Poupous modifie son propre code. Version installée : ' + (P ? P.appVersion() : '?') + '</p>' +
+    '<p class="hint">Page : version ' + (P ? P.appVersion() : '?') + ' · Application Android : ' + (P && typeof P.nativeVersion === 'function' ? '1.' + (P.nativeVersion() - 1) : '1.0') + '</p>' +
     '<div class="row"><span>Version précédente</span><button class="btn" id="undo">Restaurer</button></div>' +
     '<div class="row"><span>Historique de conversation</span><button class="btn" id="clear-conv">Effacer</button></div>';
   $('#close-settings').onclick = () => { $('#sheet').hidden = true; };
@@ -461,6 +788,9 @@ function renderSettings(){
   $('#hauteur').onchange = e => setReglage('hauteur', e.target.value);
   $('#test-voix').onclick = () => speak("Salut, c'est Poupous. Voilà ma voix.").then(() => { if (!S.busy) idle(); });
   $('#change-key').onclick = openKey;
+  $('#change-gem').onclick = openGeminiKey;
+  $('#cerveau').onchange = e => { S.reglages.cerveau = e.target.value; store.set('reglages', S.reglages); renderSettings(); if (!brainReady()) openBrainKey(); };
+  if ($('#change-gh')) $('#change-gh').onclick = openGithub;
   $('#sheet-inner').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { S.faits.splice(+b.dataset.del, 1); store.set('memoire', S.faits); renderSettings(); });
   $('#undo').onclick = () => { $('#sheet').hidden = true; if (!S.busy) rollback(); };
   $('#clear-conv').onclick = () => { S.turns = []; store.set('conversation', []); $('#log').innerHTML = ''; sys('Historique effacé.'); };
@@ -468,7 +798,17 @@ function renderSettings(){
 
 /* ---------- Démarrage ---------- */
 $('#mic').onclick = micTap;
-$('#texte').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v && !S.busy) { e.target.value = ''; e.target.blur(); stopSpeaking(); ask(v).then(() => { if (!S.busy) idle(); }); } } });
+$('#clip').onclick = () => $('#fichier').click();
+$('#fichier').onchange = e => {
+  for (const f of Array.from(e.target.files || [])) {
+    if (f.size > 10 * 1024 * 1024) { sys('« ' + f.name + ' » est trop gros (10 Mo maximum).'); continue; }
+    const rd = new FileReader();
+    rd.onload = () => { const s = String(rd.result); addAttachment(f.name, f.type, s.slice(s.indexOf(',') + 1)); };
+    rd.readAsDataURL(f);
+  }
+  e.target.value = '';
+};
+$('#texte').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value.trim() || (S.attachments.length ? 'Voici un fichier.' : ''); if (v && !S.busy) { e.target.value = ''; e.target.blur(); stopSpeaking(); ask(v).then(() => { if (!S.busy) idle(); }); } } });
 $('#open-settings').onclick = () => { renderSettings(); $('#sheet').hidden = false; };
 $('#sheet').onclick = e => { if (e.target.id === 'sheet') $('#sheet').hidden = true; };
 setState('chargement');
@@ -483,8 +823,9 @@ if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
 if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forEach(x => addMsg(x.role === 'user' ? 'toi' : 'poupous', x.content)); }
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
 idle();
-if (P && !P.hasKey()) openKey(); else announce();
+if (P && !brainReady()) openBrainKey(); else announce();
 if (S.reglages.mainsLibres) handsFree();
+loadShared();
 })();
 </script>
 </body>
