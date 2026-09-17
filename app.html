@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=16 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=17 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -53,7 +53,7 @@ input[type=range]{accent-color:var(--cyan)}
 .chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
 .keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
 
-/* Styles Halal Market Hub & GPS */
+/* Styles Courses Halal & Radar GPS */
 .market-nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
 .market-tab{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .market-tab.active{background:var(--cyan);color:#04202a;border-color:var(--cyan)}
@@ -62,8 +62,10 @@ input[type=range]{accent-color:var(--cyan)}
 .market-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px}
 .market-item-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .market-item-row:last-child{border-bottom:0}
+.market-item-row.done span.nom{text-decoration:line-through;color:var(--muted)}
 .proximity-banner{background:rgba(56,214,245,.1);border:1px solid var(--cyan);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
 .halal-badge{display:inline-block;background:rgba(78,224,166,.2);color:#4ee0a6;border:1px solid #4ee0a6;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700;margin-left:6px}
+.mini-btn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 8px;font:inherit;font-size:12px;flex:none}
 </style>
 </head>
 <body>
@@ -75,11 +77,11 @@ const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
 const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
-const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsLog:[], lastProximityAlert:0};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsWatchId:null, gpsDerniere:'', lastProximityAlert:0, lastGpsError:0, activeMarket:'aldi'};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const clean = s => String(s).replace(/https?:\/\/\S+/g, '').replace(/[*_#`>|]/g, '').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').replace(/[ \t]+/g, ' ').trim();
 const STATES = {
   chargement:['#38d6f5','Démarrage…'],
@@ -112,6 +114,8 @@ window.__sharedAvailable = () => loadShared();
 const hasFiles = () => !!(P && typeof P.saveFile === 'function');
 const hasSelfApk = () => !!(P && typeof P.buildZipBase64 === 'function');
 const hasPhone = () => !!(P && typeof P.dial === 'function');
+const hasLocation = () => !!(navigator.geolocation);
+const hasNativeRadar = () => !!(P && typeof P.startRadar === 'function' && typeof P.stopRadar === 'function');
 const NEED_APK = "Cette action demande la version 1.2 de l'APK Poupous. Elle doit être installée une fois à la main depuis la page Releases du dépôt GitHub.";
 const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
 window.__onBack = () => { if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
@@ -120,226 +124,293 @@ const store = {
   set(k, v){ try { if (P) P.set(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-/* ---------- Gestion Courses Halal & Magasins / Radar GPS (Aldi, Lidl, Colruyt, Action) ---------- */
+/* ---------- Position GPS ---------- */
+function getLocation(){
+  if (!hasLocation()) return Promise.resolve({err:'indisponible'});
+  return new Promise(res => {
+    navigator.geolocation.getCurrentPosition(
+      pos => res({lat:pos.coords.latitude, lon:pos.coords.longitude, precision:Math.round(pos.coords.accuracy || 0)}),
+      err => res({err: err.code === 1 ? 'refuse' : err.code === 2 ? 'indisponible' : 'delai'}),
+      {enableHighAccuracy:true, timeout:15000, maximumAge:60000}
+    );
+  });
+}
+async function reverseGeocode(lat, lon){
+  if (!P || typeof P.github !== 'function') return null;
+  try {
+    const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lon + '&accept-language=fr&zoom=16';
+    const r = await waitFor('g', id => P.github(id, 'GET', url, ''));
+    const data = JSON.parse(r.text);
+    return (data && data.display_name) ? data.display_name : null;
+  } catch (e) { return null; }
+}
+function distanceMetres(lat1, lon1, lat2, lon2){
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* ---------- Courses halal & magasins ---------- */
 const DEFAULT_MARKET_DATA = {
-  aldi: {
-    name: "Aldi",
-    lat: 50.8503, lon: 4.3517, // Coordonnées de référence modélisables ou géolocalisées
-    promos: ["Lait de coco 400ml - 1,29€", "Falafels x12 - 2,49€", "Galettes de riz bio - 0,99€"],
-    list: ["Lait de soja", "Œufs frais", "Steak végétal (sans viande)", "Huile d'olive", "Pâtes bio"]
-  },
-  lidl: {
-    name: "Lidl",
-    lat: 50.8467, lon: 4.3547,
-    promos: ["Houmous traditionnel 400g - 1,99€", "Yaourt soja nature x4 - 1,49€"],
-    list: ["Galettes de blé", "Fromage râpé végétal", "Tomates cerises", "Courgettes", "Oignons"]
-  },
-  colruyt: {
-    name: "Colruyt",
-    lat: 50.8550, lon: 4.3480,
-    promos: ["Légumes surgelés wok 1kg - 2,89€", "Jus de fruits pur 1L - 1,75€"],
-    list: ["Légumineuses (lentilles, pois chiches)", "Boulgour", "Riz basmati", "Eau minérale", "Compotes de pommes"]
-  },
-  action: {
-    name: "Action",
-    promos: ["Boîte hermétique - 1,49€", "Éponges végétales - 0,99€"],
-    list: ["Papier toilette", "Liquide vaisselle éco", "Sacs poubelle", "Papier cuisson"]
-  }
+  aldi:    {name:"Aldi",    lat:null, lon:null, promos:[], list:["Lait de soja", "Œufs frais", "Huile d'olive", "Pâtes bio"]},
+  lidl:    {name:"Lidl",    lat:null, lon:null, promos:[], list:["Houmous", "Tomates cerises", "Courgettes", "Oignons"]},
+  colruyt: {name:"Colruyt", lat:null, lon:null, promos:[], list:["Lentilles", "Pois chiches", "Riz basmati", "Compotes de pommes"]},
+  action:  {name:"Action",  lat:null, lon:null, promos:[], list:["Papier toilette", "Liquide vaisselle", "Sacs poubelle", "Papier cuisson"]}
 };
-
-function getMarketData() {
+function normalizeMarket(md){
+  for (const k in md) {
+    const m = md[k];
+    if (!m || typeof m !== 'object') { delete md[k]; continue; }
+    m.name = String(m.name || k);
+    if (!Array.isArray(m.promos)) m.promos = [];
+    if (!Array.isArray(m.list)) m.list = [];
+    m.list = m.list.map(x => typeof x === 'string' ? {nom:x, coche:false} : {nom:String((x && x.nom) || ''), coche:!!(x && x.coche)}).filter(x => x.nom);
+    // Les anciennes versions contenaient des coordonnées d'exemple : on n'y touche
+    // que si l'utilisateur a lui-même enregistré la position du magasin.
+    if (!m.posEnregistree || typeof m.lat !== 'number' || typeof m.lon !== 'number') { m.lat = null; m.lon = null; m.posEnregistree = false; }
+  }
+  return md;
+}
+function getMarketData(){
   const saved = store.get('marketData', null);
-  if (saved) return saved;
-  store.set('marketData', DEFAULT_MARKET_DATA);
-  return DEFAULT_MARKET_DATA;
+  const md = normalizeMarket(saved || JSON.parse(JSON.stringify(DEFAULT_MARKET_DATA)));
+  if (!saved) store.set('marketData', md);
+  return md;
 }
+function saveMarketData(data){ store.set('marketData', data); if (typeof pushRadarConfig === 'function') pushRadarConfig(); }
 
-function saveMarketData(data) {
-  store.set('marketData', data);
-}
-
-// Vérification stricte Halal & Sans Viande
-function checkHalalCompliance(itemName) {
+/* Contrôle strict : ni viande, ni porc, ni alcool, ni dérivés animaux douteux. */
+const INTERDITS = [
+  'viande','poulet','dinde','canard','boeuf','bœuf','agneau','mouton','veau','porc','cochon','sanglier','lapin',
+  'jambon','lard','bacon','saucisse','saucisson','merguez','chorizo','salami','charcuterie','pate de foie','foie gras','rillettes','nuggets',
+  'gelatine','presure','saindoux','graisse animale',
+  'alcool','vin','biere','rhum','vodka','whisky','champagne','cidre','liqueur'
+];
+const TOLERES = ['vegetal','vegetarien','vegan','soja','sans viande','sans alcool','sans porc','tofu','seitan','halal'];
+function checkHalalCompliance(itemName){
   const n = norm(itemName);
-  const forbiddenMeat = ['viande', 'poulet', 'boeuf', 'agneau', 'veau', 'jambon', 'lard', 'saucisse', 'merguez', 'bacon', 'viande hachee', 'steak hache'];
-  for (const f of forbiddenMeat) {
-    if (n.includes(f) && !n.includes('vegetal') && !n.includes('vegetarien') && !n.includes('soja') && !n.includes('sans viande')) {
-      return {compliant: false, reason: "Attention : article contenant de la viande non certifiée ou non conforme à la règle stricte sans viande."};
+  if (TOLERES.some(t => n.includes(t))) return {compliant:true, reason:"Version végétale ou certifiée : accepté"};
+  for (const f of INTERDITS) {
+    if (n.includes(norm(f))) {
+      return {compliant:false, reason:"Refusé : « " + f + " » n'est pas conforme (règle stricte halal et sans viande). Précise « végétal », « sans viande » ou « halal » si c'est un substitut."};
     }
   }
-  return {compliant: true, reason: "Strictement Halal & Sans Viande"};
+  return {compliant:true, reason:"Conforme : halal et sans viande"};
 }
 
-function renderHalalInterface() {
-  const marketData = getMarketData();
-  const activeTab = S.activeMarket || 'aldi';
-  const data = marketData[activeTab];
-  return `
-    <div class="proximity-banner">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:700;font-size:14px">Radar Proximité 500m & GPS Arrière-plan</div>
-          <div class="hint" style="font-size:12px" id="gps-status-text">${S.gpsTracking ? 'Service actif · Surveillance Aldi, Lidl, Colruyt, Action' : 'Service inactif'}</div>
-        </div>
-        <button class="btn ${S.gpsTracking ? '' : 'primary'}" id="toggle-gps-tracking" style="padding:6px 10px;font-size:12px">${S.gpsTracking ? 'Arrêter GPS' : 'Lancer GPS'}</button>
-      </div>
-      <div id="gps-coords" class="hint" style="font-size:11px;word-break:break-all">${S.gpsLog.length ? S.gpsLog[S.gpsLog.length - 1] : 'En attente de position GPS…'}</div>
-    </div>
-    <div class="market-nav">
-      ${Object.keys(marketData).map(k => `<button class="market-tab ${k === activeTab ? 'active' : ''}" data-market="${k}">${marketData[k].name}</button>`).join('')}
-    </div>
-    <div class="market-content">
-      <div class="market-section-title">Promos du moment chez ${data.name}</div>
-      <div class="market-card">
-        ${data.promos.map(p => `<div class="market-item-row"><span>🔥 ${esc(p)}</span></div>`).join('')}
-      </div>
-      <div class="market-section-title">Liste de courses (Halal Stricte & Sans Viande)</div>
-      <div class="market-card" id="market-list-box">
-        ${data.list.map((item, idx) => {
-          const comp = checkHalalCompliance(item);
-          return `
-            <div class="market-item-row">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
-                <input type="checkbox" data-market-item="${activeTab}-${idx}">
-                <span>${esc(item)}</span>
-              </label>
-              <span class="halal-badge" title="${esc(comp.reason)}">Halal & S/Viande</span>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <input id="new-market-item" placeholder="Ajouter un article (contrôle strict)…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">
-        <button class="btn" id="add-market-item-btn">Ajouter</button>
-      </div>
-    </div>
-  `;
+function renderHalalInterface(){
+  const md = getMarketData();
+  const activeTab = md[S.activeMarket] ? S.activeMarket : Object.keys(md)[0];
+  S.activeMarket = activeTab;
+  const data = md[activeTab];
+  const posTxt = data.posEnregistree ? ('Position enregistrée (' + data.lat.toFixed(4) + ', ' + data.lon.toFixed(4) + ')') : 'Position de ce magasin pas encore enregistrée';
+  const suivis = Object.keys(md).filter(k => md[k].posEnregistree).map(k => md[k].name);
+  return '' +
+    '<div class="proximity-banner">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+        '<div>' +
+          '<div style="font-weight:700;font-size:14px">Radar 500 m</div>' +
+          '<div class="hint" style="font-size:12px" id="gps-status-text">' + (S.gpsTracking ? (suivis.length ? 'Actif · ' + esc(suivis.join(', ')) : 'Actif, mais aucun magasin n\'a de position enregistrée') : 'Inactif') + '</div>' +
+        '</div>' +
+        '<button class="btn ' + (S.gpsTracking ? '' : 'primary') + '" id="toggle-gps-tracking" style="padding:6px 10px;font-size:12px">' + (S.gpsTracking ? 'Arrêter' : 'Lancer') + '</button>' +
+      '</div>' +
+      '<div id="gps-coords" class="hint" style="font-size:11px;word-break:break-all">' + esc(S.gpsDerniere || 'En attente de position GPS…') + '</div>' +
+      '<div class="hint" style="font-size:11px">' + (hasNativeRadar()
+        ? 'Surveillance en arrière-plan : elle continue appli fermée et écran éteint, avec une notification permanente.'
+        : 'Le radar fonctionne tant que Poupous reste ouvert à l\'écran. Pour une surveillance même écran éteint, demande « APK : radar magasins en arrière-plan ».') + '</div>' +
+    '</div>' +
+    '<div class="market-nav">' +
+      Object.keys(md).map(k => '<button class="market-tab ' + (k === activeTab ? 'active' : '') + '" data-market="' + esc(k) + '">' + esc(md[k].name) + '</button>').join('') +
+    '</div>' +
+    '<div class="market-content">' +
+      '<div class="market-section-title">Repère de ' + esc(data.name) + '</div>' +
+      '<div class="market-card">' +
+        '<div class="market-item-row"><span class="hint" style="font-size:13px">' + esc(posTxt) + '</span>' +
+        '<button class="mini-btn" id="save-store-pos">Je suis devant ce magasin</button></div>' +
+      '</div>' +
+      (data.promos.length ? '<div class="market-section-title">Promos notées</div><div class="market-card">' +
+        data.promos.map((p, i) => '<div class="market-item-row"><span>' + esc(p) + '</span><button class="mini-btn" data-del-promo="' + i + '">Retirer</button></div>').join('') + '</div>' : '') +
+      '<div class="market-section-title">Liste de courses (halal stricte, sans viande)</div>' +
+      '<div class="market-card" id="market-list-box">' +
+        (data.list.length ? data.list.map((item, idx) =>
+          '<div class="market-item-row ' + (item.coche ? 'done' : '') + '">' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">' +
+              '<input type="checkbox" data-check-item="' + idx + '"' + (item.coche ? ' checked' : '') + '>' +
+              '<span class="nom">' + esc(item.nom) + '</span>' +
+            '</label>' +
+            '<button class="mini-btn" data-del-item="' + idx + '" aria-label="Supprimer ' + esc(item.nom) + '">×</button>' +
+          '</div>').join('') : '<p class="hint" style="margin:0">Liste vide pour ce magasin.</p>') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:4px">' +
+        '<input id="new-market-item" placeholder="Ajouter un article (contrôle strict)…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">' +
+        '<button class="btn" id="add-market-item-btn">Ajouter</button>' +
+      '</div>' +
+      '<div class="row" style="border:0"><span class="hint">Décocher tout ce qui est pris</span><button class="mini-btn" id="reset-checks">Réinitialiser</button></div>' +
+    '</div>';
 }
 
-function bindMarketEvents() {
+function bindMarketEvents(){
+  const md = getMarketData();
+  const act = S.activeMarket;
   document.querySelectorAll('.market-tab').forEach(btn => {
-    btn.onclick = () => {
-      S.activeMarket = btn.dataset.market;
-      if (!$('#sheet').hidden && $('#sheet-inner').querySelector('.market-nav')) {
-        openMarketSheet();
-      }
+    btn.onclick = () => { S.activeMarket = btn.dataset.market; openMarketSheet(); };
+  });
+  const addBtn = $('#add-market-item-btn'), inp = $('#new-market-item');
+  const addItem = () => {
+    if (!inp) return;
+    const val = inp.value.trim();
+    if (!val) return;
+    const comp = checkHalalCompliance(val);
+    if (!comp.compliant) { sys(comp.reason); return; }
+    md[act].list.push({nom:val, coche:false});
+    saveMarketData(md);
+    openMarketSheet();
+    sys('Ajouté chez ' + md[act].name + ' : ' + val);
+  };
+  if (addBtn) addBtn.onclick = addItem;
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') addItem(); });
+  document.querySelectorAll('[data-check-item]').forEach(cb => {
+    cb.onchange = () => {
+      const i = +cb.dataset.checkItem;
+      if (md[act].list[i]) { md[act].list[i].coche = cb.checked; saveMarketData(md); }
+      const row = cb.closest('.market-item-row');
+      if (row) row.classList.toggle('done', cb.checked);
     };
   });
-  const addBtn = $('#add-market-item-btn');
-  if (addBtn) {
-    addBtn.onclick = () => {
-      const inp = $('#new-market-item');
-      if (!inp) return;
-      const val = inp.value.trim();
-      if (!val) return;
-      const comp = checkHalalCompliance(val);
-      if (!comp.compliant) {
-        alert(comp.reason);
-        return;
-      }
-      const marketData = getMarketData();
-      marketData[S.activeMarket || 'aldi'].list.push(val);
-      saveMarketData(marketData);
-      inp.value = '';
-      openMarketSheet();
-      sys("Article ajouté et validé Halal sans viande : " + val);
-    };
-  }
+  document.querySelectorAll('[data-del-item]').forEach(b => {
+    b.onclick = () => { md[act].list.splice(+b.dataset.delItem, 1); saveMarketData(md); openMarketSheet(); };
+  });
+  document.querySelectorAll('[data-del-promo]').forEach(b => {
+    b.onclick = () => { md[act].promos.splice(+b.dataset.delPromo, 1); saveMarketData(md); openMarketSheet(); };
+  });
+  const reset = $('#reset-checks');
+  if (reset) reset.onclick = () => { md[act].list.forEach(x => x.coche = false); saveMarketData(md); openMarketSheet(); };
+  const posBtn = $('#save-store-pos');
+  if (posBtn) posBtn.onclick = async () => {
+    posBtn.textContent = 'Recherche…';
+    const loc = await getLocation();
+    if (loc.err) { sys(gpsErrCopy(loc.err)); posBtn.textContent = 'Je suis devant ce magasin'; return; }
+    md[act].lat = loc.lat; md[act].lon = loc.lon; md[act].posEnregistree = true;
+    saveMarketData(md);
+    openMarketSheet();
+    sys('Position de ' + md[act].name + ' enregistrée (précision ' + loc.precision + ' m).');
+  };
   const gpsBtn = $('#toggle-gps-tracking');
-  if (gpsBtn) {
-    gpsBtn.onclick = () => {
-      toggleGpsTracking();
-      openMarketSheet();
-    };
-  }
+  if (gpsBtn) gpsBtn.onclick = () => { toggleGpsTracking(); openMarketSheet(); };
+}
+function gpsErrCopy(err){
+  if (err === 'refuse') return "Accès à la position refusé. Autorise la localisation pour Poupous dans les réglages Android (Applis > Poupous > Autorisations > Position).";
+  if (err === 'indisponible') return "Position indisponible : le GPS ne capte rien pour l'instant.";
+  if (err === 'delai') return "Le GPS met trop de temps à répondre. Réessaie dehors ou près d'une fenêtre.";
+  return "Souci GPS : " + err;
 }
 
-// Calcul de distance en mètres entre deux coordonnées GPS (formule de Haversine)
-function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // Rayon de la terre en mètres
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function checkStoreProximity(lat, lon) {
-  const marketData = getMarketData();
+function checkStoreProximity(lat, lon){
+  const md = getMarketData();
   const now = Date.now();
-  // Ne pas spammer les alertes vocales (minimum 10 minutes d'intervalle)
   if (now - S.lastProximityAlert < 600000) return;
-
-  for (const key in marketData) {
-    const storeObj = marketData[key];
-    // Coordonnées simulées proches ou réelles si l'utilisateur bouge
-    const dist = getDistanceFromLatLonInMeters(lat, lon, storeObj.lat, storeObj.lon);
-    if (dist <= 500) {
-      S.lastProximityAlert = now;
-      const listStr = storeObj.list.join(', ');
-      const msg = `Tu es à moins de 500 mètres de ${storeObj.name}. Voici ta liste de courses halal : ${listStr}.`;
-      sys("📍 Alerte Proximité 500m : " + storeObj.name);
-      addMsg('poupous', msg);
-      speak(msg);
-      break;
-    }
+  for (const key in md) {
+    const st = md[key];
+    if (!st.posEnregistree) continue;
+    if (distanceMetres(lat, lon, st.lat, st.lon) > 500) continue;
+    S.lastProximityAlert = now;
+    const restants = st.list.filter(x => !x.coche).map(x => x.nom);
+    const msg = restants.length
+      ? "Tu es à moins de 500 mètres de " + st.name + ". Il te reste : " + restants.join(', ') + "."
+      : "Tu es à moins de 500 mètres de " + st.name + ", mais ta liste est déjà complète.";
+    sys('Radar 500 m : ' + st.name);
+    addMsg('poupous', msg);
+    if (!S.busy && !S.speaking) speak(msg).then(() => { if (!S.busy) idle(); });
+    break;
   }
 }
 
-function toggleGpsTracking() {
+/* Configuration envoyée au service Android : magasins dont la position est connue
+   et articles encore à prendre. Le service continue même écran éteint. */
+function radarConfig(){
+  const md = getMarketData();
+  return {rayon:500, magasins:Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
+    cle:k, nom:md[k].name, lat:md[k].lat, lon:md[k].lon,
+    articles:md[k].list.filter(x => !x.coche).map(x => x.nom)
+  }))};
+}
+function pushRadarConfig(){
+  if (!hasNativeRadar() || !S.gpsTracking) return;
+  try { P.startRadar(JSON.stringify(radarConfig())); } catch (e) {}
+}
+/* Appelé par le service Android quand il détecte un magasin à moins de 500 m. */
+window.__radarProximite = nom => {
+  const md = getMarketData();
+  const cle = Object.keys(md).find(k => k === nom || md[k].name === nom);
+  if (!cle) return;
+  const restants = md[cle].list.filter(x => !x.coche).map(x => x.nom);
+  const msg = restants.length
+    ? "Tu es à moins de 500 mètres de " + md[cle].name + ". Il te reste : " + restants.join(', ') + "."
+    : "Tu es à moins de 500 mètres de " + md[cle].name + ", mais ta liste est déjà complète.";
+  S.lastProximityAlert = Date.now();
+  addMsg('poupous', msg);
+  if (!S.busy && !S.speaking) speak(msg).then(() => { if (!S.busy) idle(); });
+};
+function toggleGpsTracking(){
   if (S.gpsTracking) {
     S.gpsTracking = false;
-    if (S.gpsWatchId) {
-      navigator.geolocation.clearWatch(S.gpsWatchId);
-      S.gpsWatchId = null;
-    }
-    sys("Suivi GPS et service en arrière-plan désactivés.");
-    speak("Suivi GPS arrêté.");
-  } else {
-    if (!navigator.geolocation) {
-      sys("La géolocalisation n'est pas supportée par votre appareil.");
-      speak("Géolocalisation non supportée.");
-      return;
-    }
-    S.gpsTracking = true;
-    sys("Service en arrière-plan activé : radar 500m Aldi, Lidl, Colruyt, Action actif.");
-    speak("Suivi GPS et radar de proximité démarrés en arrière-plan.");
-    S.gpsWatchId = navigator.geolocation.watchPosition(
-      pos => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        const info = `Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)} (${new Date().toLocaleTimeString()})`;
-        S.gpsLog.push(info);
-        if (S.gpsLog.length > 20) S.gpsLog.shift();
-        const coordBox = $('#gps-coords');
-        if (coordBox) coordBox.textContent = info;
-        
-        // Vérifier l'approche à 500 mètres
-        checkStoreProximity(lat, lon);
-      },
-      err => {
-        sys("Erreur GPS : " + err.message);
-      },
-      {enableHighAccuracy: true, maximumAge: 10000, timeout: 20000}
-    );
+    store.set('radarActif', false);
+    if (S.gpsWatchId !== null) { navigator.geolocation.clearWatch(S.gpsWatchId); S.gpsWatchId = null; }
+    if (hasNativeRadar()) { try { P.stopRadar(); } catch (e) {} }
+    sys('Radar de proximité arrêté.');
+    return;
   }
+  if (hasNativeRadar()) {
+    const cfg = radarConfig();
+    if (!cfg.magasins.length) { sys("Aucun magasin n'a de position enregistrée : va devant un magasin et touche « Je suis devant ce magasin »."); return; }
+    S.gpsTracking = true;
+    store.set('radarActif', true);
+    let r = '';
+    try { r = String(P.startRadar(JSON.stringify(cfg))); } catch (e) { r = 'erreur'; }
+    if (r === 'permission') { sys("Autorise la position « Toujours » pour Poupous dans l'écran qui s'ouvre, puis relance le radar."); S.gpsTracking = false; store.set('radarActif', false); return; }
+    if (r && r !== 'ok') { sys('Le service de radar refuse de démarrer (' + r + ').'); S.gpsTracking = false; store.set('radarActif', false); return; }
+    sys('Radar 500 m lancé en arrière-plan : il continue même appli fermée et écran éteint.');
+    return;
+  }
+  if (!hasLocation()) { sys("La géolocalisation n'est pas disponible sur ce téléphone."); return; }
+  S.gpsTracking = true;
+  store.set('radarActif', true);
+  sys("Radar 500 m lancé, mais seulement tant que Poupous reste ouvert. Pour l'arrière-plan, demande « APK : radar magasins en arrière-plan ».");
+  S.gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      const lat = pos.coords.latitude, lon = pos.coords.longitude;
+      S.gpsDerniere = 'Lat ' + lat.toFixed(5) + ', Lon ' + lon.toFixed(5) + ' · ' + new Date().toLocaleTimeString('fr-FR');
+      const box = $('#gps-coords');
+      if (box) box.textContent = S.gpsDerniere;
+      checkStoreProximity(lat, lon);
+    },
+    err => {
+      const now = Date.now();
+      if (now - S.lastGpsError < 120000) return;
+      S.lastGpsError = now;
+      const code = err.code === 1 ? 'refuse' : err.code === 2 ? 'indisponible' : 'delai';
+      sys(gpsErrCopy(code));
+      if (code === 'refuse') { S.gpsTracking = false; if (S.gpsWatchId !== null) { navigator.geolocation.clearWatch(S.gpsWatchId); S.gpsWatchId = null; } }
+    },
+    {enableHighAccuracy:true, maximumAge:10000, timeout:30000}
+  );
 }
 
-function openMarketSheet() {
+function openMarketSheet(){
   $('#sheet-inner').innerHTML =
-    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES HALAL & RADAR 500M</span><button class="btn" id="close-market">Fermer</button></div>' +
+    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES & RADAR 500 M</span><button class="btn" id="close-market">Fermer</button></div>' +
     renderHalalInterface();
   $('#sheet').hidden = false;
   $('#close-market').onclick = () => { $('#sheet').hidden = true; };
   bindMarketEvents();
 }
 
-/* ---------- Interface Principale ---------- */
+/* ---------- Interface principale ---------- */
 $('#app').innerHTML =
   '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div></div>' +
-  '<div style="display:flex;gap:8px"><button class="icon-btn" id="open-market" aria-label="Courses Halal & GPS" style="color:var(--cyan)">🛒</button>' +
+  '<div style="display:flex;gap:8px"><button class="icon-btn" id="open-market" aria-label="Courses et radar magasins" style="color:var(--cyan)">🛒</button>' +
   '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
   '<div class="log" id="log" aria-live="polite"></div>' +
@@ -486,68 +557,107 @@ function systemPrompt(){
   const d = new Date();
   const date = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
   const heure = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const md = getMarketData();
+  const magasins = Object.keys(md).map(k => md[k].name + (md[k].posEnregistree ? ' (position connue)' : ' (position inconnue)')).join(', ');
   return "Tu es Poupous, l'assistant vocal personnel de l'utilisateur, dans une appli Android sur son téléphone. Personnalité : " + S.reglages.personnalite + "\n" +
     "Nous sommes le " + date + ", il est " + heure + ".\n" +
     "Tes réponses sont lues à voix haute : français oral et naturel, sans markdown, sans listes, sans emojis. Une à trois phrases, sauf si on te demande des détails.\n" +
-    "Outils obligatoires : tu DOIS appeler les outils correspondants dès que l'utilisateur te le demande (retenir, oublier, changer_reglage, ameliorer_mon_code, ameliorer_apk, chercher_contact, appeler, envoyer_sms, mettre_reveil, minuteur, ouvrir_appli, itineraire, preparer_mail, creer_fichier, installer_mise_a_jour, annuler_derniere_amelioration, ajouter_courses_halal). Ne simule jamais une action sans exécuter l'outil associé. Si une information manque, demande-la ou appelle l'outil avec les paramètres pertinents.\n" +
+    "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, appelles, programmes ou modifies quelque chose, tu DOIS appeler l'outil correspondant dans la même réponse. Sinon, dis clairement que tu ne l'as pas fait.\n" +
+    "Outils : retenir (mémorise de toi-même ce qui est durable) ; oublier ; changer_reglage ; localiser (position GPS actuelle, adresse approximative) ; " +
+    "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier.\n" +
+    "Courses : liste_courses affiche la liste d'un magasin, ajouter_courses_halal ajoute un article, retirer_courses en enlève un. Magasins suivis : " + magasins + ". Règle stricte : aucun produit contenant de la viande, du porc, de la gélatine ou de l'alcool ; les substituts végétaux sont acceptés. Un article refusé doit être annoncé comme refusé.\n" +
+    "Le radar 500 m prévient quand l'utilisateur approche d'un magasin dont la position a été enregistrée ; il ne fonctionne que pendant que l'appli est ouverte à l'écran.\n" +
+    "Amélioration : ameliorer_mon_code change ta page (interface, comportement), c'est immédiat. ameliorer_apk change ton application Android (autorisations, fonctions natives, service en arrière-plan) : ça prend 5 à 15 minutes et il faut un jeton GitHub. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas dans window.Poupous. installer_mise_a_jour relance l'installation. annuler_derniere_amelioration revient en arrière.\n" +
+    "Limites à dire honnêtement : tu ne lis pas les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et tu n'écoutes pas écran éteint (possible via ameliorer_apk).\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
+  const noms = voicesFr().slice(0, 15).join(' ; ') || 'voix par défaut du téléphone';
+  const magasins = Object.keys(getMarketData());
   return [
-    {name:'retenir', description:"Mémorise durablement une information sur l'utilisateur ou une consigne qu'il donne.",
+    {name:'retenir', description:"Mémorise durablement une information sur l'utilisateur (prénom, goûts, proches, projets, habitudes) ou une consigne qu'il donne.",
       input_schema:{type:'object', properties:{fait:{type:'string'}}, required:['fait']}},
-    {name:'oublier', description:"Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer).",
+    {name:'oublier', description:"Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer). Renvoie le nombre supprimé.",
       input_schema:{type:'object', properties:{texte:{type:'string'}}, required:['texte']}},
-    {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2. voix : nom exact. personnalite : texte. mainsLibres : true ou false.",
+    {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. mainsLibres : true ou false.",
       input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
-    {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée.",
-      input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
+    {name:'localiser', description:"Donne la position GPS actuelle de l'utilisateur : adresse approximative et coordonnées. À utiliser quand il demande où il est, ou pour situer un lieu par rapport à lui.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'liste_courses', description:"Donne la liste de courses d'un magasin, en indiquant ce qui est déjà coché.",
+      input_schema:{type:'object', properties:{magasin:{type:'string', enum:magasins}}, required:['magasin']}},
+    {name:'ajouter_courses_halal', description:"Ajoute un article à la liste de courses d'un magasin, avec contrôle strict : refusé si l'article contient de la viande, du porc, de la gélatine ou de l'alcool.",
+      input_schema:{type:'object', properties:{magasin:{type:'string', enum:magasins}, article:{type:'string'}}, required:['magasin','article']}},
+    {name:'retirer_courses', description:"Retire de la liste d'un magasin le premier article qui contient ce texte.",
+      input_schema:{type:'object', properties:{magasin:{type:'string', enum:magasins}, article:{type:'string'}}, required:['magasin','article']}},
     {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
-    {name:'appeler', description:"Ouvre l'appli Téléphone avec ce numéro composé.",
+    {name:'appeler', description:"Ouvre l'appli Téléphone avec ce numéro composé ; l'utilisateur appuie sur Appeler.",
       input_schema:{type:'object', properties:{numero:{type:'string'}}, required:['numero']}},
-    {name:'envoyer_sms', description:"Ouvre la messagerie avec le SMS prêt pour ce numéro.",
+    {name:'envoyer_sms', description:"Ouvre la messagerie avec le SMS prêt pour ce numéro ; l'utilisateur appuie sur Envoyer.",
       input_schema:{type:'object', properties:{numero:{type:'string'}, message:{type:'string'}}, required:['numero','message']}},
     {name:'mettre_reveil', description:"Crée un réveil à l'heure donnée (format 24 h).",
       input_schema:{type:'object', properties:{heure:{type:'integer'}, minute:{type:'integer'}, libelle:{type:'string'}}, required:['heure','minute']}},
     {name:'minuteur', description:"Lance un minuteur de la durée donnée en secondes.",
       input_schema:{type:'object', properties:{secondes:{type:'integer'}, libelle:{type:'string'}}, required:['secondes']}},
-    {name:'ouvrir_appli', description:"Ouvre une appli installée par son nom.",
+    {name:'ouvrir_appli', description:"Ouvre une appli installée par son nom (WhatsApp, YouTube, Gmail, Appareil photo…).",
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
-    {name:'itineraire', description:"Ouvre Google Maps avec l'itinéraire vers une destination.",
+    {name:'itineraire', description:"Ouvre Google Maps avec l'itinéraire vers une destination (adresse, lieu, ville).",
       input_schema:{type:'object', properties:{destination:{type:'string'}}, required:['destination']}},
-    {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt.",
+    {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt ; l'utilisateur appuie sur Envoyer.",
       input_schema:{type:'object', properties:{destinataire:{type:'string'}, objet:{type:'string'}, texte:{type:'string'}}, required:['objet','texte']}},
-    {name:'creer_fichier', description:"Crée un fichier texte, l'enregistre et l'ouvre au partage.",
-      input_schema:{type:'object', properties:{nom:{type:'string'}, contenu:{type:'string'}, partager:{type:'boolean'}}, required:['nom','contenu']}},
-    {name:'ameliorer_apk', description:"Modifie réellement l'application Android de Poupous (code Java, autorisations).",
+    {name:'creer_fichier', description:"Crée un fichier texte (txt, md, csv, html, json…), l'enregistre dans Téléchargements/Poupous et ouvre le partage si demandé.",
+      input_schema:{type:'object', properties:{nom:{type:'string', description:'nom avec extension, par exemple liste-courses.txt'}, contenu:{type:'string'}, partager:{type:'boolean'}}, required:['nom','contenu']}},
+    {name:'ameliorer_mon_code', description:"Modifie réellement le code de la page Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre après ta réponse, prend une à trois minutes, puis l'appli se recharge.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
-    {name:'installer_mise_a_jour', description:"Rouvre l'écran d'installation de la dernière APK téléchargée.",
+    {name:'ameliorer_apk', description:"Modifie réellement l'application Android de Poupous (code Java, autorisations, services), la fait reconstruire sur GitHub puis lance son installation. Prend 5 à 15 minutes.",
+      input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
+    {name:'installer_mise_a_jour', description:"Rouvre l'écran d'installation de la dernière APK Poupous téléchargée.",
       input_schema:{type:'object', properties:{}}},
-    {name:'annuler_derniere_amelioration', description:"Revient à la version précédente de l'appli Poupous.",
-      input_schema:{type:'object', properties:{}}},
-    {name:'ajouter_courses_halal', description:"Ajoute un article à la liste de courses d'un magasin (aldi, lidl, colruyt, action) avec vérification stricte halal et sans viande.",
-      input_schema:{type:'object', properties:{magasin:{type:'string', enum:['aldi','lidl','colruyt','action']}, article:{type:'string'}}, required:['magasin','article']}}
+    {name:'annuler_derniere_amelioration', description:"Revient à la version précédente de l'appli Poupous juste après ta réponse, puis recharge.",
+      input_schema:{type:'object', properties:{}}}
   ];
 }
 async function runTool(name, input){
   try {
-    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé avec succès'; }
+    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé'; }
     if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' souvenir(s) supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
-    if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || 'Amélioration de l\'application'; return "Amélioration de code acceptée et programmée."; }
-    if (name === 'ajouter_courses_halal') {
-      const mag = String(input.magasin || 'aldi').toLowerCase();
-      const art = String(input.article || '').trim();
-      if (!art) return "Article vide.";
-      const comp = checkHalalCompliance(art);
-      if (!comp.compliant) return "Refusé : " + comp.reason;
-      const md = getMarketData();
-      if (!md[mag]) return "Magasin inconnu.";
-      md[mag].list.push(art);
-      saveMarketData(md);
-      return "Article ajouté avec succès chez " + md[mag].name + " (Halal et sans viande validé).";
+    if (name === 'localiser') {
+      const loc = await getLocation();
+      if (loc.err) return gpsErrCopy(loc.err);
+      const adresse = await reverseGeocode(loc.lat, loc.lon);
+      return adresse ? ('Position actuelle : ' + adresse) : ('Coordonnées actuelles : ' + loc.lat.toFixed(5) + ', ' + loc.lon.toFixed(5) + ' (précision ' + loc.precision + ' m)');
     }
+    if (name === 'liste_courses' || name === 'ajouter_courses_halal' || name === 'retirer_courses') {
+      const md = getMarketData();
+      const mag = String(input.magasin || S.activeMarket || 'aldi').toLowerCase();
+      if (!md[mag]) return 'Magasin inconnu. Magasins possibles : ' + Object.keys(md).join(', ') + '.';
+      const m = md[mag];
+      if (name === 'liste_courses') {
+        if (!m.list.length) return 'La liste de ' + m.name + ' est vide.';
+        const restants = m.list.filter(x => !x.coche).map(x => x.nom);
+        const pris = m.list.filter(x => x.coche).map(x => x.nom);
+        return 'Chez ' + m.name + ', à prendre : ' + (restants.join(', ') || 'rien') + (pris.length ? '. Déjà coché : ' + pris.join(', ') : '') + '.';
+      }
+      const art = String(input.article || '').trim();
+      if (!art) return 'Article vide.';
+      if (name === 'retirer_courses') {
+        const i = m.list.findIndex(x => norm(x.nom).includes(norm(art)));
+        if (i < 0) return 'Aucun article contenant « ' + art + ' » chez ' + m.name + '.';
+        const enleve = m.list.splice(i, 1)[0].nom;
+        saveMarketData(md);
+        if (!$('#sheet').hidden && $('#sheet-inner').querySelector('.market-nav')) openMarketSheet();
+        return 'Retiré de la liste de ' + m.name + ' : ' + enleve + '.';
+      }
+      const comp = checkHalalCompliance(art);
+      if (!comp.compliant) return comp.reason;
+      if (m.list.some(x => norm(x.nom) === norm(art))) return art + ' est déjà dans la liste de ' + m.name + '.';
+      m.list.push({nom:art, coche:false});
+      saveMarketData(md);
+      if (!$('#sheet').hidden && $('#sheet-inner').querySelector('.market-nav')) openMarketSheet();
+      return 'Ajouté chez ' + m.name + ' : ' + art + ' (conforme halal et sans viande).';
+    }
+    if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Accepté. L'amélioration démarre juste après ta réponse : préviens que ça prend une à trois minutes et que l'appli va se recharger."; }
     if (name === 'creer_fichier') {
       if (!hasFiles()) return NEED_APK;
       const nom = String(input.nom || 'poupous.txt');
@@ -557,9 +667,9 @@ async function runTool(name, input){
     }
     if (name === 'ameliorer_apk') {
       if (!hasSelfApk()) return NEED_APK;
-      if (!P.hasGithub()) return "Jeton GitHub manquant. Impossible de modifier l'APK sans jeton dans les réglages.";
-      S.pendingApkUpgrade = String(input.demande || '').trim() || 'Amélioration de l\'application Android';
-      return "Amélioration APK acceptée et programmée.";
+      if (!P.hasGithub()) return "Impossible pour l'instant : il manque le jeton GitHub. Explique à l'utilisateur de l'ajouter dans les réglages (roue en haut à droite, rubrique GitHub).";
+      S.pendingApkUpgrade = String(input.demande || '').trim() || null;
+      return "Accepté. La modification de l'APK démarre juste après ta réponse : préviens que ça prend 5 à 15 minutes, que l'appli doit rester ouverte, et qu'à la fin il faudra toucher Mettre à jour.";
     }
     if (name === 'installer_mise_a_jour') {
       if (!hasSelfApk()) return NEED_APK;
@@ -575,19 +685,19 @@ async function runTool(name, input){
     if (name === 'ouvrir_appli') return P.openApp(String(input.nom || ''));
     if (name === 'itineraire') return P.navigate(String(input.destination || ''));
     if (name === 'preparer_mail') return P.email(String(input.destinataire || ''), String(input.objet || ''), String(input.texte || ''));
-    if (name === 'annuler_derniere_amelioration') { S.pendingRollback = true; return 'Retour en arrière accepté et programmé.'; }
+    if (name === 'annuler_derniere_amelioration') { S.pendingRollback = true; return 'Accepté : retour à la version précédente juste après ta réponse.'; }
     return 'outil inconnu';
-  } catch (e) { return 'Erreur d\'exécution : ' + (e.message || e); }
+  } catch (e) { return "Erreur d'exécution : " + (e.message || e); }
 }
 function setReglage(nom, valeur){
   const r = S.reglages;
-  if (nom === 'vitesse' || nom === 'hauteur') { const v = parseFloat(valeur.replace(',', '.')); if (!isFinite(v)) return 'nombre attendu'; r[nom] = Math.min(2, Math.max(.5, v)); applyVoice(); }
+  if (nom === 'vitesse' || nom === 'hauteur') { const v = parseFloat(String(valeur).replace(',', '.')); if (!isFinite(v)) return 'nombre attendu'; r[nom] = Math.min(2, Math.max(.5, v)); applyVoice(); }
   else if (nom === 'voix') { const vs = voicesFr(); const v = vs.find(x => norm(x) === norm(valeur)) || vs.find(x => norm(x).includes(norm(valeur))); if (!v) return 'voix introuvable'; r.voix = v; applyVoice(); }
-  else if (nom === 'personnalite') r.personnalite = valeur.slice(0, 600);
-  else if (nom === 'mainsLibres') { r.mainsLibres = /^(true|oui|1|on|vrai)$/i.test(valeur.trim()); if (r.mainsLibres) setTimeout(handsFree, 0); else if (P && S.listening) P.cancelListening(); }
+  else if (nom === 'personnalite') r.personnalite = String(valeur).slice(0, 600);
+  else if (nom === 'mainsLibres') { r.mainsLibres = /^(true|oui|1|on|vrai)$/i.test(String(valeur).trim()); if (r.mainsLibres) setTimeout(handsFree, 0); else if (P && S.listening) P.cancelListening(); }
   else return 'réglage inconnu';
   store.set('reglages', r);
-  return nom + ' mis à jour avec succès : ' + r[nom];
+  return nom + ' = ' + r[nom];
 }
 async function callClaude(body){
   const r = await waitFor('c', id => P.claude(id, JSON.stringify(body)));
@@ -759,7 +869,7 @@ async function ask(text){
     addMsg('toi', text);
     if (cmd[1].toLowerCase() === 'apk') {
       if (!hasSelfApk()) { sys(NEED_APK); return; }
-      if (!P.hasGithub()) { sys("Il faut d'abord le jeton GitHub : roue → GitHub → Ajouter."); return; }
+      if (!P.hasGithub()) { sys("Il faut d'abord le jeton GitHub : roue → GitHub → Enregistrer."); return; }
       await runApkUpgrade(cmd[2].trim());
     } else {
       await runUpgrade(cmd[2].trim());
@@ -780,7 +890,7 @@ async function ask(text){
   let answer = '';
   try {
     if (provider() === 'gemini') {
-      answer = await askGemini(messages, t => { p.textContent = t; scrollLog(); });
+      answer = await askGemini(messages, x => { p.textContent = x; scrollLog(); });
     } else for (let round = 0; round < 6; round++) {
       const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, system:systemPrompt(), tools:toolDefs(), messages});
       const texts = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
@@ -823,8 +933,11 @@ async function runUpgrade(demande){
     "Contraintes impératives :\n" +
     "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
     "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
-    "- Garde les outils ameliorer_mon_code, ameliorer_apk, installer_mise_a_jour et annuler_derniere_amelioration, les fonctions runUpgrade et runApkUpgrade, et la ligne window.__poupousOK = true.\n" +
-    "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
+    "- Garde les outils ameliorer_mon_code, ameliorer_apk, installer_mise_a_jour, annuler_derniere_amelioration et localiser, les fonctions runUpgrade et runApkUpgrade, et la ligne window.__poupousOK = true.\n" +
+    "- Ne supprime aucune fonctionnalité existante : liste de courses par magasin avec contrôle halal strict, radar de proximité 500 m, mémoire, réglages de voix.\n" +
+    "- N'invente jamais de coordonnées GPS : une position de magasin ne vient que de l'utilisateur.\n" +
+    "- N'annonce pas dans l'interface une capacité que la page n'a pas (par exemple un service en arrière-plan : impossible depuis la page seule).\n" +
+    "- Aucune ressource externe (pas de CDN, pas de police en ligne). Pas de alert(), confirm() ni prompt() : utilise sys().\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
   let out = '';
@@ -872,6 +985,7 @@ async function runApkUpgrade(demande){
     "- N'ajoute aucune dépendance ni aucun dépôt Maven.\n" +
     "- Ne touche pas à la signature (signingConfigs, keystore) ni à prepare.sh.\n" +
     "- Déclare toute nouvelle autorisation dans AndroidManifest.xml et demande les autorisations dangereuses à l'exécution ; un service en arrière-plan doit être un service au premier plan avec notification et le bon foregroundServiceType.\n" +
+    "- Si la demande concerne la position : autorise la géolocalisation dans la WebView (setGeolocationEnabled) et accepte la demande via WebChromeClient.onGeolocationPermissionsShowPrompt après avoir obtenu ACCESS_FINE_LOCATION.\n" +
     "- Pour chaque nouvelle capacité, ajoute une méthode @JavascriptInterface au Bridge et fais incrémenter nativeVersion().\n" +
     "- Le code doit compiler du premier coup : imports complets, API compatibles avec minSdk 26 (teste Build.VERSION.SDK_INT sinon), pas de lambda qui capture une variable modifiée.\n" +
     "Format de réponse exact, sans markdown : première ligne RESUME: une ou deux phrases en français qui décrivent le changement et les nouvelles méthodes JavaScript disponibles. Puis pour chaque fichier : une ligne " + FSTART + "chemin/relatif" + FEND + ", le contenu complet du fichier, puis une ligne " + FDONE + ".";
@@ -965,7 +1079,7 @@ function announce(){
   }
 }
 
-/* ---------- Clé API et réglages ---------- */
+/* ---------- Clés et réglages ---------- */
 function openKey(){
   $('#sheet-inner').innerHTML =
     '<div class="keybox"><span class="brand" style="font-size:14px">CLÉ API ANTHROPIC</span>' +
@@ -995,24 +1109,6 @@ function openGeminiKey(){
     store.set('geminiKey', k); store.set('geminiModel', ''); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !');
   };
 }
-function openGithub(){
-  $('#sheet-inner').innerHTML =
-    '<div class="keybox"><span class="brand" style="font-size:14px">JETON GITHUB</span>' +
-    '<p class="hint">Colle un jeton GitHub (il commence par github_pat_) avec accès au dépôt ' + esc(P.repo()) + ' : Contents en lecture et écriture, Actions en lecture. Il reste enregistré uniquement sur ce téléphone.</p>' +
-    '<input id="ghkey" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="Jeton GitHub">' +
-    '<div class="row" style="border:0"><button class="btn" id="gh-cancel">Annuler</button><button class="btn primary" id="gh-save">Enregistrer</button></div></div>';
-  $('#sheet').hidden = false;
-  $('#gh-cancel').onclick = () => { $('#sheet').hidden = true; };
-  $('#gh-save').onclick = async () => {
-    const k = $('#ghkey').value.trim();
-    if (!/^(github_pat_|ghp_)/.test(k)) { $('#ghkey').style.borderColor = '#ff6b6b'; return; }
-    P.setGithub(k); $('#sheet').hidden = true;
-    const r = await gh('GET', '/repos/' + P.repo());
-    if (r.status === 200 && r.data && r.data.permissions && r.data.permissions.push) sys('Jeton GitHub enregistré : je peux maintenant me reconstruire moi-même.');
-    else if (r.status === 200) sys("Jeton enregistré, mais il n'a pas le droit d'écrire dans le dépôt. Donne-lui Contents en lecture et écriture.");
-    else sys('Jeton enregistré, mais GitHub le refuse (' + r.status + '). Vérifie qu\'il donne accès au dépôt ' + P.repo() + '.');
-  };
-}
 function renderSettings(){
   const r = S.reglages, vs = voicesFr();
   $('#sheet-inner').innerHTML =
@@ -1024,6 +1120,8 @@ function renderSettings(){
     '<div class="row"><label for="vitesse">Vitesse</label><input type="range" id="vitesse" min="0.5" max="2" step="0.05" value="' + r.vitesse + '"></div>' +
     '<div class="row"><label for="hauteur">Hauteur</label><input type="range" id="hauteur" min="0.5" max="2" step="0.05" value="' + r.hauteur + '"></div>' +
     '<div class="row"><span class="hint">Écoute le résultat</span><button class="btn" id="test-voix">Tester la voix</button></div>' +
+    '<h2>Courses et radar</h2>' +
+    '<div class="row"><span class="hint">Listes par magasin et radar 500 m</span><button class="btn" id="open-market-2">Ouvrir</button></div>' +
     '<h2>Ce que Poupous retient</h2>' +
     (S.faits.length ? S.faits.map((f, i) => '<div class="chip"><span>' + esc(f) + '</span><button class="btn" data-del="' + i + '">Oublier</button></div>').join('')
       : '<p class="hint">Rien pour l\'instant. Dis par exemple « retiens que je bois mon café noir ».</p>') +
@@ -1032,11 +1130,11 @@ function renderSettings(){
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     (P && typeof P.setGithub === 'function' ?
-      '<h2>GitHub</h2><p class="hint">Permet à Poupous de reconstruire et installer lui-même son application.</p>' +
-      '<div class="keybox" style="padding-top:8px"><input id="ghkey-input" type="password" autocomplete="off" placeholder="github_pat_…" value="" aria-label="Jeton d\'accès GitHub"><div class="row" style="border:0;padding:0"><span class="hint" id="gh-status-hint">' + (P.hasGithub() ? 'Jeton enregistré' : 'Aucun jeton') + '</span><button class="btn primary" id="save-gh-btn">Enregistrer le jeton</button></div></div>' : '') +
+      '<h2>GitHub</h2><p class="hint">Permet à Poupous de reconstruire et installer lui-même son application. Le jeton commence par github_pat_ et a besoin de Contents en lecture et écriture, Actions en lecture.</p>' +
+      '<div class="keybox" style="padding-top:8px"><input id="ghkey-input" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="Jeton d\'accès GitHub"><div class="row" style="border:0;padding:0"><span class="hint" id="gh-status-hint">' + (P.hasGithub() ? 'Jeton enregistré' : 'Aucun jeton') + '</span><button class="btn primary" id="save-gh-btn">Enregistrer le jeton</button></div></div>' : '') +
     '<h2>Améliorer Poupous</h2>' +
     '<p class="hint">Décris le changement voulu, puis choisis où l\'appliquer.</p>' +
-    '<input id="amelio" class="bar-input" style="width:100%;box-sizing:border-box;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit" placeholder="Ex. : écouter « Poupous » même appli fermée">' +
+    '<input id="amelio" style="width:100%;box-sizing:border-box;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit" placeholder="Ex. : radar magasins même écran éteint">' +
     '<div class="row"><button class="btn" id="go-page">Modifier la page</button><button class="btn primary" id="go-apk">Modifier l\'APK</button></div>' +
     '<h2>Versions</h2>' +
     '<p class="hint">Page : version ' + (P ? P.appVersion() : '?') + ' · Application Android : ' + (P && typeof P.nativeVersion === 'function' ? '1.' + (P.nativeVersion() - 1) : '1.0') + '</p>' +
@@ -1048,24 +1146,21 @@ function renderSettings(){
   $('#vitesse').onchange = e => setReglage('vitesse', e.target.value);
   $('#hauteur').onchange = e => setReglage('hauteur', e.target.value);
   $('#test-voix').onclick = () => speak("Salut, c'est Poupous. Voilà ma voix.").then(() => { if (!S.busy) idle(); });
+  $('#open-market-2').onclick = () => openMarketSheet();
   $('#change-key').onclick = openKey;
+  $('#change-gem').onclick = openGeminiKey;
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
   $('#go-apk').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('APK: ' + d); };
-  $('#change-gem').onclick = openGeminiKey;
   $('#cerveau').onchange = e => { S.reglages.cerveau = e.target.value; store.set('reglages', S.reglages); renderSettings(); if (!brainReady()) openBrainKey(); };
   if ($('#save-gh-btn')) {
     $('#save-gh-btn').onclick = async () => {
       const k = $('#ghkey-input').value.trim();
       if (!/^(github_pat_|ghp_)/.test(k)) { $('#ghkey-input').style.borderColor = '#ff6b6b'; return; }
       P.setGithub(k);
-      const r = await gh('GET', '/repos/' + P.repo());
-      if (r.status === 200 && r.data && r.data.permissions && r.data.permissions.push) {
-        sys('Jeton GitHub enregistré : je peux maintenant me reconstruire moi-même.');
-      } else if (r.status === 200) {
-        sys("Jeton enregistré, mais il n'a pas le droit d'écrire dans le dépôt. Donne-lui Contents en lecture et écriture.");
-      } else {
-        sys('Jeton enregistré, mais GitHub le refuse (' + r.status + '). Vérifie qu\'il donne accès au dépôt ' + P.repo() + '.');
-      }
+      const r2 = await gh('GET', '/repos/' + P.repo());
+      if (r2.status === 200 && r2.data && r2.data.permissions && r2.data.permissions.push) sys('Jeton GitHub enregistré : je peux maintenant me reconstruire moi-même.');
+      else if (r2.status === 200) sys("Jeton enregistré, mais il n'a pas le droit d'écrire dans le dépôt. Donne-lui Contents en lecture et écriture.");
+      else sys('Jeton enregistré, mais GitHub le refuse (' + r2.status + '). Vérifie qu\'il donne accès au dépôt ' + P.repo() + '.');
       renderSettings();
     };
   }
@@ -1097,6 +1192,13 @@ window.__poupousOK = true;
 S.faits = store.get('memoire', []);
 Object.assign(S.reglages, store.get('reglages', {}));
 S.turns = store.get('conversation', []);
+getMarketData();
+if (hasNativeRadar()) {
+  let actif = false;
+  try { actif = typeof P.isRadarRunning === 'function' ? String(P.isRadarRunning()) === 'true' : !!store.get('radarActif', false); } catch (e) { actif = !!store.get('radarActif', false); }
+  S.gpsTracking = actif;
+  if (actif) pushRadarConfig();
+}
 setTimeout(applyVoice, 800);
 if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
 if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forEach(x => addMsg(x.role === 'user' ? 'toi' : 'poupous', x.content)); }
