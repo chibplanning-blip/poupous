@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=7 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=8 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -265,6 +265,7 @@ function systemPrompt(){
     "annuler_derniere_amelioration : revenir à la version précédente.\n" +
     "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
     "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
+    "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_apk ou ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
     "Tu as deux façons de t'améliorer, et c'est TOI qui fais ces mises à jour : ne dis jamais de contacter un développeur. ameliorer_mon_code change ta page (interface, comportement, logique), c'est immédiat. ameliorer_apk change ton application Android (nouvelles autorisations, accès au téléphone, fonctions natives, services en arrière-plan) : tu réécris ton code Java, GitHub reconstruit l'APK en 5 à 10 minutes, puis tu la télécharges et ouvres l'écran d'installation où l'utilisateur touche Mettre à jour. Il faut un jeton GitHub dans les réglages. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas encore dans window.Poupous. installer_mise_a_jour : relance l'installation de l'APK déjà téléchargée.\n" +
     "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas encore d'écoute écran éteint (possible via ameliorer_apk).\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
@@ -515,6 +516,18 @@ function errCopy(e){
 }
 async function ask(text){
   if (S.busy) return;
+  const cmd = text.match(/^\s*(apk|page)\s*[:：]\s*([\s\S]{3,})$/i);
+  if (cmd) {
+    addMsg('toi', text);
+    if (cmd[1].toLowerCase() === 'apk') {
+      if (!hasSelfApk()) { sys(NEED_APK); return; }
+      if (!P.hasGithub()) { sys("Il faut d'abord le jeton GitHub : roue → GitHub → Ajouter."); return; }
+      await runApkUpgrade(cmd[2].trim());
+    } else {
+      await runUpgrade(cmd[2].trim());
+    }
+    return;
+  }
   S.busy = true; S.lastOk = false;
   addMsg('toi', text);
   if (!brainReady()) { const m = provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."; addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
@@ -545,6 +558,9 @@ async function ask(text){
   } catch (e) {
     answer = errCopy(e); p.textContent = answer; S.turns.pop();
     if (e.gemini && e.message) sys('Détail Gemini (' + e.status + ') : ' + String(e.message).slice(0, 200));
+  }
+  if (S.lastOk && !S.pendingUpgrade && !S.pendingApkUpgrade && /(je (la |te la )?lance|je démarre|je m'en occupe|je (vais )?modifi|lance (vraiment )?la modif|patiente quelques minutes|c'est parti)/i.test(answer) && /(amélior|modifi|ajout|apk|mise à jour|code)/i.test(text + ' ' + answer)) {
+    sys("Attention : en réalité rien n'a été lancé. Pour lancer vraiment une modification, écris « APK: » suivi de ta demande (application Android) ou « PAGE: » suivi de ta demande (interface et comportement), ou utilise la rubrique Améliorer dans les réglages.");
   }
   if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
   await speak(answer);
@@ -780,6 +796,10 @@ function renderSettings(){
     (P && typeof P.setGithub === 'function' ?
       '<h2>GitHub</h2><p class="hint">Permet à Poupous de reconstruire et installer lui-même son application.</p>' +
       '<div class="row"><span>' + (P.hasGithub() ? 'Jeton enregistré' : 'Aucun jeton') + '</span><button class="btn" id="change-gh">' + (P.hasGithub() ? 'Changer' : 'Ajouter') + '</button></div>' : '') +
+    '<h2>Améliorer Poupous</h2>' +
+    '<p class="hint">Décris le changement voulu, puis choisis où l\'appliquer.</p>' +
+    '<input id="amelio" class="bar-input" style="width:100%;box-sizing:border-box;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit" placeholder="Ex. : écouter « Poupous » même appli fermée">' +
+    '<div class="row"><button class="btn" id="go-page">Modifier la page</button><button class="btn primary" id="go-apk">Modifier l\'APK</button></div>' +
     '<h2>Versions</h2>' +
     '<p class="hint">Page : version ' + (P ? P.appVersion() : '?') + ' · Application Android : ' + (P && typeof P.nativeVersion === 'function' ? '1.' + (P.nativeVersion() - 1) : '1.0') + '</p>' +
     '<div class="row"><span>Version précédente</span><button class="btn" id="undo">Restaurer</button></div>' +
@@ -791,6 +811,8 @@ function renderSettings(){
   $('#hauteur').onchange = e => setReglage('hauteur', e.target.value);
   $('#test-voix').onclick = () => speak("Salut, c'est Poupous. Voilà ma voix.").then(() => { if (!S.busy) idle(); });
   $('#change-key').onclick = openKey;
+  $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
+  $('#go-apk').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('APK: ' + d); };
   $('#change-gem').onclick = openGeminiKey;
   $('#cerveau').onchange = e => { S.reglages.cerveau = e.target.value; store.set('reglages', S.reglages); renderSettings(); if (!brainReady()) openBrainKey(); };
   if ($('#change-gh')) $('#change-gh').onclick = openGithub;
