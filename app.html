@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=6 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=7 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -361,7 +361,7 @@ async function callClaude(body){
   err.status = r.status; err.type = data && data.error ? data.error.type : 'network';
   throw err;
 }
-const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 function provider(){ return S.reglages.cerveau === 'claude' ? 'claude' : 'gemini'; }
 function geminiKey(){ return store.get('geminiKey', ''); }
 function brainReady(){ return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
@@ -396,7 +396,8 @@ async function geminiCall(body){
     if (r.status === 200 && data) { if (m !== saved) store.set('geminiModel', m); return data; }
     const msg = data && data.error ? String(data.error.message || '') : String(r.text || '');
     const err = new Error(msg); err.status = r.status; err.gemini = true; lastErr = err;
-    if (r.status === 404 || (r.status === 429 && /limit:\s*0|free_tier/i.test(msg))) continue;
+    if (r.status === 400 && /api key|API_KEY/i.test(msg)) throw err;
+    if (r.status === 404 || r.status === 429 || r.status === 403 || r.status >= 500) { await sleep(700); continue; }
     throw err;
   }
   throw lastErr;
@@ -543,6 +544,7 @@ async function ask(text){
     p.textContent = answer; S.lastOk = true;
   } catch (e) {
     answer = errCopy(e); p.textContent = answer; S.turns.pop();
+    if (e.gemini && e.message) sys('Détail Gemini (' + e.status + ') : ' + String(e.message).slice(0, 200));
   }
   if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
   await speak(answer);
