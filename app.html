@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=2 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=3 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
-  [hidden]{display:none!important}
+[hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--ink);color:var(--text)}
 body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
 #app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 12px);box-sizing:border-box}
@@ -86,6 +86,9 @@ window.__ttsDone = id => settle(id, true);
 window.__listenDone = (id, text, err) => settle(id, {text, err});
 window.__listenPartial = t => { $('#live').textContent = t; };
 window.__listenReady = () => {};
+window.__contactsDone = (id, json) => settle(id, json);
+const hasPhone = () => !!(P && typeof P.dial === 'function');
+const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
 window.__onBack = () => { if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
 const store = {
   get(k, d){ try { const v = P ? P.get(k) : ''; return v ? JSON.parse(v) : d; } catch (e) { return d; } },
@@ -245,7 +248,8 @@ function systemPrompt(){
     "Outils : retenir (retiens de toi-même les informations durables que l'utilisateur partage, et tout ce qu'il demande de retenir) ; oublier ; changer_reglage ; " +
     "ameliorer_mon_code : tu peux VRAIMENT modifier ton propre programme (interface, fonctionnalités, comportement) quand l'utilisateur le demande. Ne dis jamais que c'est impossible. Si la demande est floue, pose d'abord une courte question, puis donne à l'outil une demande détaillée. " +
     "annuler_derniere_amelioration : revenir à la version précédente.\n" +
-    "Limites actuelles, à dire honnêtement si on te le demande : pas d'accès aux SMS, aux appels, aux autres applis ni à la navigation internet, et pas d'écoute écran éteint pour l'instant.\n" +
+    "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
+    "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute écran éteint pour l'instant.\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
@@ -259,6 +263,22 @@ function toolDefs(){
       input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
     {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre juste après ta réponse, prend une à trois minutes, puis l'appli se recharge. Une sauvegarde permet d'annuler.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
+    {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
+      input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
+    {name:'appeler', description:"Ouvre l'appli Téléphone avec ce numéro composé ; l'utilisateur appuie sur Appeler.",
+      input_schema:{type:'object', properties:{numero:{type:'string'}}, required:['numero']}},
+    {name:'envoyer_sms', description:"Ouvre la messagerie avec le SMS prêt pour ce numéro ; l'utilisateur appuie sur Envoyer.",
+      input_schema:{type:'object', properties:{numero:{type:'string'}, message:{type:'string'}}, required:['numero','message']}},
+    {name:'mettre_reveil', description:"Crée un réveil à l'heure donnée (format 24 h).",
+      input_schema:{type:'object', properties:{heure:{type:'integer'}, minute:{type:'integer'}, libelle:{type:'string'}}, required:['heure','minute']}},
+    {name:'minuteur', description:"Lance un minuteur de la durée donnée en secondes.",
+      input_schema:{type:'object', properties:{secondes:{type:'integer'}, libelle:{type:'string'}}, required:['secondes']}},
+    {name:'ouvrir_appli', description:"Ouvre une appli installée par son nom (WhatsApp, YouTube, Gmail, Appareil photo…).",
+      input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
+    {name:'itineraire', description:"Ouvre Google Maps avec l'itinéraire vers une destination (adresse, lieu, ville).",
+      input_schema:{type:'object', properties:{destination:{type:'string'}}, required:['destination']}},
+    {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt (destinataire facultatif, objet, texte) ; l'utilisateur appuie sur Envoyer.",
+      input_schema:{type:'object', properties:{destinataire:{type:'string'}, objet:{type:'string'}, texte:{type:'string'}}, required:['objet','texte']}},
     {name:'annuler_derniere_amelioration', description:"Revient à la version précédente de l'appli Poupous juste après ta réponse, puis recharge.",
       input_schema:{type:'object', properties:{}}}
   ];
@@ -269,6 +289,16 @@ async function runTool(name, input){
     if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
     if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Accepté. L'amélioration démarre juste après ta réponse : préviens que ça prend une à trois minutes et que l'appli va se recharger."; }
+    const PHONE_TOOLS = ['chercher_contact','appeler','envoyer_sms','mettre_reveil','minuteur','ouvrir_appli','itineraire','preparer_mail'];
+    if (PHONE_TOOLS.includes(name) && !hasPhone()) return OLD_APK;
+    if (name === 'chercher_contact') return await waitFor('k', id => P.findContact(id, String(input.nom || '')));
+    if (name === 'appeler') return P.dial(String(input.numero || ''));
+    if (name === 'envoyer_sms') return P.sms(String(input.numero || ''), String(input.message || ''));
+    if (name === 'mettre_reveil') return P.alarm(Math.max(0, Math.min(23, parseInt(input.heure, 10) || 0)), Math.max(0, Math.min(59, parseInt(input.minute, 10) || 0)), String(input.libelle || ''));
+    if (name === 'minuteur') return P.timer(Math.max(1, parseInt(input.secondes, 10) || 60), String(input.libelle || ''));
+    if (name === 'ouvrir_appli') return P.openApp(String(input.nom || ''));
+    if (name === 'itineraire') return P.navigate(String(input.destination || ''));
+    if (name === 'preparer_mail') return P.email(String(input.destinataire || ''), String(input.objet || ''), String(input.texte || ''));
     if (name === 'annuler_derniere_amelioration') { S.pendingRollback = true; return 'Accepté : retour à la version précédente juste après ta réponse.'; }
     return 'outil inconnu';
   } catch (e) { return 'Erreur : ' + (e.message || e); }
@@ -344,7 +374,7 @@ async function runUpgrade(demande){
   if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
   const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
   const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
-    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(). Ces fonctions ne peuvent pas changer.\n" +
+    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom). Ces fonctions ne peuvent pas changer.\n" +
     "Contraintes impératives :\n" +
     "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
     "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
