@@ -93,6 +93,17 @@ async function gh(method, path, body) {
   return { status: r.status, data };
 }
 
+async function pushFile(path, contentText, message) {
+  const cur = await gh('GET', '/contents/' + encodeURI(path));
+  const body = { message, content: b64utf8(contentText) };
+  if (cur.status === 200 && cur.data && cur.data.sha) body.sha = cur.data.sha;
+  const r = await gh('PUT', '/contents/' + encodeURI(path), body);
+  if (r.status !== 200 && r.status !== 201) {
+    const why = r.status === 401 ? 'jeton GitHub refusé' : (r.status === 403 || r.status === 404) ? 'jeton sans accès en écriture' : ((r.data && r.data.message) || ('HTTP ' + r.status));
+    throw new Error(why);
+  }
+}
+
 async function pullSync() {
   const cfg = loadConfig();
   if (!cfg.repo || !cfg.token) { setStatus('Renseigne le dépôt et le jeton GitHub.'); setRailDot(false); return; }
@@ -232,7 +243,9 @@ const TOOLS = [
   { name: 'redemarrer_pc', description: "Redémarre le PC. Une confirmation est toujours demandée à l'utilisateur avant l'exécution.",
     input_schema: { type: 'object', properties: {} } },
   { name: 'eteindre_pc', description: "Éteint le PC. Une confirmation est toujours demandée à l'utilisateur avant l'exécution.",
-    input_schema: { type: 'object', properties: {} } }
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'ameliorer_pc', description: "Modifie le code de cette application PC elle-même (interface, fonctionnalités) et publie une nouvelle version sur GitHub. La construction prend 5 à 15 minutes ; il faudra retélécharger et réinstaller l'application une fois prête.",
+    input_schema: { type: 'object', properties: { demande: { type: 'string' } }, required: ['demande'] } }
 ];
 
 async function runTool(name, input) {
@@ -284,7 +297,100 @@ async function runTool(name, input) {
     const r = await window.pcBridge.shutdown();
     return r.ok ? 'extinction lancée (annulable dans les 5 secondes)' : 'échec : ' + (r.error || 'inconnu');
   }
+  if (name === 'ameliorer_pc') {
+    return await runPcUpgrade(String((input && input.demande) || ''));
+  }
   return 'outil inconnu';
+}
+
+const UPGRADE_FILES = ['desktop/index.html', 'desktop/renderer.js', 'desktop/main.js', 'desktop/preload.js'];
+const FSTART = '===FICHIER ', FEND = '===', FDONE = '===FIN_FICHIER===';
+
+async function fetchRepoFile(path) {
+  const r = await gh('GET', '/contents/' + path);
+  if (r.status !== 200 || !r.data || !r.data.content) throw new Error('impossible de lire ' + path + ' (HTTP ' + r.status + ')');
+  return utf8b64(r.data.content.replace(/\n/g, ''));
+}
+
+async function completeForUpgrade(rules, userMsg) {
+  const cfg = loadConfig();
+  if (!cfg.aiKey) throw new Error("il faut une clé API dans l'onglet Cerveau");
+  if (cfg.provider === 'claude') {
+    const r = await window.aiBridge.claude(cfg.aiKey, { model: 'claude-opus-5', max_tokens: 16000, system: rules, messages: [{ role: 'user', content: userMsg }] });
+    if (r.status !== 200 || !r.data) throw new Error((r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status));
+    return (r.data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  }
+  let lastErr = null;
+  for (const model of GEMINI_MODELS) {
+    const r = await window.aiBridge.gemini(cfg.aiKey, model, { systemInstruction: { parts: [{ text: rules }] }, contents: [{ role: 'user', parts: [{ text: userMsg }] }], generationConfig: { maxOutputTokens: 16000 } });
+    if (r.status === 200 && r.data) {
+      const cand = (r.data.candidates || [])[0];
+      const parts = (cand && cand.content && cand.content.parts) || [];
+      return parts.filter(x => x.text).map(x => x.text).join('');
+    }
+    lastErr = (r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status);
+  }
+  throw new Error(lastErr || 'Gemini indisponible');
+}
+
+async function runPcUpgrade(demande) {
+  const cfg = loadConfig();
+  if (!cfg.token || !cfg.repo) return "Il me faut une connexion GitHub configurée dans l'onglet Connexion pour pouvoir me modifier.";
+  if (!demande.trim()) return 'rien à modifier';
+  const current = {};
+  try {
+    for (const path of UPGRADE_FILES) current[path] = await fetchRepoFile(path);
+  } catch (e) { return "Je n'arrive pas à lire mon propre code sur GitHub (" + (e.message || e) + ")."; }
+
+  const rules = "Tu es un développeur expert en Electron (JavaScript + HTML). Tu modifies l'application de bureau Windows de Poupous : main.js (processus principal Electron), preload.js (pont contextBridge), renderer.js et index.html (interface).\n" +
+    "Contraintes impératives :\n" +
+    "- Renvoie uniquement les fichiers modifiés, chacun COMPLET (jamais un extrait ni un diff).\n" +
+    "- Ne supprime aucune fonctionnalité existante : discussion avec Gemini/Claude, outils retenir/oublier, outils PC (ouvrir_application, ouvrir_site, verrouiller_pc, mettre_en_veille, regler_volume, redemarrer_pc, eteindre_pc avec confirmation), synchronisation GitHub (poupous-sync.json), voix ElevenLabs, mode mains libres avec mot-clé, tableau de bord (horloge, radar, jauges), et l'outil ameliorer_pc lui-même.\n" +
+    "- N'ajoute aucune dépendance npm : package.json ne peut pas changer.\n" +
+    "- Aucune ressource externe (CDN, police en ligne) dans index.html.\n" +
+    "- Le code JavaScript doit être syntaxiquement valide.\n" +
+    "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
+    "Format de réponse exact, sans markdown : pour chaque fichier modifié, une ligne " + FSTART + "chemin/relatif" + FEND + ", le contenu complet du fichier, puis une ligne " + FDONE + ".";
+  const listing = UPGRADE_FILES.map(p => FSTART + p + FEND + '\n' + current[p] + '\n' + FDONE).join('\n');
+  const userMsg = "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIERS ACTUELS :\n" + listing;
+
+  let out;
+  try { out = await completeForUpgrade(rules, userMsg); }
+  catch (e) { return "Erreur lors de la génération du nouveau code (" + (e.message || e) + "). Je n'ai rien changé."; }
+
+  const changed = {};
+  for (const part of out.split(FSTART).slice(1)) {
+    const nl = part.indexOf('\n'); if (nl < 0) continue;
+    const path = part.slice(0, nl).replace(/=+\s*$/, '').trim();
+    let body = part.slice(nl + 1);
+    const end = body.lastIndexOf(FDONE); if (end >= 0) body = body.slice(0, end);
+    body = body.replace(/^\s*```\w*\n|\n```\s*$/g, '').replace(/\s+$/, '') + '\n';
+    if (!UPGRADE_FILES.includes(path)) continue;
+    changed[path] = body;
+  }
+  if (!Object.keys(changed).length) return "Je n'ai reçu aucun fichier modifié valide. Je n'ai rien changé.";
+
+  const MUST_KEEP = {
+    'desktop/renderer.js': ['ameliorer_pc', 'pushSync', 'const TOOLS', 'async function runTool'],
+    'desktop/main.js': ["'ai-claude'", "'ai-gemini'", "'pc-open-app'", "'sys-stats'"],
+    'desktop/preload.js': ['aiBridge', 'pcBridge'],
+    'desktop/index.html': ['renderer.js', 'chatlog']
+  };
+  for (const path in changed) {
+    for (const k of (MUST_KEEP[path] || [])) {
+      if (!changed[path].includes(k)) return "Le nouveau " + path + " perdait une partie essentielle (" + k + "). Je n'ai rien changé.";
+    }
+    if (path.endsWith('.js')) {
+      try { new Function(changed[path]); }
+      catch (e) { if (e instanceof SyntaxError) return "Le nouveau " + path + " contient une erreur de syntaxe (" + e.message + "). Je n'ai rien changé."; }
+    }
+  }
+
+  for (const path in changed) {
+    try { await pushFile(path, changed[path], 'Poupous PC : ' + demande.slice(0, 60)); }
+    catch (e) { return "Échec de l'envoi de " + path + " sur GitHub (" + (e.message || e) + ")."; }
+  }
+  return "C'est envoyé : " + Object.keys(changed).length + " fichier(s) modifié(s). La nouvelle version se construit sur GitHub, ça prend 5 à 15 minutes. Retélécharge et réinstalle ensuite depuis le même lien.";
 }
 
 function systemPromptPC() {
@@ -296,6 +402,7 @@ function systemPromptPC() {
     "Réponds en français, de façon naturelle et concise (une à trois phrases, sauf si on te demande des détails) : tes réponses peuvent être lues à voix haute. Pas de markdown, pas de listes à puces, pas d'emojis.\n" +
     "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, ouvres, verrouilles, règles le volume ou éteins/redémarres, tu DOIS appeler l'outil correspondant dans la même réponse.\n" +
     "Outils PC disponibles : ouvrir_application, ouvrir_site, verrouiller_pc, mettre_en_veille, regler_volume, redemarrer_pc, eteindre_pc (les deux derniers demandent toujours une confirmation à l'utilisateur, qui peut refuser).\n" +
+    "ameliorer_pc : modifie ton propre code et publie une nouvelle version sur GitHub. Ça prend 5 à 15 minutes et l'utilisateur doit retélécharger et réinstaller l'application ensuite ; dis-le toujours clairement.\n" +
     "Tu peux retenir ou oublier durablement des informations sur l'utilisateur avec retenir/oublier ; elles sont partagées avec son téléphone.\n" +
     "Souvenirs sur l'utilisateur :\n" + (state.memoire.length ? state.memoire.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }

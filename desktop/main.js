@@ -72,7 +72,9 @@ function safeName(s) {
 ipcMain.handle('pc-open-app', async (event, name) => {
   const n = safeName(name);
   if (!n) return { ok: false, error: 'nom invalide' };
-  return run('start "" "' + n.replace(/"/g, '') + '"');
+  // Unquoted on purpose: a multi-word value like "control mmsys.cpl sounds" is a
+  // command plus its arguments, not one literal filename with spaces in it.
+  return run('start "" ' + n);
 });
 
 ipcMain.handle('pc-open-url', async (event, url) => {
