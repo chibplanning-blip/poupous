@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=35 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=36 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -604,8 +604,35 @@ async function speak(text){
   const c = clean(text);
   if (!c || !P) return;
   S.speaking = true; setState('parole');
+  
+  let stopDetected = false;
+  let stopListenPromise = null;
+  if (S.reglages.mainsLibres && P && typeof P.listen === 'function') {
+    stopListenPromise = (async () => {
+      while (S.speaking) {
+        const r = await listenOnce();
+        if (r && r.text) {
+          const txtNorm = norm(r.text);
+          if (txtNorm.includes('stop') || txtNorm.includes('arrete') || txtNorm.includes('tais toi')) {
+            stopDetected = true;
+            break;
+          }
+        }
+        await sleep(100);
+      }
+    })();
+  }
+  
   await waitFor('t', id => P.speak(id, c));
   S.speaking = false;
+  if (stopDetected) {
+    stopSpeaking();
+    S.busy = false;
+    S.pendingUpgrade = null;
+    S.pendingApkUpgrade = null;
+    if (P && typeof P.cancelListening === 'function') P.cancelListening();
+    idle();
+  }
 }
 function stopSpeaking(){ if (P) P.stopSpeaking(); }
 
@@ -643,12 +670,22 @@ function findWake(text){
   return null;
 }
 async function followUps(){
-  while (S.lastOk && !S.pendingUpgrade && !S.pendingApkUpgrade && !S.pendingRollback) {
+  while (S.lastOk && !S.pendingUpgrade && !S.pendingApkUpgrade && !S.pendingRollback && S.reglages.mainsLibres) {
     setState('ecoute'); $('#mic').classList.add('on');
     const r = await listenOnce(); $('#mic').classList.remove('on');
+    if (!S.reglages.mainsLibres) break;
+    if (r.text) {
+      const txtN = norm(r.text);
+      if (txtN === 'stop' || txtN.includes('arrete')) {
+        S.busy = false; S.speaking = false; if (P && typeof P.cancelListening === 'function') P.cancelListening();
+        idle();
+        return;
+      }
+    }
     if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { micError(r.err); break; }
     if (!r.text) break;
     await ask(r.text);
+    await sleep(200);
   }
 }
 async function micTap(){
@@ -667,26 +704,38 @@ async function micTap(){
 async function handsFree(){
   if (S.hfRunning) return; S.hfRunning = true;
   while (S.reglages.mainsLibres) {
-    if (S.busy || S.speaking || S.listening || !$('#sheet').hidden) { await sleep(400); continue; }
+    if (S.busy || S.speaking || S.listening || !$('#sheet').hidden) { await sleep(200); continue; }
     setState('mainslibres');
     const r = await listenOnce();
     if (!S.reglages.mainsLibres) break;
-    if (r.err) {
-      sys('[DEBUG MAINS LIBRES] Erreur d\'écoute reçue : ' + r.err);
-    }
     if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
     if (r.err === '10' || r.err === 10 || String(r.err).includes('10')) {
-      await sleep(5000);
+      await sleep(1000);
       continue;
     }
-    if (r.err) { await sleep(2000); continue; }
-    if (!r.text) { await sleep(2000); continue; }
+    if (r.err) { await sleep(500); continue; }
+    if (!r.text) { await sleep(200); continue; }
+    
+    const txtN = norm(r.text);
+    if (txtN === 'stop' || txtN.includes('arrete')) {
+      S.busy = false; S.speaking = false; if (P && typeof P.cancelListening === 'function') P.cancelListening();
+      continue;
+    }
+    
     const w = findWake(r.text);
-    if (!w) { await sleep(2000); continue; }
-    if (/\p{L}{2,}/u.test(w.rest)) await ask(w.rest);
-    else { await speak('Oui ?'); setState('ecoute'); const q = await listenOnce(); if (q.text) await ask(q.text); }
+    if (!w) { await sleep(200); continue; }
+    
+    await speak("Oui, je t'écoute");
+    setState('ecoute');
+    const q = await listenOnce();
+    if (!S.reglages.mainsLibres) break;
+    if (q.text) {
+      const qNorm = norm(q.text);
+      if (qNorm === 'stop' || qNorm.includes('arrete')) continue;
+      await ask(q.text);
+    }
     await followUps();
-    await sleep(2000);
+    await sleep(200);
   }
   S.hfRunning = false;
   if (!S.busy) idle();
@@ -1176,6 +1225,9 @@ function errCopy(e){
 async function ask(text){
   if (S.busy) return;
   const lower = norm(text);
+  if (lower === 'stop' || lower.includes('arrete')) {
+    return;
+  }
   if (lower.includes('corrige ce bug') || lower.includes('corrige le bug')) {
     addMsg('toi', text);
     const lastLogs = [...document.querySelectorAll('.msg.sys')].slice(-3).map(el => el.textContent).join('\n');
