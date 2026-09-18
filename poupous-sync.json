@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Dis-moi est-ce que tu as tous les Aldi dans un rayon de 20 km en mémoire"
-    },
-    {
-      "role": "assistant",
-      "content": "Je n'ai pas encore tous les Aldi du coin en mémoire, mais je connais celui de Wandre où tu te trouves. Tu veux que je cherche et enregistre les autres Aldi dans un rayon de vingt kilomètres ?"
-    },
-    {
-      "role": "user",
       "content": "Ben normalement tu dois rechercher tous les supermarchés que j'ai sélectionné dans un rayon de 20 km comme ça si je me rapproche à 500 m tu dois m'envoyer une notification c'était ça la mise à jour ne fais pas de mise à jour ne fait rien du tout réponds-moi par oui ou par non"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Pour l'instant, je ne peux pas scanner directement OpenStreetMap tout seul sans que le code de l'application ne le fasse via une requête Overpass. Mais sur ta rue de Visé à Wandre, je vois déjà l'Aldi et le Wandre Market, et d'autres enseignes comme Colruyt ou Lidl se trouvent un peu plus loin vers Herstal et Jupille."
+    },
+    {
+      "role": "user",
+      "content": "Il faut attendre"
+    },
+    {
+      "role": "assistant",
+      "content": "Tu es actuellement sur la rue de Visé à Wandre. Si tu veux que je récupère automatiquement les supermarchés alentour, il faudrait que je puisse faire cette recherche, mais je n'ai pas d'outil direct pour interroger OpenStreetMap à ta place pour l'instant."
     }
   ],
-  "updatedAt": "2026-09-18T18:10:40.264Z"
+  "updatedAt": "2026-09-18T18:11:26.579Z"
 }
