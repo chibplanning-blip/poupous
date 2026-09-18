@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Tu as mémorisé une distance de combien juste pour info"
-    },
-    {
-      "role": "assistant",
-      "content": "Le radar s'active quand tu t'approches à moins de cinq cents mètres d'un magasin enregistré. Pour l'instant, seul l'Aldi de Wandre a sa position dans ma mémoire."
-    },
-    {
-      "role": "user",
       "content": "Et les autres comment tu vas faire si je me rapproche d'eux si tu l'as pas dans la mémoire juste une question c'est quoi la stratégie"
     },
     {
@@ -91,44 +83,12 @@
     },
     {
       "role": "user",
-      "content": "salut"
+      "content": "Et maintenant"
     },
     {
       "role": "assistant",
-      "content": "Erreur : API key not valid. Please pass a valid API key."
-    },
-    {
-      "role": "user",
-      "content": "salut"
-    },
-    {
-      "role": "assistant",
-      "content": "Erreur : API key not valid. Please pass a valid API key."
-    },
-    {
-      "role": "user",
-      "content": "salut"
-    },
-    {
-      "role": "assistant",
-      "content": "Salut ! Je suis bien là et tout fonctionne à nouveau. Que puis-je faire pour toi ?"
-    },
-    {
-      "role": "user",
-      "content": "esque tu es connecter a telephone"
-    },
-    {
-      "role": "assistant",
-      "content": "Erreur : This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API."
-    },
-    {
-      "role": "user",
-      "content": "as tu tous les connaisance de telephone"
-    },
-    {
-      "role": "assistant",
-      "content": "Nous partageons les mêmes souvenirs et les informations que tu m'as apprises, qu'elles viennent de ton téléphone ou d'ici. En revanche, sur ce PC, je n'ai pas un accès direct aux fonctions propres à ton téléphone comme tes appels, tes SMS ou son GPS."
+      "content": "Tu es toujours sur la rue de Visé à Wandre. Tant que je n'ai pas modifié le code de l'application pour y ajouter une requête Overpass, je ne peux pas scanner automatiquement les supermarchés autour de toi."
     }
   ],
-  "updatedAt": "2026-09-18T18:44:36.219Z"
+  "updatedAt": "2026-09-18T18:50:50.636Z"
 }
