@@ -1210,7 +1210,7 @@ if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forE
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
 idle();
 if (P && !brainReady()) openBrainKey(); else announce();
-if (S.reglages.connexionPermanente && P && typeof P.startWake === 'function') P.startWake();
+
 loadShared();
 })();
 </script>
