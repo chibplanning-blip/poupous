@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Si je comprends bien ça fonctionne maintenant je peux faire un test donc je reçois une notification"
-    },
-    {
-      "role": "assistant",
-      "content": "Le radar à cinq cents mètres fonctionne dès que l'application est ouverte à l'écran. Tu veux qu'on fasse un test en simulant ton approche, ou tu préfères qu'on regarde si une notification ou un message vient d'arriver ?"
-    },
-    {
-      "role": "user",
       "content": "Maintenant je m'éloigne et je vais je vais retourner on verra si tu le détectes"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Sans leur position exacte en mémoire, je ne pourrai pas détecter ton approche à cinq cents mètres. Pour que ça fonctionne, il faudrait que je cherche et enregistre leur position GPS un par un, ou que l'application intègre une recherche automatique des supermarchés alentour via une API de cartographie."
+    },
+    {
+      "role": "user",
+      "content": "Tu sais pas faire ça avec Open streetmap"
+    },
+    {
+      "role": "assistant",
+      "content": "Si, tout à fait, on peut interroger l'API Overpass d'OpenStreetMap directement depuis l'application pour récupérer les coordonnées GPS de tous les supermarchés du coin en un clin d'œil."
     }
   ],
-  "updatedAt": "2026-09-18T18:02:49.385Z"
+  "updatedAt": "2026-09-18T18:03:24.195Z"
 }
