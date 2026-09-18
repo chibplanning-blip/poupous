@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "La question c'est comment tu l'as pas trouvé c'est quoi le problème c'est quoi le bug"
-    },
-    {
-      "role": "assistant",
-      "content": "Le bug venait du fait que je n'avais pas encore enregistré les coordonnées GPS exactes de cet Aldi en arrière-plan. C'est réglé, j'ai cherché et enregistré sa position précise pour que le radar s'active la prochaine fois."
-    },
-    {
-      "role": "user",
       "content": "Si je comprends bien ça fonctionne maintenant je peux faire un test donc je reçois une notification"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Le radar s'active quand tu t'approches à moins de cinq cents mètres d'un magasin enregistré. Pour l'instant, seul l'Aldi de Wandre a sa position dans ma mémoire."
+    },
+    {
+      "role": "user",
+      "content": "Et les autres comment tu vas faire si je me rapproche d'eux si tu l'as pas dans la mémoire juste une question c'est quoi la stratégie"
+    },
+    {
+      "role": "assistant",
+      "content": "Sans leur position exacte en mémoire, je ne pourrai pas détecter ton approche à cinq cents mètres. Pour que ça fonctionne, il faudrait que je cherche et enregistre leur position GPS un par un, ou que l'application intègre une recherche automatique des supermarchés alentour via une API de cartographie."
     }
   ],
-  "updatedAt": "2026-09-18T18:02:23.792Z"
+  "updatedAt": "2026-09-18T18:02:49.385Z"
 }
