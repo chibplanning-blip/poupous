@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=27 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=28 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -117,7 +117,7 @@ const hasFiles = () => !!(P && typeof P.saveFile === 'function');
 const hasSelfApk = () => !!(P && typeof P.buildZipBase64 === 'function');
 const hasPhone = () => !!(P && typeof P.dial === 'function');
 const hasLocation = () => !!(navigator.geolocation);
-const hasNativeRadar = () => !!(P && typeof P.startRadar === 'function' && typeof P.stopRadar === 'function');
+const hasNativeRadar = () => !!(P && typeof P.startGeofenceMonitor === 'function' && typeof P.stopGeofenceMonitor === 'function');
 const NEED_APK = "Cette action demande la version 1.2 de l'APK Poupous. Elle doit être installée une fois à la main depuis la page Releases du dépôt GitHub.";
 const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
 window.__onBack = () => { if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
@@ -340,7 +340,8 @@ function radarConfig(){
 }
 function pushRadarConfig(){
   if (!hasNativeRadar() || !S.gpsTracking) return;
-  try { P.startRadar(JSON.stringify(radarConfig())); } catch (e) {}
+  const cfg = radarConfig();
+  try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom:m.nom, lat:m.lat, lon:m.lon})))); } catch (e) {}
 }
 /* Appelé par le service Android quand il détecte un magasin à moins de 500 m. */
 window.__radarProximite = nom => {
@@ -360,7 +361,7 @@ function toggleGpsTracking(){
     S.gpsTracking = false;
     store.set('radarActif', false);
     if (S.gpsWatchId !== null) { navigator.geolocation.clearWatch(S.gpsWatchId); S.gpsWatchId = null; }
-    if (hasNativeRadar()) { try { P.stopRadar(); } catch (e) {} }
+    if (hasNativeRadar()) { try { P.stopGeofenceMonitor(); } catch (e) {} }
     sys('Radar de proximité arrêté.');
     return;
   }
@@ -369,10 +370,8 @@ function toggleGpsTracking(){
     if (!cfg.magasins.length) { sys("Aucun magasin n'a de position enregistrée : va devant un magasin et touche « Je suis devant ce magasin »."); return; }
     S.gpsTracking = true;
     store.set('radarActif', true);
-    let r = '';
-    try { r = String(P.startRadar(JSON.stringify(cfg))); } catch (e) { r = 'erreur'; }
-    if (r === 'permission') { sys("Autorise la position « Toujours » pour Poupous dans l'écran qui s'ouvre, puis relance le radar."); S.gpsTracking = false; store.set('radarActif', false); return; }
-    if (r && r !== 'ok') { sys('Le service de radar refuse de démarrer (' + r + ').'); S.gpsTracking = false; store.set('radarActif', false); return; }
+    try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom:m.nom, lat:m.lat, lon:m.lon})))); }
+    catch (e) { sys('Le service de radar refuse de démarrer.'); S.gpsTracking = false; store.set('radarActif', false); return; }
     sys('Radar 500 m lancé en arrière-plan : il continue même appli fermée et écran éteint.');
     return;
   }
