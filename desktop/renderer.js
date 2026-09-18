@@ -539,6 +539,13 @@ let micStream = null;
 
 function isStopWord(t) { return /^(stop|arrête|arrete|arrête[- ]toi|arrete[- ]toi)\s*\.?$/i.test(t.trim()); }
 
+function withTimeout(promise, ms, msg) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(msg)), ms);
+    promise.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -549,16 +556,25 @@ function blobToBase64(blob) {
 }
 
 async function recordAudio(ms) {
-  if (!micStream) micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  if (!micStream) {
+    micStream = await withTimeout(
+      navigator.mediaDevices.getUserMedia({ audio: true }),
+      6000,
+      "accès au micro refusé ou bloqué (vérifie que Windows autorise les applications de bureau à utiliser le micro, dans Paramètres > Confidentialité > Micro)"
+    );
+  }
   const mime = (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) ? 'audio/webm;codecs=opus' : 'audio/webm';
   const rec = new MediaRecorder(micStream, { mimeType: mime });
   const chunks = [];
-  const stopped = new Promise((resolve) => { rec.onstop = resolve; });
+  const stopped = new Promise((resolve, reject) => {
+    rec.onstop = resolve;
+    rec.onerror = (e) => reject(new Error((e.error && e.error.message) || "erreur d'enregistrement audio"));
+  });
   rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   rec.start();
   await new Promise((r) => setTimeout(r, ms));
   rec.stop();
-  await stopped;
+  await withTimeout(stopped, 5000, "l'enregistrement audio ne s'est pas terminé correctement");
   return { blob: new Blob(chunks, { type: mime }), mime };
 }
 
@@ -598,7 +614,7 @@ async function startListening() {
   setRadarState('listening');
   try {
     const { blob, mime } = await recordAudio(5000);
-    const raw = await transcribeAudio(blob, mime, sttKey);
+    const raw = await withTimeout(transcribeAudio(blob, mime, sttKey), 15000, 'la transcription a mis trop de temps à répondre');
     recognizing = false;
     $('mic-btn').classList.remove('listening');
     setRadarState('idle');
