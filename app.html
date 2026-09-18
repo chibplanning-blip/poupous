@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=31 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=32 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -656,8 +656,8 @@ function toolDefs(){
 }
 async function runTool(name, input){
   try {
-    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé'; }
-    if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' souvenir(s) supprimé(s)'; }
+    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); syncPush(); return 'mémorisé'; }
+    if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); syncPush(); return (avant - S.faits.length) + ' souvenir(s) supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
     if (name === 'localiser') {
       const loc = await getLocation();
@@ -986,6 +986,28 @@ async function pushFile(path, contentB64, message){
     throw new Error('GitHub ' + r.status + ' : ' + why);
   }
 }
+const SYNC_FILE = 'poupous-sync.json';
+async function syncPull(){
+  try {
+    if (!P || typeof P.repo !== 'function' || !brainReady()) return;
+    const repo = P.repo();
+    const r = await gh('GET', '/repos/' + repo + '/contents/' + SYNC_FILE);
+    if (r.status !== 200 || !r.data || !r.data.content) return;
+    const remote = JSON.parse(utf8b64(r.data.content.replace(/\n/g, '')));
+    if (Array.isArray(remote.memoire)) {
+      const merged = S.faits.slice();
+      for (const f of remote.memoire) if (typeof f === 'string' && !merged.includes(f)) merged.push(f);
+      if (merged.length !== S.faits.length) { S.faits = merged; store.set('memoire', S.faits); }
+    }
+  } catch (e) {}
+}
+async function syncPush(){
+  try {
+    if (!P || typeof P.repo !== 'function' || !brainReady()) return;
+    const payload = {memoire: S.faits, conversation: S.turns, updatedAt: new Date().toISOString()};
+    await pushFile(SYNC_FILE, b64utf8(JSON.stringify(payload, null, 2)), 'Synchronisation Poupous (téléphone)');
+  } catch (e) {}
+}
 function attachmentBlocks(list){
   const blocks = [];
   for (const a of list) {
@@ -1088,7 +1110,7 @@ async function ask(text){
     answer = errCopy(e); p.textContent = answer; S.turns.pop();
     if (e.gemini && e.message) sys('Détail Gemini (' + e.status + ') : ' + String(e.message).slice(0, 200));
   }
-  if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
+  if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); syncPush(); }
   await speak(answer);
   S.busy = false;
   if (S.pendingApkUpgrade) { const d = S.pendingApkUpgrade; S.pendingApkUpgrade = null; S.pendingUpgrade = null; await runApkUpgrade(d); }
@@ -1368,6 +1390,7 @@ requestAnimationFrame(draw);
 window.__poupousOK = true;
 
 S.faits = store.get('memoire', []);
+syncPull();
 Object.assign(S.reglages, store.get('reglages', {}));
 S.turns = store.get('conversation', []);
 getMarketData();

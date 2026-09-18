@@ -1,0 +1,5 @@
+{"name":"Poupous Desktop (Windows)","on":{"workflow_dispatch":{},"push":{"paths":["desktop/**",".github/workflows/build-desktop.yml"]}},"permissions":{"contents":"write"},"jobs":{"build":{"runs-on":"windows-latest","defaults":{"run":{"working-directory":"desktop"}},"steps":[{"uses":"actions/checkout@v4"},
+{"uses":"actions/setup-node@v4","with":{"node-version":"20"}},
+{"name":"Installer les dependances","run":"npm install"},
+{"name":"Construire l'installateur Windows","run":"npm run dist"},
+{"name":"Publier","shell":"bash","env":{"GH_TOKEN":"${{ github.token }}"},"run":"EXE=$(ls dist/*.exe | head -1)\ncp \"$EXE\" ../Poupous-Setup.exe\ncd ..\ngh release delete poupous-desktop --yes --cleanup-tag || true\ngh release create poupous-desktop Poupous-Setup.exe --title \"Poupous PC\" --notes \"Derniere version de l'application de bureau Poupous (Windows)\""}]}}}

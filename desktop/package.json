@@ -1,0 +1,32 @@
+{
+  "name": "poupous-desktop",
+  "version": "1.0.0",
+  "description": "Poupous sur PC - même mémoire et historique que sur le téléphone, via GitHub.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.poupous.desktop",
+    "productName": "Poupous",
+    "asar": true,
+    "files": [
+      "main.js",
+      "index.html",
+      "renderer.js",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

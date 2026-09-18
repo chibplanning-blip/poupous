@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Poupous</title>
+<style>
+  :root {
+    --bg: #030712;
+    --panel: #111827;
+    --panel2: #1e293b;
+    --accent: #00e5ff;
+    --text: #ffffff;
+    --muted: #94a3b8;
+    --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 16px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--panel2);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+  header p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+  main { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  section { margin-bottom: 24px; }
+  section h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  input[type=text], input[type=password] {
+    flex: 1;
+    background: var(--panel2);
+    border: 1px solid #334155;
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  button {
+    background: var(--accent);
+    color: #001014;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.secondary { background: var(--panel2); color: var(--text); }
+  button.danger { background: var(--danger); color: #200; }
+  .fact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--panel2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .fact span { flex: 1; font-size: 14px; }
+  .turn { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #1e293b33; }
+  .turn.user { color: var(--text); }
+  .turn.assistant { color: var(--muted); }
+  #status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .empty { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>POUPOUS</h1>
+  <p>Même mémoire, même historique que sur ton téléphone.</p>
+</header>
+<main>
+  <section id="setup">
+    <h2>Connexion</h2>
+    <div class="row">
+      <input type="text" id="repo" placeholder="chibplanning-blip/poupous">
+    </div>
+    <div class="row">
+      <input type="password" id="token" placeholder="Ton token GitHub (ghp_...)">
+    </div>
+    <div class="row">
+      <button id="save-config">Enregistrer</button>
+      <button id="refresh" class="secondary">Actualiser</button>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <section>
+    <h2>Souvenirs</h2>
+    <div id="facts"></div>
+    <div class="row">
+      <input type="text" id="new-fact" placeholder="Ajouter un souvenir...">
+      <button id="add-fact">Ajouter</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Historique récent</h2>
+    <div id="history"></div>
+  </section>
+</main>
+<script src="renderer.js"></script>
+</body>
+</html>
