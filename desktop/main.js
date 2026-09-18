@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { exec } = require('child_process');
 const path = require('path');
 
 function createWindow() {
@@ -56,3 +57,37 @@ ipcMain.handle('ai-gemini', async (event, { apiKey, model, body }) => {
     body: JSON.stringify(body)
   });
 });
+
+function run(cmd) {
+  return new Promise((resolve) => {
+    exec(cmd, (err) => resolve({ ok: !err, error: err ? err.message : null }));
+  });
+}
+
+function safeName(s) {
+  return typeof s === 'string' && /^[\w .,()'-]{1,80}$/.test(s) ? s : null;
+}
+
+ipcMain.handle('pc-open-app', async (event, name) => {
+  const n = safeName(name);
+  if (!n) return { ok: false, error: 'nom invalide' };
+  return run('start "" "' + n.replace(/"/g, '') + '"');
+});
+
+ipcMain.handle('pc-open-url', async (event, url) => {
+  if (typeof url !== 'string' || !/^https?:\/\/[^\s"]+$/i.test(url)) return { ok: false, error: 'url invalide' };
+  try { await shell.openExternal(url); return { ok: true }; }
+  catch (e) { return { ok: false, error: e.message }; }
+});
+
+ipcMain.handle('pc-lock', async () => run('rundll32.exe user32.dll,LockWorkStation'));
+ipcMain.handle('pc-sleep', async () => run('rundll32.exe powrprof.dll,SetSuspendState 0,1,0'));
+
+ipcMain.handle('pc-volume', async (event, dir) => {
+  const key = dir === 'up' ? 175 : dir === 'down' ? 174 : 173;
+  return run('powershell -WindowStyle Hidden -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]' + key + ')"');
+});
+
+ipcMain.handle('pc-shutdown', async () => run('shutdown /s /t 5'));
+ipcMain.handle('pc-restart', async () => run('shutdown /r /t 5'));
+ipcMain.handle('pc-cancel-shutdown', async () => run('shutdown /a'));

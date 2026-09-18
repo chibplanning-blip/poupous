@@ -5,74 +5,108 @@
 <title>Poupous</title>
 <style>
   :root {
-    --bg: #05070d;
-    --panel: #10162a;
-    --line: #ffffff14;
+    --bg: #030509;
+    --panel: #0b1220;
+    --line: #00e5ff26;
     --accent: #00e5ff;
-    --accent-dim: #00e5ff33;
-    --text: #f2f6ff;
-    --muted: #8ba0c2;
-    --danger: #ff6b81;
-    --radius: 14px;
+    --accent-dim: #00e5ff2e;
+    --amber: #ffb454;
+    --text: #eaf6ff;
+    --muted: #6f92b8;
+    --danger: #ff5470;
+    --mono: "Consolas", "Cascadia Code", "SF Mono", "Courier New", monospace;
+    --ui: "Segoe UI Variable", "Segoe UI", -apple-system, system-ui, Arial, sans-serif;
+    --radius: 4px;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
     background:
-      radial-gradient(1200px 800px at 15% -10%, #0d2a3a55, transparent 60%),
-      radial-gradient(900px 700px at 110% 10%, #2a1a4a55, transparent 55%),
+      repeating-linear-gradient(0deg, #00e5ff05 0px, transparent 1px, transparent 34px),
+      repeating-linear-gradient(90deg, #00e5ff05 0px, transparent 1px, transparent 34px),
+      radial-gradient(1300px 900px at 20% -10%, #0d3a4a4a, transparent 60%),
+      radial-gradient(900px 700px at 105% 15%, #2a1a4a3a, transparent 55%),
       var(--bg);
     color: var(--text);
-    font-family: "Segoe UI Variable", "Segoe UI", -apple-system, system-ui, Arial, sans-serif;
+    font-family: var(--ui);
     display: flex;
     -webkit-font-smoothing: antialiased;
+    position: relative;
   }
+  body::after {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 50;
+    background: linear-gradient(180deg, transparent, #00e5ff10 50%, transparent);
+    height: 140px;
+    animation: scan 7s linear infinite;
+    mix-blend-mode: screen;
+  }
+  @keyframes scan { 0% { transform: translateY(-160px); } 100% { transform: translateY(100vh); } }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { background: #ffffff22; border-radius: 8px; }
-  ::-webkit-scrollbar-thumb:hover { background: #ffffff3a; }
+  ::-webkit-scrollbar-thumb { background: #00e5ff2a; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #00e5ff45; }
+
+  .hud-frame { position: relative; }
+  .corner { position: absolute; width: 11px; height: 11px; pointer-events: none; z-index: 2; }
+  .corner.tl { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .corner.tr { top: -1px; right: -1px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .corner.bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .corner.br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
 
   nav.rail {
-    width: 74px;
+    width: 78px;
     flex: 0 0 auto;
-    background: #070a12;
+    background: #04070c;
     border-right: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 18px 0;
+    padding: 20px 0;
     -webkit-app-region: drag;
   }
-  .orb {
-    width: 34px; height: 34px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #bdfcff, var(--accent) 45%, #007b8c 100%);
-    box-shadow: 0 0 18px 2px var(--accent-dim), 0 0 2px #fff inset;
-    margin-bottom: 22px;
-    animation: pulse 3s ease-in-out infinite;
-    -webkit-app-region: no-drag;
+  .reactor { position: relative; width: 42px; height: 42px; margin-bottom: 24px; -webkit-app-region: no-drag; }
+  .reactor .ring { position: absolute; inset: 0; border-radius: 50%; }
+  .reactor .outer {
+    background: conic-gradient(from 0deg, transparent 0deg, var(--accent) 50deg, transparent 100deg, transparent 220deg, var(--accent) 280deg, transparent 340deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    animation: spin 4.5s linear infinite;
   }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 14px 1px var(--accent-dim), 0 0 2px #fff inset; } 50% { box-shadow: 0 0 26px 5px var(--accent-dim), 0 0 2px #fff inset; } }
+  .reactor .mid { inset: 7px; border: 1px solid var(--accent-dim); }
+  .reactor .core {
+    position: absolute; inset: 14px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff, var(--accent) 45%, #007b8c 100%);
+    box-shadow: 0 0 18px 3px var(--accent-dim), 0 0 3px #fff inset;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+
   .rail button {
     -webkit-app-region: no-drag;
-    width: 46px; height: 46px;
-    border-radius: 12px;
+    width: 48px; height: 48px;
+    border-radius: var(--radius);
     border: 1px solid transparent;
     background: transparent;
     color: var(--muted);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     transition: background .15s, color .15s, border-color .15s;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    position: relative;
   }
-  .rail button svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
-  .rail button:hover { background: #ffffff0d; color: var(--text); }
-  .rail button.active { background: var(--accent-dim); color: var(--accent); border-color: #00e5ff40; }
+  .rail button svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+  .rail button:hover { background: #00e5ff0d; color: var(--text); }
+  .rail button.active { background: var(--accent-dim); color: var(--accent); border-color: #00e5ff55; box-shadow: 0 0 12px -2px var(--accent); }
   .rail .spacer { flex: 1; }
   .rail .dot {
     -webkit-app-region: no-drag;
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--danger); margin-bottom: 14px;
+    width: 9px; height: 9px;
+    background: var(--danger); margin-bottom: 16px;
     box-shadow: 0 0 8px 1px currentColor;
     transition: background .2s, color .2s;
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   }
   .rail .dot.on { background: #4ade80; color: #4ade80; }
   .rail .dot.off { background: var(--danger); color: var(--danger); }
@@ -80,104 +114,144 @@
   .app { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   header.top {
     -webkit-app-region: drag;
-    padding: 16px 26px 12px;
-    display: flex; align-items: baseline; gap: 12px;
+    padding: 16px 26px 10px;
+    display: flex; align-items: baseline; gap: 14px;
+    border-bottom: 1px solid var(--line);
   }
-  header.top h1 { margin: 0; font-size: 15px; letter-spacing: 4px; font-weight: 700; color: var(--text); }
-  header.top .sub { font-size: 12px; color: var(--muted); }
+  header.top h1 { margin: 0; font-family: var(--mono); font-size: 16px; letter-spacing: 6px; font-weight: 700; color: var(--accent); text-shadow: 0 0 12px var(--accent-dim); }
+  header.top .sub { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: .3px; }
 
-  main { flex: 1; min-height: 0; overflow: hidden; padding: 0 26px 22px; display: flex; flex-direction: column; }
+  main { flex: 1; min-height: 0; overflow: hidden; padding: 20px 26px 22px; display: flex; flex-direction: column; }
   .panel { flex: 1; min-height: 0; display: none; flex-direction: column; animation: fadein .18s ease-out; }
   .panel.active { display: flex; }
   @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
   h2.section {
-    font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
-    color: var(--accent); margin: 4px 0 14px; font-weight: 700;
+    font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 2.5px;
+    color: var(--accent); margin: 0 0 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
   }
+  h2.section::before { content: ''; width: 16px; height: 1px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
   .card {
-    background: linear-gradient(180deg, #ffffff08, #ffffff02);
+    background: linear-gradient(180deg, #00e5ff0a, #00e5ff02);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 18px;
+    padding: 20px;
     margin-bottom: 14px;
   }
   .row { display: flex; gap: 10px; margin-bottom: 12px; }
   .row:last-child { margin-bottom: 0; }
-  label.field { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+  label.field { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: .5px; text-transform: uppercase; }
   input[type=text], input[type=password] {
-    background: #00000055;
+    background: #00000066;
     border: 1px solid var(--line);
     color: var(--text);
-    border-radius: 10px;
+    border-radius: 2px;
     padding: 10px 12px;
     font-size: 14px;
     outline: none;
     transition: border-color .15s, box-shadow .15s;
-    font-family: inherit;
+    font-family: var(--ui);
   }
   input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
   button.btn {
     background: linear-gradient(180deg, #17e2ff, #00b6cc);
     color: #001217;
     border: none;
-    border-radius: 10px;
-    padding: 10px 16px;
-    font-size: 13px;
+    padding: 10px 18px;
+    font-size: 12px;
     font-weight: 700;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+    text-transform: uppercase;
     cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px;
     transition: transform .1s, filter .15s;
     white-space: nowrap;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   }
-  button.btn:hover { filter: brightness(1.08); }
+  button.btn:hover { filter: brightness(1.1); }
   button.btn:active { transform: scale(.97); }
   button.btn.secondary { background: #ffffff14; color: var(--text); }
+  button.btn.mic { background: #ffffff14; color: var(--accent); padding: 10px 14px; }
+  button.btn.mic.listening { background: var(--danger); color: #200; animation: pulse 1s ease-in-out infinite; }
   button.btn:disabled { opacity: .5; cursor: default; }
   .pill-row { display: flex; gap: 8px; margin-bottom: 12px; }
   .pill {
-    flex: 1; text-align: center; padding: 10px; border-radius: 10px; cursor: pointer;
-    border: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 600;
+    flex: 1; text-align: center; padding: 10px; cursor: pointer;
+    border: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 600;
+    font-family: var(--mono); letter-spacing: .5px; text-transform: uppercase;
     transition: all .15s;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   }
-  .pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-  #status, #brain-status { font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 16px; display: flex; align-items: center; gap: 6px; }
+  .pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); box-shadow: 0 0 10px -3px var(--accent); }
+  #status, #brain-status { font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 16px; display: flex; align-items: center; gap: 6px; font-family: var(--mono); }
   .spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--accent-dim); border-top-color: var(--accent); animation: spin .7s linear infinite; display: none; }
   .spin.show { display: inline-block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .switch-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+  .switch { width: 36px; height: 20px; background: #ffffff1a; border: 1px solid var(--line); position: relative; cursor: pointer; border-radius: 2px; flex: 0 0 auto; }
+  .switch .knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--muted); transition: left .15s, background .15s; }
+  .switch.on { border-color: var(--accent); box-shadow: 0 0 8px -2px var(--accent); }
+  .switch.on .knob { left: 18px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 
   #facts { overflow-y: auto; flex: 1; min-height: 0; margin-bottom: 12px; padding-right: 2px; }
   .fact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
   .fact {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 8px;
     transition: border-color .15s;
   }
-  .fact:hover { border-color: #ffffff30; }
+  .fact:hover { border-color: #00e5ff55; }
   .fact span { font-size: 13px; line-height: 1.4; color: var(--text); }
   .fact .del {
     align-self: flex-end; background: transparent; border: none; color: var(--muted);
-    cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 6px; transition: color .15s, background .15s;
+    cursor: pointer; font-size: 11px; padding: 2px 6px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .5px;
+    transition: color .15s, background .15s;
   }
-  .fact .del:hover { color: var(--danger); background: #ff6b8118; }
-  .empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; }
+  .fact .del:hover { color: var(--danger); background: #ff547018; }
+  .empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; font-family: var(--mono); }
   .addrow { display: flex; gap: 8px; }
   .addrow input { flex: 1; }
 
   #chatlog { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 14px; }
-  .bubble { max-width: 78%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; animation: fadein .15s ease-out; white-space: pre-wrap; }
-  .bubble.user { align-self: flex-end; background: linear-gradient(180deg, #17e2ff, #00aec6); color: #001217; border-bottom-right-radius: 4px; }
-  .bubble.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
-  .bubble.thinking { align-self: flex-start; color: var(--muted); font-style: italic; }
+  .bubble { max-width: 78%; padding: 10px 14px; border-radius: 2px; font-size: 14px; line-height: 1.45; animation: fadein .15s ease-out; white-space: pre-wrap; }
+  .bubble.user { align-self: flex-end; background: linear-gradient(180deg, #17e2ff, #00aec6); color: #001217; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+  .bubble.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px); }
+  .bubble.thinking { align-self: flex-start; color: var(--accent); font-family: var(--mono); font-size: 12px; letter-spacing: 1px; }
   .chatbar { display: flex; gap: 10px; align-items: flex-end; padding-top: 10px; border-top: 1px solid var(--line); }
   .chatbar input { flex: 1; }
   .chatbar button.btn { height: 42px; }
+
+  #confirm-overlay {
+    position: fixed; inset: 0; background: #000000a0; display: none;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  #confirm-overlay.show { display: flex; }
+  #confirm-box {
+    background: var(--panel); border: 1px solid var(--danger); padding: 24px;
+    max-width: 360px; text-align: center;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  }
+  #confirm-box p { font-family: var(--mono); font-size: 13px; color: var(--text); margin: 0 0 18px; letter-spacing: .3px; }
+  #confirm-box .row { justify-content: center; margin: 0; }
 </style>
 </head>
 <body>
 
+<div id="confirm-overlay">
+  <div id="confirm-box" class="hud-frame">
+    <p id="confirm-text"></p>
+    <div class="row">
+      <button class="btn secondary" id="confirm-cancel">Annuler</button>
+      <button class="btn" id="confirm-ok" style="background: linear-gradient(180deg, #ff8a8a, var(--danger)); color:#200;">Confirmer</button>
+    </div>
+  </div>
+</div>
+
 <nav class="rail">
-  <div class="orb"></div>
+  <div class="reactor"><div class="ring outer"></div><div class="ring mid"></div><div class="core"></div></div>
   <div id="rail-dot" class="dot off" title="Statut de connexion"></div>
   <button class="nav-btn active" data-panel="chat" title="Discussion">
     <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3.2-6.4M21 4l-9 9M14 4h7v7"/></svg>
@@ -197,16 +271,21 @@
 <div class="app">
   <header class="top">
     <h1>POUPOUS</h1>
-    <span class="sub">Même mémoire, même historique, et maintenant une vraie discussion — sur ton PC.</span>
+    <span class="sub">SYSTÈME EN LIGNE · MÊME MÉMOIRE, MÊME HISTORIQUE, MÊME VOIX</span>
   </header>
 
   <main>
 
     <section class="panel active" id="panel-chat">
       <h2 class="section">Discussion</h2>
-      <div id="chatlog"></div>
+      <div class="switch-row">
+        <div class="switch" id="hf-switch"><div class="knob"></div></div>
+        <span>Mains libres — parle, il répond à voix haute</span>
+      </div>
+      <div id="chatlog" class="hud-frame"></div>
       <div class="chatbar">
-        <input type="text" id="chat-input" placeholder="Écris à Poupous...">
+        <input type="text" id="chat-input" placeholder="Écris ou parle à Poupous...">
+        <button class="btn mic" id="mic-btn" title="Parler">🎙</button>
         <button class="btn" id="chat-send">Envoyer</button>
       </div>
     </section>
@@ -222,7 +301,7 @@
 
     <section class="panel" id="panel-brain">
       <h2 class="section">Cerveau</h2>
-      <div class="card">
+      <div class="card hud-frame">
         <div class="pill-row">
           <div class="pill" data-provider="gemini" id="pill-gemini">Gemini (gratuit)</div>
           <div class="pill" data-provider="claude" id="pill-claude">Claude (payant)</div>
@@ -242,7 +321,7 @@
 
     <section class="panel" id="panel-connexion">
       <h2 class="section">Connexion GitHub</h2>
-      <div class="card">
+      <div class="card hud-frame">
         <div class="row">
           <label class="field">
             <span>Dépôt</span>

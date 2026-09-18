@@ -135,7 +135,7 @@ function renderChat() {
   const log = $('chatlog');
   log.innerHTML = '';
   if (!state.conversation.length) {
-    log.innerHTML = '<div class="empty">Aucune conversation pour l\'instant. Écris quelque chose ci-dessous.</div>';
+    log.innerHTML = '<div class="empty">Aucune conversation pour l\'instant. Écris ou parle ci-dessous.</div>';
     return;
   }
   state.conversation.slice(-40).forEach((turn) => {
@@ -151,7 +151,7 @@ function addThinkingBubble() {
   const log = $('chatlog');
   const div = document.createElement('div');
   div.className = 'bubble thinking';
-  div.textContent = 'Poupous réfléchit...';
+  div.textContent = 'ANALYSE EN COURS...';
   div.id = 'thinking-bubble';
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
@@ -161,14 +161,43 @@ function removeThinkingBubble() {
   if (el) el.remove();
 }
 
+function askConfirm(message) {
+  return new Promise((resolve) => {
+    $('confirm-text').textContent = message;
+    $('confirm-overlay').classList.add('show');
+    const cleanup = (result) => {
+      $('confirm-overlay').classList.remove('show');
+      $('confirm-ok').onclick = null;
+      $('confirm-cancel').onclick = null;
+      resolve(result);
+    };
+    $('confirm-ok').onclick = () => cleanup(true);
+    $('confirm-cancel').onclick = () => cleanup(false);
+  });
+}
+
 const TOOLS = [
   { name: 'retenir', description: "Mémorise durablement une information sur l'utilisateur (prénom, goûts, proches, projets, habitudes) ou une consigne qu'il donne.",
     input_schema: { type: 'object', properties: { fait: { type: 'string' } }, required: ['fait'] } },
   { name: 'oublier', description: "Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer).",
-    input_schema: { type: 'object', properties: { texte: { type: 'string' } }, required: ['texte'] } }
+    input_schema: { type: 'object', properties: { texte: { type: 'string' } }, required: ['texte'] } },
+  { name: 'ouvrir_application', description: "Ouvre une application sur ce PC par son nom (ex: notepad, calc, chrome, explorer, mspaint).",
+    input_schema: { type: 'object', properties: { nom: { type: 'string' } }, required: ['nom'] } },
+  { name: 'ouvrir_site', description: "Ouvre une page web dans le navigateur par défaut du PC.",
+    input_schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } },
+  { name: 'verrouiller_pc', description: "Verrouille immédiatement la session Windows.",
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'mettre_en_veille', description: "Met le PC en veille.",
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'regler_volume', description: "Monte, baisse ou coupe le son du PC.",
+    input_schema: { type: 'object', properties: { direction: { type: 'string', enum: ['up', 'down', 'mute'] } }, required: ['direction'] } },
+  { name: 'redemarrer_pc', description: "Redémarre le PC. Une confirmation est toujours demandée à l'utilisateur avant l'exécution.",
+    input_schema: { type: 'object', properties: {} } },
+  { name: 'eteindre_pc', description: "Éteint le PC. Une confirmation est toujours demandée à l'utilisateur avant l'exécution.",
+    input_schema: { type: 'object', properties: {} } }
 ];
 
-function runTool(name, input) {
+async function runTool(name, input) {
   if (name === 'retenir') {
     const f = String((input && input.fait) || '').trim();
     if (!f) return 'rien à retenir';
@@ -184,6 +213,39 @@ function runTool(name, input) {
     renderFacts();
     return (before - state.memoire.length) + ' souvenir(s) supprimé(s)';
   }
+  if (name === 'ouvrir_application') {
+    const r = await window.pcBridge.openApp(String((input && input.nom) || ''));
+    return r.ok ? 'application ouverte' : 'échec : ' + (r.error || 'inconnu');
+  }
+  if (name === 'ouvrir_site') {
+    const r = await window.pcBridge.openUrl(String((input && input.url) || ''));
+    return r.ok ? 'site ouvert' : 'échec : ' + (r.error || 'url invalide');
+  }
+  if (name === 'verrouiller_pc') {
+    const r = await window.pcBridge.lock();
+    return r.ok ? 'PC verrouillé' : 'échec : ' + (r.error || 'inconnu');
+  }
+  if (name === 'mettre_en_veille') {
+    const r = await window.pcBridge.sleep();
+    return r.ok ? 'mise en veille lancée' : 'échec : ' + (r.error || 'inconnu');
+  }
+  if (name === 'regler_volume') {
+    const dir = String((input && input.direction) || '');
+    const r = await window.pcBridge.volume(dir);
+    return r.ok ? 'volume ajusté' : 'échec : ' + (r.error || 'inconnu');
+  }
+  if (name === 'redemarrer_pc') {
+    const ok = await askConfirm('Poupous veut redémarrer le PC. Confirmer ?');
+    if (!ok) return "annulé par l'utilisateur";
+    const r = await window.pcBridge.restart();
+    return r.ok ? 'redémarrage lancé (annulable dans les 5 secondes)' : 'échec : ' + (r.error || 'inconnu');
+  }
+  if (name === 'eteindre_pc') {
+    const ok = await askConfirm('Poupous veut éteindre le PC. Confirmer ?');
+    if (!ok) return "annulé par l'utilisateur";
+    const r = await window.pcBridge.shutdown();
+    return r.ok ? 'extinction lancée (annulable dans les 5 secondes)' : 'échec : ' + (r.error || 'inconnu');
+  }
   return 'outil inconnu';
 }
 
@@ -191,10 +253,12 @@ function systemPromptPC() {
   const d = new Date();
   const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return "Tu es Poupous, l'assistant personnel de l'utilisateur, ici dans son application de bureau sur PC (pas sur son téléphone : pas d'accès aux fonctions du téléphone comme appeler, envoyer un SMS, une alarme ou la position GPS).\n" +
+  return "Tu es Poupous, l'assistant personnel de l'utilisateur, ici dans son application de bureau sur PC (Windows). Tu n'as pas accès aux fonctions du téléphone (appeler, SMS, alarme, GPS).\n" +
     "Nous sommes le " + date + ", il est " + heure + ".\n" +
-    "Réponds en français, de façon naturelle et concise (quelques phrases, sauf si on te demande des détails). Pas de markdown, pas de listes à puces.\n" +
-    "Tu peux retenir ou oublier durablement des informations sur l'utilisateur avec les outils retenir/oublier ; elles sont partagées avec son téléphone.\n" +
+    "Réponds en français, de façon naturelle et concise (une à trois phrases, sauf si on te demande des détails) : tes réponses peuvent être lues à voix haute. Pas de markdown, pas de listes à puces, pas d'emojis.\n" +
+    "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, ouvres, verrouilles, règles le volume ou éteins/redémarres, tu DOIS appeler l'outil correspondant dans la même réponse.\n" +
+    "Outils PC disponibles : ouvrir_application, ouvrir_site, verrouiller_pc, mettre_en_veille, regler_volume, redemarrer_pc, eteindre_pc (les deux derniers demandent toujours une confirmation à l'utilisateur, qui peut refuser).\n" +
+    "Tu peux retenir ou oublier durablement des informations sur l'utilisateur avec retenir/oublier ; elles sont partagées avec son téléphone.\n" +
     "Souvenirs sur l'utilisateur :\n" + (state.memoire.length ? state.memoire.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 
@@ -215,7 +279,8 @@ async function callClaudeBrain(messages, apiKey) {
     const calls = blocks.filter(b => b.type === 'tool_use');
     if (!calls.length) break;
     msgs.push({ role: 'assistant', content: blocks });
-    const results = calls.map(c => ({ type: 'tool_result', tool_use_id: c.id, content: String(runTool(c.name, c.input || {})) }));
+    const results = [];
+    for (const c of calls) results.push({ type: 'tool_result', tool_use_id: c.id, content: String(await runTool(c.name, c.input || {})) });
     msgs.push({ role: 'user', content: results });
   }
   return finalText;
@@ -240,7 +305,7 @@ async function callGeminiBrain(messages, apiKey) {
     if (contents.length && contents[contents.length - 1].role === role) contents[contents.length - 1].parts.push(...parts);
     else contents.push({ role, parts });
   }
-  const tools = [{ functionDeclarations: TOOLS.map(t => ({ name: t.name, description: t.description, parameters: toGeminiSchema(t.input_schema) })) }];
+  const tools = [{ functionDeclarations: TOOLS.map(t => ({ name: t.name, description: t.description, parameters: t.input_schema.properties && Object.keys(t.input_schema.properties).length ? toGeminiSchema(t.input_schema) : undefined })) }];
   let finalText = '';
   for (let round = 0; round < 4; round++) {
     let data = null, lastErr = null;
@@ -260,7 +325,8 @@ async function callGeminiBrain(messages, apiKey) {
     const calls = parts.filter(x => x.functionCall);
     if (!calls.length) break;
     contents.push({ role: 'model', parts });
-    const responses = calls.map(c => ({ functionResponse: { name: c.functionCall.name, response: { resultat: String(runTool(c.functionCall.name, c.functionCall.args || {})) } } }));
+    const responses = [];
+    for (const c of calls) responses.push({ functionResponse: { name: c.functionCall.name, response: { resultat: String(await runTool(c.functionCall.name, c.functionCall.args || {})) } } });
     contents.push({ role: 'user', parts: responses });
   }
   return finalText;
@@ -284,8 +350,9 @@ async function sendChat() {
   renderChat();
   addThinkingBubble();
   const messages = state.conversation.slice(-20).map(t => ({ role: t.role, content: t.content }));
+  let answer = '';
   try {
-    const answer = cfg.provider === 'claude'
+    answer = cfg.provider === 'claude'
       ? await callClaudeBrain(messages, cfg.aiKey)
       : await callGeminiBrain(messages, cfg.aiKey);
     removeThinkingBubble();
@@ -295,13 +362,15 @@ async function sendChat() {
     await pushSync();
   } catch (e) {
     removeThinkingBubble();
-    state.conversation.push({ role: 'assistant', content: 'Erreur : ' + (e.message || e) });
+    answer = 'Erreur : ' + (e.message || e);
+    state.conversation.push({ role: 'assistant', content: answer });
     renderChat();
   } finally {
     sending = false;
     $('chat-send').disabled = false;
     input.focus();
   }
+  if (handsFree) speak(answer, () => { if (handsFree) startListening(); });
 }
 
 function switchPanel(name) {
@@ -309,7 +378,71 @@ function switchPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
 }
 
+// --- Voice ---
+let handsFree = false;
+let recognizing = false;
+let recognition = null;
+
+function getRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  if (!recognition) {
+    recognition = new SR();
+    recognition.lang = 'fr-FR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+  }
+  return recognition;
+}
+
+function isStopWord(t) { return /^(stop|arrête|arrete|arrête[- ]toi|arrete[- ]toi)\s*\.?$/i.test(t.trim()); }
+
+function startListening() {
+  const rec = getRecognition();
+  if (!rec || recognizing || sending) return;
+  recognizing = true;
+  $('mic-btn').classList.add('listening');
+  rec.onresult = (e) => {
+    const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
+    recognizing = false;
+    $('mic-btn').classList.remove('listening');
+    if (!text.trim()) { if (handsFree) startListening(); return; }
+    if (handsFree && isStopWord(text)) { setHandsFree(false); return; }
+    $('chat-input').value = text;
+    sendChat();
+  };
+  rec.onerror = () => { recognizing = false; $('mic-btn').classList.remove('listening'); if (handsFree) setTimeout(() => { if (handsFree) startListening(); }, 800); };
+  rec.onend = () => { recognizing = false; $('mic-btn').classList.remove('listening'); };
+  try { rec.start(); } catch (e) { recognizing = false; }
+}
+
+function speak(text, onDone) {
+  try {
+    if (!window.speechSynthesis || !text) { if (onDone) onDone(); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR';
+    u.onend = () => { if (onDone) onDone(); };
+    u.onerror = () => { if (onDone) onDone(); };
+    speechSynthesis.speak(u);
+  } catch (e) { if (onDone) onDone(); }
+}
+
+function setHandsFree(on) {
+  handsFree = on;
+  $('hf-switch').classList.toggle('on', on);
+  if (on) startListening();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.hud-frame').forEach(el => {
+    ['tl', 'tr', 'bl', 'br'].forEach(pos => {
+      const s = document.createElement('span');
+      s.className = 'corner ' + pos;
+      el.appendChild(s);
+    });
+  });
+
   const cfg = loadConfig();
   $('repo').value = cfg.repo;
   $('token').value = cfg.token;
@@ -350,6 +483,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('chat-send').onclick = sendChat;
   $('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
+
+  if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) {
+    $('mic-btn').disabled = true;
+    $('mic-btn').title = 'Reconnaissance vocale indisponible';
+    $('hf-switch').style.opacity = '.4';
+    $('hf-switch').style.pointerEvents = 'none';
+  } else {
+    $('mic-btn').onclick = () => startListening();
+    $('hf-switch').onclick = () => setHandsFree(!handsFree);
+  }
 
   render();
   if (cfg.token) pullSync();
