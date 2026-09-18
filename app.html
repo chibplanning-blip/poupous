@@ -279,6 +279,251 @@ function bindMarketEvents(){
       if (row) row.classList.toggle('done', cb.checked);
     };
   });
+  document.querySelectorAll('[data-del-item]').fo.row,.chip{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.chip{align-items:flex-start;font-size:15px}
+.row label{flex:1}
+.row select,.row input[type=range]{width:55%}
+select{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:10px;height:40px;padding:0 8px;font:inherit;max-width:60%}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--cyan)}
+input[type=range]{accent-color:var(--cyan)}
+.btn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;flex:none}
+.btn.primary{background:var(--cyan);color:#04202a;border-color:var(--cyan);font-weight:700}
+.hint{color:var(--muted);font-size:13px}
+.keybox{display:flex;flex-direction:column;gap:12px}
+.clip{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
+.attach{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
+.attach:empty{display:none}
+.chipfile{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 12px;font-size:13px;max-width:100%}
+.chipfile span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
+.keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
+
+/* Styles Courses Halal & Radar GPS */
+.market-nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
+.market-tab{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.market-tab.active{background:var(--cyan);color:#04202a;border-color:var(--cyan)}
+.market-content{display:flex;flex-direction:column;gap:12px}
+.market-section-title{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan);margin:8px 0 2px;font-weight:700}
+.market-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px}
+.market-item-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.market-item-row:last-child{border-bottom:0}
+.market-item-row.done span.nom{text-decoration:line-through;color:var(--muted)}
+.proximity-banner{background:rgba(56,214,245,.1);border:1px solid var(--cyan);border-radius:12px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.halal-badge{display:inline-block;background:rgba(78,224,166,.2);color:#4ee0a6;border:1px solid #4ee0a6;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700;margin-left:6px}
+.mini-btn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 8px;font:inherit;font-size:12px;flex:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+const P = window.Poupous;
+const CHAT_MODEL = 'claude-sonnet-5';
+const UPGRADE_MODEL = 'claude-opus-5';
+const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsWatchId:null, gpsDerniere:'', lastProximityAlert:0, lastGpsError:0, activeMarket:'aldi'};
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const clean = s => String(s).replace(/https?:\/\/\S+/g, '').replace(/[*_#`>|]/g, '').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').replace(/[ \t]+/g, ' ').trim();
+const STATES = {
+  chargement:['#38d6f5','Démarrage…'],
+  veille:['#38d6f5','Appuie sur le micro ou écris-moi'],
+  ecoute:['#38d6f5',"Je t'écoute…"],
+  mainslibres:['#2aa9c7','Mains libres · dis « Poupous »'],
+  reflexion:['#9d8cff','Je réfléchis…'],
+  parole:['#ffb547','Je parle…'],
+  amelioration:['#4ee0a6','Je modifie mon code…'],
+  erreur:['#ff6b6b','Un souci est survenu']
+};
+const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
+const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
+
+/* ---------- Pont avec l'appli Android ---------- */
+let seq = 0;
+const pend = {};
+function waitFor(prefix, start){ return new Promise(res => { const id = prefix + (++seq); pend[id] = res; start(id); }); }
+function settle(id, value){ const f = pend[id]; delete pend[id]; if (f) f(value); }
+window.__claudeDone = (id, status, text) => settle(id, {status, text});
+window.__ttsDone = id => settle(id, true);
+window.__listenDone = (id, text, err) => settle(id, {text, err});
+window.__listenPartial = t => { $('#live').textContent = t; };
+window.__listenReady = () => {};
+window.__contactsDone = (id, json) => settle(id, json);
+window.__githubDone = (id, status, text) => settle(id, {status, text});
+window.__installDone = (id, result) => settle(id, result);
+window.__sharedAvailable = () => loadShared();
+const hasFiles = () => !!(P && typeof P.saveFile === 'function');
+const hasSelfApk = () => !!(P && typeof P.buildZipBase64 === 'function');
+const hasPhone = () => !!(P && typeof P.dial === 'function');
+const hasLocation = () => !!(navigator.geolocation);
+const hasNativeRadar = () => !!(P && typeof P.startRadar === 'function' && typeof P.stopRadar === 'function');
+const NEED_APK = "Cette action demande la version 1.2 de l'APK Poupous. Elle doit être installée une fois à la main depuis la page Releases du dépôt GitHub.";
+const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
+window.__onBack = () => { if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
+const store = {
+  get(k, d){ try { const v = P ? P.get(k) : ''; return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v){ try { if (P) P.set(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/* ---------- Position GPS ---------- */
+function getLocation(){
+  if (!hasLocation()) return Promise.resolve({err:'indisponible'});
+  return new Promise(res => {
+    navigator.geolocation.getCurrentPosition(
+      pos => res({lat:pos.coords.latitude, lon:pos.coords.longitude, precision:Math.round(pos.coords.accuracy || 0)}),
+      err => res({err: err.code === 1 ? 'refuse' : err.code === 2 ? 'indisponible' : 'delai'}),
+      {enableHighAccuracy:true, timeout:15000, maximumAge:60000}
+    );
+  });
+}
+async function reverseGeocode(lat, lon){
+  if (!P || typeof P.github !== 'function') return null;
+  try {
+    const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lon + '&accept-language=fr&zoom=16';
+    const r = await waitFor('g', id => P.github(id, 'GET', url, ''));
+    const data = JSON.parse(r.text);
+    return (data && data.display_name) ? data.display_name : null;
+  } catch (e) { return null; }
+}
+function distanceMetres(lat1, lon1, lat2, lon2){
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* ---------- Courses halal & magasins ---------- */
+const DEFAULT_MARKET_DATA = {
+  aldi:    {name:"Aldi",    lat:null, lon:null, promos:[], list:["Lait de soja", "Œufs frais", "Huile d'olive", "Pâtes bio"]},
+  lidl:    {name:"Lidl",    lat:null, lon:null, promos:[], list:["Houmous", "Tomates cerises", "Courgettes", "Oignons"]},
+  colruyt: {name:"Colruyt", lat:null, lon:null, promos:[], list:["Lentilles", "Pois chiches", "Riz basmati", "Compotes de pommes"]},
+  action:  {name:"Action",  lat:null, lon:null, promos:[], list:["Papier toilette", "Liquide vaisselle", "Sacs poubelle", "Papier cuisson"]}
+};
+function normalizeMarket(md){
+  for (const k in md) {
+    const m = md[k];
+    if (!m || typeof m !== 'object') { delete md[k]; continue; }
+    m.name = String(m.name || k);
+    if (!Array.isArray(m.promos)) m.promos = [];
+    if (!Array.isArray(m.list)) m.list = [];
+    m.list = m.list.map(x => typeof x === 'string' ? {nom:x, coche:false} : {nom:String((x && x.nom) || ''), coche:!!(x && x.coche)}).filter(x => x.nom);
+    // Les anciennes versions contenaient des coordonnées d'exemple : on n'y touche
+    // que si l'utilisateur a lui-même enregistré la position du magasin.
+    if (!m.posEnregistree || typeof m.lat !== 'number' || typeof m.lon !== 'number') { m.lat = null; m.lon = null; m.posEnregistree = false; }
+  }
+  return md;
+}
+function getMarketData(){
+  const saved = store.get('marketData', null);
+  const md = normalizeMarket(saved || JSON.parse(JSON.stringify(DEFAULT_MARKET_DATA)));
+  if (!saved) store.set('marketData', md);
+  return md;
+}
+function saveMarketData(data){ store.set('marketData', data); if (typeof pushRadarConfig === 'function') pushRadarConfig(); }
+
+/* Contrôle strict : ni viande, ni porc, ni alcool, ni dérivés animaux douteux. */
+const INTERDITS = [
+  'viande','poulet','dinde','canard','boeuf','bœuf','agneau','mouton','veau','porc','cochon','sanglier','lapin',
+  'jambon','lard','bacon','saucisse','saucisson','merguez','chorizo','salami','charcuterie','pate de foie','foie gras','rillettes','nuggets',
+  'gelatine','presure','saindoux','graisse animale',
+  'alcool','vin','biere','rhum','vodka','whisky','champagne','cidre','liqueur'
+];
+const TOLERES = ['vegetal','vegetarien','vegan','soja','sans viande','sans alcool','sans porc','tofu','seitan','halal'];
+function checkHalalCompliance(itemName){
+  const n = norm(itemName);
+  if (TOLERES.some(t => n.includes(t))) return {compliant:true, reason:"Version végétale ou certifiée : accepté"};
+  for (const f of INTERDITS) {
+    if (n.includes(norm(f))) {
+      return {compliant:false, reason:"Refusé : « " + f + " » n'est pas conforme (règle stricte halal et sans viande). Précise « végétal », « sans viande » ou « halal » si c'est un substitut."};
+    }
+  }
+  return {compliant:true, reason:"Conforme : halal et sans viande"};
+}
+
+function renderHalalInterface(){
+  const md = getMarketData();
+  const activeTab = md[S.activeMarket] ? S.activeMarket : Object.keys(md)[0];
+  S.activeMarket = activeTab;
+  const data = md[activeTab];
+  const posTxt = data.posEnregistree ? ('Position enregistrée (' + data.lat.toFixed(4) + ', ' + data.lon.toFixed(4) + ')') : 'Position de ce magasin pas encore enregistrée';
+  const suivis = Object.keys(md).filter(k => md[k].posEnregistree).map(k => md[k].name);
+  return '' +
+    '<div class="proximity-banner">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+        '<div>' +
+          '<div style="font-weight:700;font-size:14px">Radar 500 m</div>' +
+          '<div class="hint" style="font-size:12px" id="gps-status-text">' + (S.gpsTracking ? (suivis.length ? 'Actif · ' + esc(suivis.join(', ')) : 'Actif, mais aucun magasin n\'a de position enregistrée') : 'Inactif') + '</div>' +
+        '</div>' +
+        '<button class="btn ' + (S.gpsTracking ? '' : 'primary') + '" id="toggle-gps-tracking" style="padding:6px 10px;font-size:12px">' + (S.gpsTracking ? 'Arrêter' : 'Lancer') + '</button>' +
+      '</div>' +
+      '<div id="gps-coords" class="hint" style="font-size:11px;word-break:break-all">' + esc(S.gpsDerniere || 'En attente de position GPS…') + '</div>' +
+      '<div class="hint" style="font-size:11px">' + (hasNativeRadar()
+        ? 'Surveillance en arrière-plan : elle continue appli fermée et écran éteint, avec une notification permanente.'
+        : 'Le radar fonctionne tant que Poupous reste ouvert à l\'écran. Pour une surveillance même écran éteint, demande « APK : radar magasins en arrière-plan ».') + '</div>' +
+    '</div>' +
+    '<div class="market-nav">' +
+      Object.keys(md).map(k => '<button class="market-tab ' + (k === activeTab ? 'active' : '') + '" data-market="' + esc(k) + '">' + esc(md[k].name) + '</button>').join('') +
+    '</div>' +
+    '<div class="market-content">' +
+      '<div class="market-section-title">Repère de ' + esc(data.name) + '</div>' +
+      '<div class="market-card">' +
+        '<div class="market-item-row"><span class="hint" style="font-size:13px">' + esc(posTxt) + '</span>' +
+        '<button class="mini-btn" id="save-store-pos">Je suis devant ce magasin</button></div>' +
+      '</div>' +
+      (data.promos.length ? '<div class="market-section-title">Promos notées</div><div class="market-card">' +
+        data.promos.map((p, i) => '<div class="market-item-row"><span>' + esc(p) + '</span><button class="mini-btn" data-del-promo="' + i + '">Retirer</button></div>').join('') + '</div>' : '') +
+      '<div class="market-section-title">Liste de courses (halal stricte, sans viande)</div>' +
+      '<div class="market-card" id="market-list-box">' +
+        (data.list.length ? data.list.map((item, idx) =>
+          '<div class="market-item-row ' + (item.coche ? 'done' : '') + '">' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">' +
+              '<input type="checkbox" data-check-item="' + idx + '"' + (item.coche ? ' checked' : '') + '>' +
+              '<span class="nom">' + esc(item.nom) + '</span>' +
+            '</label>' +
+            '<button class="mini-btn" data-del-item="' + idx + '" aria-label="Supprimer ' + esc(item.nom) + '">×</button>' +
+          '</div>').join('') : '<p class="hint" style="margin:0">Liste vide pour ce magasin.</p>') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:4px">' +
+        '<input id="new-market-item" placeholder="Ajouter un article (contrôle strict)…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">' +
+        '<button class="btn" id="add-market-item-btn">Ajouter</button>' +
+      '</div>' +
+      '<div class="row" style="border:0"><span class="hint">Décocher tout ce qui est pris</span><button class="mini-btn" id="reset-checks">Réinitialiser</button></div>' +
+    '</div>';
+}
+
+function bindMarketEvents(){
+  const md = getMarketData();
+  const act = S.activeMarket;
+  document.querySelectorAll('.market-tab').forEach(btn => {
+    btn.onclick = () => { S.activeMarket = btn.dataset.market; openMarketSheet(); };
+  });
+  const addBtn = $('#add-market-item-btn'), inp = $('#new-market-item');
+  const addItem = () => {
+    if (!inp) return;
+    const val = inp.value.trim();
+    if (!val) return;
+    const comp = checkHalalCompliance(val);
+    if (!comp.compliant) { sys(comp.reason); return; }
+    md[act].list.push({nom:val, coche:false});
+    saveMarketData(md);
+    openMarketSheet();
+    sys('Ajouté chez ' + md[act].name + ' : ' + val);
+  };
+  if (addBtn) addBtn.onclick = addItem;
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') addItem(); });
+  document.querySelectorAll('[data-check-item]').forEach(cb => {
+    cb.onchange = () => {
+      const i = +cb.dataset.checkItem;
+      if (md[act].list[i]) { md[act].list[i].coche = cb.checked; saveMarketData(md); }
+      const row = cb.closest('.market-item-row');
+      if (row) row.classList.toggle('done', cb.checked);
+    };
+  });
   document.querySelectorAll('[data-del-item]').forEach(b => {
     b.onclick = () => { md[act].list.splice(+b.dataset.delItem, 1); saveMarketData(md); openMarketSheet(); };
   });
