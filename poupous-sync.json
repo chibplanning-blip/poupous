@@ -104,7 +104,15 @@
     {
       "role": "assistant",
       "content": "Oui, je t'entends très bien. Je suis prêt à t'aider si tu as besoin de quelque chose."
+    },
+    {
+      "role": "user",
+      "content": "Propose-tu mon temps ?"
+    },
+    {
+      "role": "assistant",
+      "content": "Je ne suis pas sûr de comprendre ce que tu veux dire par proposer ton temps. Est-ce que tu souhaites que je t'aide à mieux gérer ton emploi du temps ou est-ce que tu voulais dire autre chose ?"
     }
   ],
-  "updatedAt": "2026-09-18T19:48:56.927Z"
+  "updatedAt": "2026-09-18T19:49:21.680Z"
 }
