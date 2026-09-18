@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=36 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=37 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -604,35 +604,8 @@ async function speak(text){
   const c = clean(text);
   if (!c || !P) return;
   S.speaking = true; setState('parole');
-  
-  let stopDetected = false;
-  let stopListenPromise = null;
-  if (S.reglages.mainsLibres && P && typeof P.listen === 'function') {
-    stopListenPromise = (async () => {
-      while (S.speaking) {
-        const r = await listenOnce();
-        if (r && r.text) {
-          const txtNorm = norm(r.text);
-          if (txtNorm.includes('stop') || txtNorm.includes('arrete') || txtNorm.includes('tais toi')) {
-            stopDetected = true;
-            break;
-          }
-        }
-        await sleep(100);
-      }
-    })();
-  }
-  
   await waitFor('t', id => P.speak(id, c));
   S.speaking = false;
-  if (stopDetected) {
-    stopSpeaking();
-    S.busy = false;
-    S.pendingUpgrade = null;
-    S.pendingApkUpgrade = null;
-    if (P && typeof P.cancelListening === 'function') P.cancelListening();
-    idle();
-  }
 }
 function stopSpeaking(){ if (P) P.stopSpeaking(); }
 
@@ -710,11 +683,11 @@ async function handsFree(){
     if (!S.reglages.mainsLibres) break;
     if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
     if (r.err === '10' || r.err === 10 || String(r.err).includes('10')) {
-      await sleep(1000);
+      await sleep(5000);
       continue;
     }
-    if (r.err) { await sleep(500); continue; }
-    if (!r.text) { await sleep(200); continue; }
+    if (r.err) { await sleep(2000); continue; }
+    if (!r.text) { await sleep(2000); continue; }
     
     const txtN = norm(r.text);
     if (txtN === 'stop' || txtN.includes('arrete')) {
