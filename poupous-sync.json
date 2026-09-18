@@ -6,7 +6,8 @@
     "L'utilisateur a configuré une intégration avec l'IA Claude pour m'aider.",
     "L'utilisateur m'a déjà envoyé un jeton GitHub par le passé pour les mises à jour.",
     "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
-    "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées."
+    "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
+    "L'utilisateur veut une synthèse vocale, une reconnaissance vocale personnalisée et que je ne réponde qu'à lui."
   ],
   "conversation": [
     {
@@ -96,7 +97,15 @@
     {
       "role": "assistant",
       "content": "Salut. Comment puis-je t'aider aujourd'hui ?"
+    },
+    {
+      "role": "user",
+      "content": "je veux que sytetise ma voix et que tu reconais que moi et que tu repond q a moi"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est bien noté, j'ai enregistré ton souhait d'avoir une voix personnalisée et de ne reconnaître et répondre qu'à toi. Cela demandera de développer un module de reconnaissance vocale biométrique et de clonage de voix dans l'application, ce qui nécessite du code dédié."
     }
   ],
-  "updatedAt": "2026-09-18T18:53:11.244Z"
+  "updatedAt": "2026-09-18T18:54:19.849Z"
 }
