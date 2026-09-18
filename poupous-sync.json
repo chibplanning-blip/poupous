@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Je suis devant Aldi tu m'as même pas dit qu'il y avait un Aldi"
-    },
-    {
-      "role": "assistant",
-      "content": "Tu as raison, mon radar n'a pas sonné tout seul et je m'en veux. En tout cas, tu as de la chance, ton pain, tes éponges et tes fruits t'attendent bien sagement sur ta liste chez Aldi avec le reste."
-    },
-    {
-      "role": "user",
       "content": "La question c'est comment tu l'as pas trouvé c'est quoi le problème c'est quoi le bug"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "À Wandre, on a déjà l'Aldi sur la rue de Visé. Dans les environs proches, il y a aussi un autre Aldi, un Colruyt et un Lidl un peu plus loin vers Herstal ou Jupille."
+    },
+    {
+      "role": "user",
+      "content": "Tu as mémorisé une distance de combien juste pour info"
+    },
+    {
+      "role": "assistant",
+      "content": "Le radar s'active quand tu t'approches à moins de cinq cents mètres d'un magasin enregistré. Pour l'instant, seul l'Aldi de Wandre a sa position dans ma mémoire."
     }
   ],
-  "updatedAt": "2026-09-18T17:50:05.834Z"
+  "updatedAt": "2026-09-18T18:02:23.792Z"
 }
