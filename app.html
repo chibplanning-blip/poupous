@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=30 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=31 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -897,31 +897,27 @@ async function geminiCall(body){
 }
 async function callGeminiImage(prompt){
   if (!P || typeof P.github !== 'function') return {err:"Indisponible sans l'APK."};
-  const imgModels = ['gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
-  let lastErr = null;
-  for (const m of imgModels) {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(geminiKey());
-    const body = {
-      contents: [{role: 'user', parts: [{text: 'Generate an image based on this description: ' + prompt}]}],
-      generationConfig: {responseModalities: ['TEXT', 'IMAGE']}
-    };
-    try {
-      const r = await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
-      let data = null; try { data = JSON.parse(r.text); } catch (e) {}
-      if (r.status === 200 && data) {
-        const cand = (data.candidates || [])[0];
-        if (cand && cand.content && cand.content.parts) {
-          for (const part of cand.content.parts) {
-            if (part.inlineData && part.inlineData.data) {
-              return {base64: part.inlineData.data, mimeType: part.inlineData.mimeType || 'image/png'};
-            }
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + encodeURIComponent(geminiKey());
+  const body = {
+    contents: [{role: 'user', parts: [{text: 'Generate an image based on this description: ' + prompt}]}],
+    generationConfig: {responseModalities: ['TEXT', 'IMAGE']}
+  };
+  try {
+    const r = await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
+    let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+    if (r.status === 200 && data) {
+      const cand = (data.candidates || [])[0];
+      if (cand && cand.content && cand.content.parts) {
+        for (const part of cand.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            return {base64: part.inlineData.data, mimeType: part.inlineData.mimeType || 'image/png'};
           }
         }
       }
-      lastErr = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + r.status);
-    } catch (e) { lastErr = e.message || String(e); }
-  }
-  return {err: lastErr || 'Échec de génération d\'image'};
+    }
+    const errText = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + r.status);
+    return {err: errText};
+  } catch (e) { return {err: e.message || String(e)}; }
 }
 function geminiParts(content){
   const parts = [];
