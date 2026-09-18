@@ -14,9 +14,12 @@ function loadConfig() {
     aiKey: localStorage.getItem('poupous_ai_key') || '',
     elevenKey: localStorage.getItem('poupous_eleven_key') || '',
     elevenVoice: localStorage.getItem('poupous_eleven_voice') || '',
-    wakeWord: localStorage.getItem('poupous_wake_word') || 'poupous'
+    wakeWord: localStorage.getItem('poupous_wake_word') || 'poupous',
+    sttKeyRaw: localStorage.getItem('poupous_stt_key') || ''
   };
 }
+function effectiveSttKey(cfg) { return cfg.provider === 'gemini' ? cfg.aiKey : cfg.sttKeyRaw; }
+function saveSttKey(key) { localStorage.setItem('poupous_stt_key', key); }
 function saveGithubConfig(repo, token) {
   localStorage.setItem('poupous_repo', repo);
   localStorage.setItem('poupous_token', token);
@@ -526,40 +529,84 @@ function switchPanel(name) {
 }
 
 // --- Voice ---
+// Electron's bundled Chromium has no Google API key, so the built-in
+// SpeechRecognition/webkitSpeechRecognition API silently fails (network
+// error) every time. Recording audio and transcribing it via the Gemini
+// API (which supports audio input) works reliably instead.
 let handsFree = false;
 let recognizing = false;
-let recognition = null;
-
-function getRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return null;
-  if (!recognition) {
-    recognition = new SR();
-    recognition.lang = 'fr-FR';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-  }
-  return recognition;
-}
+let micStream = null;
 
 function isStopWord(t) { return /^(stop|arrête|arrete|arrête[- ]toi|arrete[- ]toi)\s*\.?$/i.test(t.trim()); }
 
-function startListening() {
-  const rec = getRecognition();
-  if (!rec || recognizing || sending) return;
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function recordAudio(ms) {
+  if (!micStream) micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const mime = (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) ? 'audio/webm;codecs=opus' : 'audio/webm';
+  const rec = new MediaRecorder(micStream, { mimeType: mime });
+  const chunks = [];
+  const stopped = new Promise((resolve) => { rec.onstop = resolve; });
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.start();
+  await new Promise((r) => setTimeout(r, ms));
+  rec.stop();
+  await stopped;
+  return { blob: new Blob(chunks, { type: mime }), mime };
+}
+
+async function transcribeAudio(blob, mime, apiKey) {
+  const base64 = await blobToBase64(blob);
+  let lastErr = null;
+  for (const model of GEMINI_MODELS) {
+    const r = await window.aiBridge.gemini(apiKey, model, {
+      contents: [{ role: 'user', parts: [
+        { inlineData: { mimeType: mime, data: base64 } },
+        { text: 'Transcris exactement ce qui est dit en français. Réponds uniquement avec le texte transcrit, sans commentaire. Si rien de compréhensible n\'est dit, réponds avec une chaîne vide.' }
+      ] }],
+      generationConfig: { maxOutputTokens: 300 }
+    });
+    if (r.status === 200 && r.data) {
+      const cand = (r.data.candidates || [])[0];
+      const parts = (cand && cand.content && cand.content.parts) || [];
+      return parts.filter(x => x.text).map(x => x.text).join(' ').trim();
+    }
+    lastErr = (r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status);
+  }
+  throw new Error(lastErr || 'transcription indisponible');
+}
+
+async function startListening() {
+  if (recognizing || sending) return;
+  const cfg = loadConfig();
+  const sttKey = effectiveSttKey(cfg);
+  if (!sttKey) {
+    state.conversation.push({ role: 'assistant', content: "Il me faut une clé Gemini pour comprendre ta voix — renseigne-la dans l'onglet Cerveau, section Micro." });
+    renderChat();
+    if (handsFree) setHandsFree(false);
+    return;
+  }
   recognizing = true;
   $('mic-btn').classList.add('listening');
   setRadarState('listening');
-  rec.onresult = (e) => {
-    const raw = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
+  try {
+    const { blob, mime } = await recordAudio(5000);
+    const raw = await transcribeAudio(blob, mime, sttKey);
     recognizing = false;
     $('mic-btn').classList.remove('listening');
     setRadarState('idle');
-    if (!raw.trim()) { if (handsFree) startListening(); return; }
+    if (!raw) { if (handsFree) startListening(); return; }
     if (handsFree && isStopWord(raw)) { setHandsFree(false); return; }
     let text = raw;
     if (handsFree) {
-      const word = loadConfig().wakeWord.trim();
+      const word = cfg.wakeWord.trim();
       if (word) {
         const re = new RegExp('^\\s*' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,]?\\s*', 'i');
         if (!re.test(text)) { startListening(); return; }
@@ -569,10 +616,14 @@ function startListening() {
     }
     $('chat-input').value = text;
     sendChat();
-  };
-  rec.onerror = () => { recognizing = false; $('mic-btn').classList.remove('listening'); setRadarState('idle'); if (handsFree) setTimeout(() => { if (handsFree) startListening(); }, 800); };
-  rec.onend = () => { recognizing = false; $('mic-btn').classList.remove('listening'); setRadarState('idle'); };
-  try { rec.start(); } catch (e) { recognizing = false; }
+  } catch (e) {
+    recognizing = false;
+    $('mic-btn').classList.remove('listening');
+    setRadarState('idle');
+    state.conversation.push({ role: 'assistant', content: 'Micro indisponible : ' + (e.message || e) });
+    renderChat();
+    if (handsFree) setHandsFree(false);
+  }
 }
 
 function speakBrowser(text, onDone) {
@@ -628,6 +679,8 @@ document.addEventListener('DOMContentLoaded', () => {
   $('eleven-key').value = cfg.elevenKey;
   $('eleven-voice').value = cfg.elevenVoice;
   $('wake-word').value = cfg.wakeWord;
+  $('stt-key').value = cfg.sttKeyRaw;
+  $('stt-status-text').textContent = effectiveSttKey(cfg) ? 'Reconnaissance vocale activée.' : "Il faut une clé Gemini pour que Poupous comprenne ta voix.";
   $('eleven-status-text').textContent = (cfg.elevenKey && cfg.elevenVoice) ? 'Voix ElevenLabs activée.' : 'Sans clé, Poupous utilise la voix système du navigateur.';
   $('pill-gemini').classList.toggle('selected', cfg.provider === 'gemini');
   $('pill-claude').classList.toggle('selected', cfg.provider === 'claude');
@@ -661,6 +714,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   $('wake-word').addEventListener('change', () => saveWakeWord($('wake-word').value.trim() || 'poupous'));
 
+  $('save-stt').onclick = () => {
+    saveSttKey($('stt-key').value.trim());
+    $('stt-status-text').textContent = effectiveSttKey(loadConfig()) ? 'Reconnaissance vocale activée.' : "Il faut une clé Gemini pour que Poupous comprenne ta voix.";
+  };
+
   $('add-fact').onclick = async () => {
     const val = $('new-fact').value.trim();
     if (!val) return;
@@ -674,9 +732,9 @@ document.addEventListener('DOMContentLoaded', () => {
   $('chat-send').onclick = sendChat;
   $('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 
-  if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) {
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)) {
     $('mic-btn').disabled = true;
-    $('mic-btn').title = 'Reconnaissance vocale indisponible';
+    $('mic-btn').title = 'Microphone indisponible';
     $('hf-switch').style.opacity = '.4';
     $('hf-switch').style.pointerEvents = 'none';
   } else {

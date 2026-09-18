@@ -390,6 +390,19 @@
         </div>
         <div id="brain-status"><span class="spin" id="brain-spin"></span><span id="brain-status-text"></span></div>
       </div>
+      <h2 class="section">Micro (reconnaissance vocale)</h2>
+      <div class="card hud-frame">
+        <div class="row">
+          <label class="field">
+            <span>Clé Gemini (utilisée pour transcrire ta voix, même si tu discutes avec Claude)</span>
+            <input type="password" id="stt-key" placeholder="Colle ta clé Gemini ici">
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn" id="save-stt">Enregistrer</button>
+        </div>
+        <div id="stt-status"><span id="stt-status-text"></span></div>
+      </div>
       <h2 class="section">Voix (ElevenLabs, optionnel)</h2>
       <div class="card hud-frame">
         <div class="row">
