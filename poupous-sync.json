@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Vas-y"
-    },
-    {
-      "role": "assistant",
-      "content": "Pour l'instant, je ne peux pas scanner directement OpenStreetMap tout seul sans que le code de l'application ne le fasse via une requête Overpass. Mais sur ta rue de Visé à Wandre, je vois déjà l'Aldi et le Wandre Market, et d'autres enseignes comme Colruyt ou Lidl se trouvent un peu plus loin vers Herstal et Jupille."
-    },
-    {
-      "role": "user",
       "content": "Il faut attendre"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Le Colruyt le plus proche de la rue de Visé à Wandre est généralement celui d'Herstal, situé à environ quatre ou cinq kilomètres d'ici."
+    },
+    {
+      "role": "user",
+      "content": "Super"
+    },
+    {
+      "role": "assistant",
+      "content": "Content de voir que ça te va. Tu as besoin d'autre chose pour le moment ?"
     }
   ],
-  "updatedAt": "2026-09-18T19:12:27.778Z"
+  "updatedAt": "2026-09-18T19:12:44.091Z"
 }
