@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "J'ai donné la liste des magasins qui se trouve à 20 km"
-    },
-    {
-      "role": "assistant",
-      "content": "Je viens de chercher pour toi, et autour de Wandre on retrouve notamment l'Aldi sur la rue de Visé, le Wandre Market, ainsi que les grands supermarchés habituels à Herstal, Jupille et Liège centre."
-    },
-    {
-      "role": "user",
       "content": "Sois plus précis dis-moi combien de kilomètres"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Je n'ai pas reçu de fichier pour l'instant. Tu peux utiliser le bouton trombone en bas à gauche de la conversation pour joindre ton fichier."
+    },
+    {
+      "role": "user",
+      "content": "Mais là tu l'as reçu\n[Fichiers joints : app (11).html]"
+    },
+    {
+      "role": "assistant",
+      "content": "Oui, j'ai bien reçu ton fichier contenant le code de mon application. Qu'est-ce que tu veux qu'on y change ou qu'on y ajoute ?"
     }
   ],
-  "updatedAt": "2026-09-18T22:35:44.760Z"
+  "updatedAt": "2026-09-18T22:36:01.749Z"
 }
