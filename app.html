@@ -3,17 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=28 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=29 -->
 <title>Poupous</title>
 <style>
-:root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
+:root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--ink);color:var(--text)}
 body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
 #app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 12px);box-sizing:border-box}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{font-weight:800;letter-spacing:.2em;font-size:18px}
-.status{color:var(--muted);font-size:13px;margin-top:2px}
+.status{color:var(--green);font-size:13px;margin-top:2px;transition:color .3s ease}
+.status-bar-wrap{height:3px;width:100%;background:transparent;margin-top:4px;overflow:hidden;border-radius:2px}
+.status-bar-anim{width:100%;height:100%;background:var(--red);background:linear-gradient(90deg,transparent,var(--red),transparent);animation:statusProg 1.5s infinite linear;transform-origin:0% 50%}
+@keyframes statusProg{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 .icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
 .orb-wrap{position:relative;height:clamp(170px,32vh,270px);flex:none}
 #orb{width:100%;height:100%;display:block}
@@ -84,18 +87,28 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const clean = s => String(s).replace(/https?:\/\/\S+/g, '').replace(/[*_#`>|]/g, '').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').replace(/[ \t]+/g, ' ').trim();
 const STATES = {
-  chargement:['#38d6f5','Démarrage…'],
-  veille:['#38d6f5','Appuie sur le micro ou écris-moi'],
-  ecoute:['#38d6f5',"Je t'écoute…"],
-  mainslibres:['#2aa9c7','Mains libres · dis « Poupous »'],
-  reflexion:['#9d8cff','Je réfléchis…'],
-  parole:['#ffb547','Je parle…'],
-  amelioration:['#4ee0a6','Je modifie mon code…'],
-  erreur:['#ff6b6b','Un souci est survenu']
+  chargement:['#38d6f5','Démarrage…','green'],
+  veille:['#38d6f5','Appuie sur le micro ou écris-moi','green'],
+  ecoute:['#38d6f5',"Je t'écoute…",'orange'],
+  mainslibres:['#2aa9c7','Mains libres · dis « Poupous »','green'],
+  reflexion:['#9d8cff','Je réfléchis…','orange'],
+  parole:['#ffb547','Je parle…','orange'],
+  amelioration:['#4ee0a6','Je modifie mon code…','red'],
+  erreur:['#ff6b6b','Un souci est survenu','red']
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
 const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
+
+/* ---------- Gestion des erreurs JS automatiques ---------- */
+window.addEventListener('error', e => {
+  const errMsg = 'Erreur JS : ' + (e.message || 'Inconnue') + ' (' + (e.filename ? e.filename.split('/').pop() : 'script') + ':' + e.lineno + ')';
+  sys(errMsg + " — Dis « corrige ce bug » pour réparer automatiquement.");
+});
+window.addEventListener('unhandledrejection', e => {
+  const reason = e.reason ? (e.reason.message || String(e.reason)) : 'Inconnue';
+  sys('Erreur promesse : ' + reason + " — Dis « corrige ce bug » pour réparer automatiquement.");
+});
 
 /* ---------- Pont avec l'appli Android ---------- */
 let seq = 0;
@@ -169,8 +182,6 @@ function normalizeMarket(md){
     if (!Array.isArray(m.promos)) m.promos = [];
     if (!Array.isArray(m.list)) m.list = [];
     m.list = m.list.map(x => typeof x === 'string' ? {nom:x, coche:false} : {nom:String((x && x.nom) || ''), coche:!!(x && x.coche)}).filter(x => x.nom);
-    // Les anciennes versions contenaient des coordonnées d'exemple : on n'y touche
-    // que si l'utilisateur a lui-même enregistré la position du magasin.
     if (!m.posEnregistree || typeof m.lat !== 'number' || typeof m.lon !== 'number') { m.lat = null; m.lon = null; m.posEnregistree = false; }
   }
   return md;
@@ -183,7 +194,6 @@ function getMarketData(){
 }
 function saveMarketData(data){ store.set('marketData', data); if (typeof pushRadarConfig === 'function') pushRadarConfig(); }
 
-/* Contrôle strict : ni viande, ni porc, ni alcool, ni dérivés animaux douteux. */
 const INTERDITS = [
   'viande','poulet','dinde','canard','boeuf','bœuf','agneau','mouton','veau','porc','cochon','sanglier','lapin',
   'jambon','lard','bacon','saucisse','saucisson','merguez','chorizo','salami','charcuterie','pate de foie','foie gras','rillettes','nuggets',
@@ -329,8 +339,6 @@ function checkStoreProximity(lat, lon){
   }
 }
 
-/* Configuration envoyée au service Android : magasins dont la position est connue
-   et articles encore à prendre. Le service continue même écran éteint. */
 function radarConfig(){
   const md = getMarketData();
   return {rayon:500, magasins:Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
@@ -343,7 +351,6 @@ function pushRadarConfig(){
   const cfg = radarConfig();
   try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom:m.nom, lat:m.lat, lon:m.lon})))); } catch (e) {}
 }
-/* Appelé par le service Android quand il détecte un magasin à moins de 500 m. */
 window.__radarProximite = nom => {
   const md = getMarketData();
   const cle = Object.keys(md).find(k => k === nom || md[k].name === nom);
@@ -410,7 +417,7 @@ function openMarketSheet(){
 
 /* ---------- Interface principale ---------- */
 $('#app').innerHTML =
-  '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div></div>' +
+  '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div><div class="status-bar-wrap" id="status-bar-wrap" hidden><div class="status-bar-anim"></div></div></div>' +
   '<div style="display:flex;gap:8px"><button class="icon-btn" id="open-market" aria-label="Courses et radar magasins" style="color:var(--cyan)">🛒</button>' +
   '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
@@ -421,7 +428,17 @@ $('#app').innerHTML =
   '<button class="mic" id="mic" aria-label="Parler à Poupous">' + MIC + '</button></div>' +
   '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
 
-function setState(s){ S.state = s; $('#status').textContent = STATES[s][1]; }
+function setState(s){
+  S.state = s;
+  const cfg = STATES[s] || STATES.veille;
+  const stEl = $('#status');
+  stEl.textContent = cfg[1];
+  const colorKey = cfg[2] || 'green';
+  const colorVar = colorKey === 'red' ? 'var(--red)' : colorKey === 'orange' ? 'var(--amber)' : 'var(--green)';
+  stEl.style.color = colorVar;
+  const barWrap = $('#status-bar-wrap');
+  if (barWrap) barWrap.hidden = (s !== 'amelioration');
+}
 function idle(){ setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
 function scrollLog(){ const l = $('#log'); l.scrollTop = l.scrollHeight; }
 function addMsg(who, text){
@@ -968,6 +985,13 @@ function errCopy(e){
 }
 async function ask(text){
   if (S.busy) return;
+  const lower = norm(text);
+  if (lower.includes('corrige ce bug') || lower.includes('corrige le bug')) {
+    addMsg('toi', text);
+    const lastLogs = [...document.querySelectorAll('.msg.sys')].slice(-3).map(el => el.textContent).join('\n');
+    await runUpgrade("Corrige l'erreur ou le bug suivant détecté : " + (lastLogs || text));
+    return;
+  }
   const cmd = text.match(/^\s*(apk|page)\s*[:：]\s*([\s\S]{3,})$/i);
   if (cmd) {
     addMsg('toi', text);
