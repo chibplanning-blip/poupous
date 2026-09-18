@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=25 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=26 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -564,7 +564,7 @@ function systemPrompt(){
     "Tes réponses sont lues à voix haute : français oral et naturel, sans markdown, sans listes, sans emojis. Une à trois phrases, sauf si on te demande des détails.\n" +
     "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, appelles, programmes ou modifies quelque chose, tu DOIS appeler l'outil correspondant dans la même réponse. Sinon, dis clairement que tu ne l'as pas fait.\n" +
     "Outils : retenir (mémorise de toi-même ce qui est durable) ; oublier ; changer_reglage ; localiser (position GPS actuelle, adresse approximative) ; " +
-    "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier.\n" +
+    "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier ; chercher_internet (recherche web, actualités, météo, faits récents) ; lire_page_web (lire le contenu d'une URL précise) ; acces_notifications_whatsapp et lire_whatsapp (lire les messages WhatsApp reçus, si l'accès aux notifications est activé) ; ajouter_magasin et localiser_magasin (ajouter un magasin suivi et trouver sa position tout seul, sans que l'utilisateur s'y rende).\n" +
     "Courses : liste_courses affiche la liste d'un magasin, ajouter_courses_halal ajoute un article, retirer_courses en enlève un. Magasins suivis : " + magasins + ". Règle stricte : aucun produit contenant de la viande, du porc, de la gélatine ou de l'alcool ; les substituts végétaux sont acceptés. Un article refusé doit être annoncé comme refusé.\n" +
     "Le radar 500 m prévient quand l'utilisateur approche d'un magasin dont la position a été enregistrée ; il ne fonctionne que pendant que l'appli est ouverte à l'écran.\n" +
     "Amélioration : ameliorer_mon_code change ta page (interface, comportement), c'est immédiat. ameliorer_apk change ton application Android (autorisations, fonctions natives, service en arrière-plan) : ça prend 5 à 15 minutes et il faut un jeton GitHub. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas dans window.Poupous. installer_mise_a_jour relance l'installation. annuler_derniere_amelioration revient en arrière.\n" +
