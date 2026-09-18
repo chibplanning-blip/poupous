@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=33 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=34 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -676,8 +676,11 @@ async function handsFree(){
     setState('mainslibres');
     const r = await listenOnce();
     if (!S.reglages.mainsLibres) break;
+    if (r.err) {
+      sys('[DEBUG MAINS LIBRES] Erreur d\'écoute reçue : ' + r.err);
+    }
     if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
-    if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { await sleep(1500); continue; }
+    if (r.err) { await sleep(1500); continue; }
     if (!r.text) continue;
     const w = findWake(r.text); if (!w) continue;
     if (/\p{L}{2,}/u.test(w.rest)) await ask(w.rest);
