@@ -88,7 +88,31 @@
     {
       "role": "assistant",
       "content": "Je n'ai toujours pas la possibilité d'interroger OpenStreetMap directement sans modifier mon code. Si tu veux que je puisse scanner un rayon de vingt kilomètres autour de ton emplacement actuel sur la rue de Visé à Wandre, il faut que j'utilise mes outils d'amélioration pour ajouter cette fonctionnalité."
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Erreur : API key not valid. Please pass a valid API key."
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Erreur : API key not valid. Please pass a valid API key."
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut ! Je suis bien là et tout fonctionne à nouveau. Que puis-je faire pour toi ?"
     }
   ],
-  "updatedAt": "2026-09-18T18:37:40.152Z"
+  "updatedAt": "2026-09-18T18:43:48.020Z"
 }
