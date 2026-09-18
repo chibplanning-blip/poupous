@@ -19,3 +19,7 @@ contextBridge.exposeInMainWorld('pcBridge', {
 contextBridge.exposeInMainWorld('sysBridge', {
   stats: () => ipcRenderer.invoke('sys-stats')
 });
+
+contextBridge.exposeInMainWorld('voiceBridge', {
+  tts: (apiKey, voiceId, text) => ipcRenderer.invoke('el-tts', { apiKey, voiceId, text })
+});

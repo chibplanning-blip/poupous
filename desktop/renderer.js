@@ -11,7 +11,10 @@ function loadConfig() {
     repo: localStorage.getItem('poupous_repo') || 'chibplanning-blip/poupous',
     token: localStorage.getItem('poupous_token') || '',
     provider: localStorage.getItem('poupous_ai_provider') || 'gemini',
-    aiKey: localStorage.getItem('poupous_ai_key') || ''
+    aiKey: localStorage.getItem('poupous_ai_key') || '',
+    elevenKey: localStorage.getItem('poupous_eleven_key') || '',
+    elevenVoice: localStorage.getItem('poupous_eleven_voice') || '',
+    wakeWord: localStorage.getItem('poupous_wake_word') || 'poupous'
   };
 }
 function saveGithubConfig(repo, token) {
@@ -21,6 +24,13 @@ function saveGithubConfig(repo, token) {
 function saveBrainConfig(provider, aiKey) {
   localStorage.setItem('poupous_ai_provider', provider);
   localStorage.setItem('poupous_ai_key', aiKey);
+}
+function saveElevenConfig(key, voiceId) {
+  localStorage.setItem('poupous_eleven_key', key);
+  localStorage.setItem('poupous_eleven_voice', voiceId);
+}
+function saveWakeWord(word) {
+  localStorage.setItem('poupous_wake_word', word);
 }
 
 let state = { memoire: [], conversation: [], sha: null };
@@ -434,12 +444,22 @@ function startListening() {
   $('mic-btn').classList.add('listening');
   setRadarState('listening');
   rec.onresult = (e) => {
-    const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
+    const raw = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
     recognizing = false;
     $('mic-btn').classList.remove('listening');
     setRadarState('idle');
-    if (!text.trim()) { if (handsFree) startListening(); return; }
-    if (handsFree && isStopWord(text)) { setHandsFree(false); return; }
+    if (!raw.trim()) { if (handsFree) startListening(); return; }
+    if (handsFree && isStopWord(raw)) { setHandsFree(false); return; }
+    let text = raw;
+    if (handsFree) {
+      const word = loadConfig().wakeWord.trim();
+      if (word) {
+        const re = new RegExp('^\\s*' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,]?\\s*', 'i');
+        if (!re.test(text)) { startListening(); return; }
+        text = text.replace(re, '').trim();
+        if (!text) { startListening(); return; }
+      }
+    }
     $('chat-input').value = text;
     sendChat();
   };
@@ -448,17 +468,35 @@ function startListening() {
   try { rec.start(); } catch (e) { recognizing = false; }
 }
 
-function speak(text, onDone) {
+function speakBrowser(text, onDone) {
   try {
-    if (!window.speechSynthesis || !text) { if (onDone) onDone(); return; }
+    if (!window.speechSynthesis) { setRadarState('idle'); if (onDone) onDone(); return; }
     speechSynthesis.cancel();
-    setRadarState('speaking');
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR';
     u.onend = () => { setRadarState('idle'); if (onDone) onDone(); };
     u.onerror = () => { setRadarState('idle'); if (onDone) onDone(); };
     speechSynthesis.speak(u);
   } catch (e) { setRadarState('idle'); if (onDone) onDone(); }
+}
+
+async function speak(text, onDone) {
+  if (!text) { if (onDone) onDone(); return; }
+  setRadarState('speaking');
+  const cfg = loadConfig();
+  if (cfg.elevenKey && cfg.elevenVoice && window.voiceBridge) {
+    try {
+      const r = await window.voiceBridge.tts(cfg.elevenKey, cfg.elevenVoice, text);
+      if (r.ok) {
+        const audio = new Audio('data:audio/mpeg;base64,' + r.base64);
+        audio.onended = () => { setRadarState('idle'); if (onDone) onDone(); };
+        audio.onerror = () => { setRadarState('idle'); if (onDone) onDone(); };
+        audio.play();
+        return;
+      }
+    } catch (e) {}
+  }
+  speakBrowser(text, onDone);
 }
 
 function setHandsFree(on) {
@@ -480,6 +518,10 @@ document.addEventListener('DOMContentLoaded', () => {
   $('repo').value = cfg.repo;
   $('token').value = cfg.token;
   $('ai-key').value = cfg.aiKey;
+  $('eleven-key').value = cfg.elevenKey;
+  $('eleven-voice').value = cfg.elevenVoice;
+  $('wake-word').value = cfg.wakeWord;
+  $('eleven-status-text').textContent = (cfg.elevenKey && cfg.elevenVoice) ? 'Voix ElevenLabs activée.' : 'Sans clé, Poupous utilise la voix système du navigateur.';
   $('pill-gemini').classList.toggle('selected', cfg.provider === 'gemini');
   $('pill-claude').classList.toggle('selected', cfg.provider === 'claude');
   $('key-label').textContent = cfg.provider === 'claude' ? 'Clé API Claude' : 'Clé API Gemini (gratuite)';
@@ -503,6 +545,14 @@ document.addEventListener('DOMContentLoaded', () => {
     pullSync();
   };
   $('refresh').onclick = () => pullSync();
+
+  $('save-eleven').onclick = () => {
+    const key = $('eleven-key').value.trim();
+    const voice = $('eleven-voice').value.trim();
+    saveElevenConfig(key, voice);
+    $('eleven-status-text').textContent = (key && voice) ? 'Voix ElevenLabs activée.' : 'Sans clé, Poupous utilise la voix système du navigateur.';
+  };
+  $('wake-word').addEventListener('change', () => saveWakeWord($('wake-word').value.trim() || 'poupous'));
 
   $('add-fact').onclick = async () => {
     const val = $('new-fact').value.trim();

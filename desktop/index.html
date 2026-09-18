@@ -349,7 +349,11 @@
       <h2 class="section">Discussion</h2>
       <div class="switch-row">
         <div class="switch" id="hf-switch"><div class="knob"></div></div>
-        <span>Mains libres — parle, il répond à voix haute</span>
+        <span>Mains libres — dis le mot-clé puis parle, il répond à voix haute</span>
+      </div>
+      <div class="switch-row" style="gap: 8px;">
+        <span>Mot-clé :</span>
+        <input type="text" id="wake-word" placeholder="Poupous" style="max-width: 160px; padding: 4px 8px; font-size: 12px;">
       </div>
       <div id="chatlog" class="hud-frame"></div>
       <div class="chatbar">
@@ -385,6 +389,25 @@
           <button class="btn" id="save-brain">Enregistrer</button>
         </div>
         <div id="brain-status"><span class="spin" id="brain-spin"></span><span id="brain-status-text"></span></div>
+      </div>
+      <h2 class="section">Voix (ElevenLabs, optionnel)</h2>
+      <div class="card hud-frame">
+        <div class="row">
+          <label class="field">
+            <span>Clé API ElevenLabs</span>
+            <input type="password" id="eleven-key" placeholder="Colle ta clé ElevenLabs ici">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span>ID de la voix clonée</span>
+            <input type="text" id="eleven-voice" placeholder="Voices > ta voix > Voice ID">
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn" id="save-eleven">Enregistrer</button>
+        </div>
+        <div id="eleven-status"><span id="eleven-status-text">Sans clé, Poupous utilise la voix système du navigateur.</span></div>
       </div>
     </section>
 
