@@ -121,6 +121,49 @@
   header.top h1 { margin: 0; font-family: var(--mono); font-size: 16px; letter-spacing: 6px; font-weight: 700; color: var(--accent); text-shadow: 0 0 12px var(--accent-dim); }
   header.top .sub { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: .3px; }
 
+  .cluster {
+    display: flex; align-items: center; gap: 28px;
+    padding: 14px 26px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #00e5ff08, transparent);
+  }
+  .clock { font-family: var(--mono); }
+  .clock .time { font-size: 30px; font-weight: 700; color: var(--text); letter-spacing: 2px; text-shadow: 0 0 10px var(--accent-dim); line-height: 1; }
+  .clock .date { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
+
+  .radar-wrap { flex: 0 0 auto; }
+  .radar { position: relative; width: 96px; height: 96px; }
+  .radar .ring { position: absolute; border-radius: 50%; border: 1px solid var(--accent-dim); }
+  .radar .r1 { inset: 0; animation: spin 10s linear infinite; border-style: dashed; }
+  .radar .r2 { inset: 12px; border-color: #00e5ff40; animation: spin 7s linear infinite reverse; }
+  .radar .r3 { inset: 24px; border-color: #00e5ff70; }
+  .radar .radar-core {
+    position: absolute; inset: 38px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--accent) 45%, #007b8c 100%);
+    box-shadow: 0 0 16px 3px var(--accent-dim);
+    transition: background .3s, box-shadow .3s;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .radar-label {
+    position: absolute; bottom: -18px; left: 0; right: 0; text-align: center;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted);
+  }
+  .radar.listening .r1, .radar.listening .r2 { animation-duration: 2.5s; border-color: var(--danger); }
+  .radar.listening .radar-core { background: radial-gradient(circle at 35% 30%, #fff, var(--danger) 45%, #7a0f28 100%); box-shadow: 0 0 16px 3px #ff547055; }
+  .radar.listening .radar-label { color: var(--danger); }
+  .radar.thinking .r1 { animation-duration: 1.4s; }
+  .radar.thinking .r2 { animation-duration: 1s; }
+  .radar.thinking .radar-label { color: var(--accent); }
+  .radar.speaking .radar-core { animation: pulse 0.6s ease-in-out infinite; }
+  .radar.speaking .radar-label { color: var(--amber); }
+
+  .gauges { display: flex; gap: 18px; margin-left: auto; }
+  .gauge-box { display: flex; align-items: center; gap: 8px; }
+  .gauge-box svg { width: 40px; height: 40px; transform: rotate(-90deg); }
+  .gauge-box .gtrack { fill: none; stroke: #ffffff14; stroke-width: 3; }
+  .gauge-box .gfg { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100.5; stroke-dashoffset: 100.5; transition: stroke-dashoffset .4s, stroke .3s; filter: drop-shadow(0 0 3px var(--accent)); }
+  .glabel { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; line-height: 1.5; }
+  .glabel b { color: var(--text); font-size: 12px; }
+
   main { flex: 1; min-height: 0; overflow: hidden; padding: 20px 26px 22px; display: flex; flex-direction: column; }
   .panel { flex: 1; min-height: 0; display: none; flex-direction: column; animation: fadein .18s ease-out; }
   .panel.active { display: flex; }
@@ -273,6 +316,32 @@
     <h1>POUPOUS</h1>
     <span class="sub">SYSTÈME EN LIGNE · MÊME MÉMOIRE, MÊME HISTORIQUE, MÊME VOIX</span>
   </header>
+
+  <div class="cluster">
+    <div class="clock">
+      <div class="time" id="clock-time">--:--</div>
+      <div class="date" id="clock-date">—</div>
+    </div>
+    <div class="radar-wrap">
+      <div class="radar" id="status-radar">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <div class="radar-core"></div>
+        <div class="radar-label" id="radar-label">VEILLE</div>
+      </div>
+    </div>
+    <div class="gauges">
+      <div class="gauge-box">
+        <svg viewBox="0 0 40 40"><circle class="gtrack" cx="20" cy="20" r="16"/><circle id="ram-fg" class="gfg" cx="20" cy="20" r="16"/></svg>
+        <span class="glabel">RAM<br><b id="ram-pct">--%</b></span>
+      </div>
+      <div class="gauge-box">
+        <svg viewBox="0 0 40 40"><circle class="gtrack" cx="20" cy="20" r="16"/><circle id="sync-fg" class="gfg" cx="20" cy="20" r="16"/></svg>
+        <span class="glabel">SYNC<br><b id="sync-pct">--</b></span>
+      </div>
+    </div>
+  </div>
 
   <main>
 

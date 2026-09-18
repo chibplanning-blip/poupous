@@ -37,6 +37,34 @@ function setBrainStatus(msg, busy) {
 function setRailDot(on) {
   $('rail-dot').classList.toggle('on', on);
   $('rail-dot').classList.toggle('off', !on);
+  const circ = 100.5;
+  $('sync-fg').style.stroke = on ? '#4ade80' : 'var(--danger)';
+  $('sync-fg').style.strokeDashoffset = on ? 0 : circ;
+  $('sync-pct').textContent = on ? 'OK' : '--';
+}
+
+const RADAR_LABELS = { idle: 'VEILLE', listening: 'ÉCOUTE', thinking: 'ANALYSE', speaking: 'RÉPONSE' };
+function setRadarState(name) {
+  const el = $('status-radar');
+  el.classList.remove('listening', 'thinking', 'speaking');
+  if (name !== 'idle') el.classList.add(name);
+  $('radar-label').textContent = RADAR_LABELS[name] || 'VEILLE';
+}
+
+function updateClock() {
+  const d = new Date();
+  $('clock-time').textContent = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  $('clock-date').textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+async function updateRamGauge() {
+  try {
+    if (!window.sysBridge) return;
+    const s = await window.sysBridge.stats();
+    const circ = 100.5;
+    $('ram-fg').style.strokeDashoffset = String(circ * (1 - s.pct / 100));
+    $('ram-pct').textContent = s.pct + '%';
+  } catch (e) {}
 }
 
 async function gh(method, path, body) {
@@ -349,6 +377,7 @@ async function sendChat() {
   state.conversation.push({ role: 'user', content: text });
   renderChat();
   addThinkingBubble();
+  setRadarState('thinking');
   const messages = state.conversation.slice(-20).map(t => ({ role: t.role, content: t.content }));
   let answer = '';
   try {
@@ -369,6 +398,7 @@ async function sendChat() {
     sending = false;
     $('chat-send').disabled = false;
     input.focus();
+    setRadarState('idle');
   }
   if (handsFree) speak(answer, () => { if (handsFree) startListening(); });
 }
@@ -402,17 +432,19 @@ function startListening() {
   if (!rec || recognizing || sending) return;
   recognizing = true;
   $('mic-btn').classList.add('listening');
+  setRadarState('listening');
   rec.onresult = (e) => {
     const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
     recognizing = false;
     $('mic-btn').classList.remove('listening');
+    setRadarState('idle');
     if (!text.trim()) { if (handsFree) startListening(); return; }
     if (handsFree && isStopWord(text)) { setHandsFree(false); return; }
     $('chat-input').value = text;
     sendChat();
   };
-  rec.onerror = () => { recognizing = false; $('mic-btn').classList.remove('listening'); if (handsFree) setTimeout(() => { if (handsFree) startListening(); }, 800); };
-  rec.onend = () => { recognizing = false; $('mic-btn').classList.remove('listening'); };
+  rec.onerror = () => { recognizing = false; $('mic-btn').classList.remove('listening'); setRadarState('idle'); if (handsFree) setTimeout(() => { if (handsFree) startListening(); }, 800); };
+  rec.onend = () => { recognizing = false; $('mic-btn').classList.remove('listening'); setRadarState('idle'); };
   try { rec.start(); } catch (e) { recognizing = false; }
 }
 
@@ -420,12 +452,13 @@ function speak(text, onDone) {
   try {
     if (!window.speechSynthesis || !text) { if (onDone) onDone(); return; }
     speechSynthesis.cancel();
+    setRadarState('speaking');
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR';
-    u.onend = () => { if (onDone) onDone(); };
-    u.onerror = () => { if (onDone) onDone(); };
+    u.onend = () => { setRadarState('idle'); if (onDone) onDone(); };
+    u.onerror = () => { setRadarState('idle'); if (onDone) onDone(); };
     speechSynthesis.speak(u);
-  } catch (e) { if (onDone) onDone(); }
+  } catch (e) { setRadarState('idle'); if (onDone) onDone(); }
 }
 
 function setHandsFree(on) {
@@ -493,6 +526,11 @@ document.addEventListener('DOMContentLoaded', () => {
     $('mic-btn').onclick = () => startListening();
     $('hf-switch').onclick = () => setHandsFree(!handsFree);
   }
+
+  updateClock();
+  setInterval(updateClock, 1000 * 30);
+  updateRamGauge();
+  setInterval(updateRamGauge, 4000);
 
   render();
   if (cfg.token) pullSync();

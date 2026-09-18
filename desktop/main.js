@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { exec } = require('child_process');
+const os = require('os');
 const path = require('path');
 
 function createWindow() {
@@ -91,3 +92,9 @@ ipcMain.handle('pc-volume', async (event, dir) => {
 ipcMain.handle('pc-shutdown', async () => run('shutdown /s /t 5'));
 ipcMain.handle('pc-restart', async () => run('shutdown /r /t 5'));
 ipcMain.handle('pc-cancel-shutdown', async () => run('shutdown /a'));
+
+ipcMain.handle('sys-stats', async () => {
+  const total = os.totalmem();
+  const free = os.freemem();
+  return { pct: Math.round((1 - free / total) * 100), usedGB: (total - free) / 1e9, totalGB: total / 1e9 };
+});

@@ -15,3 +15,7 @@ contextBridge.exposeInMainWorld('pcBridge', {
   restart: () => ipcRenderer.invoke('pc-restart'),
   cancelShutdown: () => ipcRenderer.invoke('pc-cancel-shutdown')
 });
+
+contextBridge.exposeInMainWorld('sysBridge', {
+  stats: () => ipcRenderer.invoke('sys-stats')
+});
