@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Et maintenant"
-    },
-    {
-      "role": "assistant",
-      "content": "Tu es toujours sur la rue de Visé à Wandre. Tant que je n'ai pas modifié le code de l'application pour y ajouter une requête Overpass, je ne peux pas scanner automatiquement les supermarchés autour de toi."
-    },
-    {
-      "role": "user",
       "content": "Donc tu arrives pas à communiquer avec Open street Map"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Salut ! Tout fonctionne parfaitement, je suis là et prêt à t'aider. Qu'est-ce qu'on fait ?"
+    },
+    {
+      "role": "user",
+      "content": "salut ça va"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut ! Ça va super bien, et encore mieux maintenant que tu es là. Qu'est-ce qu'on fait aujourd'hui ?"
     }
   ],
-  "updatedAt": "2026-09-18T22:23:59.224Z"
+  "updatedAt": "2026-09-18T22:33:30.630Z"
 }
