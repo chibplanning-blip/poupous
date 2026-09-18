@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const SYNC_FILE = 'poupous-sync.json';
 const CLAUDE_MODEL = 'claude-sonnet-5';
-const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 function b64utf8(s) { return btoa(unescape(encodeURIComponent(s))); }
 function utf8b64(b) { try { return decodeURIComponent(escape(atob(b))); } catch (e) { return atob(b); } }
