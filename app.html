@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=29 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=30 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -29,6 +29,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .msg.toi p{background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:18px 18px 4px 18px;text-align:left}
 .msg.poupous .who{color:var(--cyan)}
 .msg.sys{align-self:center;color:var(--muted);font-size:13px;text-align:center;max-width:95%}
+.msg img{max-width:100%;border-radius:12px;border:1px solid var(--line);margin-top:8px;display:block}
+.msg-img-box{margin-top:6px}
 .bar{display:flex;gap:10px;align-items:center;padding-top:10px;border-top:1px solid var(--line)}
 .bar input{flex:1;min-width:0;height:48px;border-radius:24px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 18px;font:inherit}
 .mic{width:64px;height:64px;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#8ff3ff,var(--cyan) 45%,#1289a8);color:#04202a;display:grid;place-items:center;flex:none;box-shadow:0 0 0 6px rgba(56,214,245,.12)}
@@ -441,11 +443,14 @@ function setState(s){
 }
 function idle(){ setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
 function scrollLog(){ const l = $('#log'); l.scrollTop = l.scrollHeight; }
-function addMsg(who, text){
+function addMsg(who, text, extraHtml){
   const d = document.createElement('div');
   d.className = 'msg ' + who;
   if (who !== 'sys') { const w = document.createElement('div'); w.className = 'who'; w.textContent = who === 'toi' ? 'Toi' : 'Poupous'; d.appendChild(w); }
   const p = document.createElement('p'); p.textContent = text; d.appendChild(p);
+  if (extraHtml) {
+    const ex = document.createElement('div'); ex.className = 'msg-img-box'; ex.innerHTML = extraHtml; d.appendChild(ex);
+  }
   $('#log').appendChild(d); scrollLog();
   return p;
 }
@@ -580,9 +585,9 @@ function systemPrompt(){
   return "Tu es Poupous, l'assistant vocal personnel de l'utilisateur, dans une appli Android sur son téléphone. Personnalité : " + S.reglages.personnalite + "\n" +
     "Nous sommes le " + date + ", il est " + heure + ".\n" +
     "Tes réponses sont lues à voix haute : français oral et naturel, sans markdown, sans listes, sans emojis. Une à trois phrases, sauf si on te demande des détails.\n" +
-    "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, appelles, programmes ou modifies quelque chose, tu DOIS appeler l'outil correspondant dans la même réponse. Sinon, dis clairement que tu ne l'as pas fait.\n" +
+    "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, appelles, programmes, génères une image ou modifies quelque chose, tu DOIS appeler l'outil correspondant dans la même réponse. Sinon, dis clairement que tu ne l'as pas fait.\n" +
     "Outils : retenir (mémorise de toi-même ce qui est durable) ; oublier ; changer_reglage ; localiser (position GPS actuelle, adresse approximative) ; " +
-    "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier ; chercher_internet (recherche web, actualités, météo, faits récents) ; lire_page_web (lire le contenu d'une URL précise) ; acces_notifications_whatsapp et lire_whatsapp (lire les messages WhatsApp reçus, si l'accès aux notifications est activé) ; ajouter_magasin et localiser_magasin (ajouter un magasin suivi et trouver sa position tout seul, sans que l'utilisateur s'y rende).\n" +
+    "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier ; generer_image (génère une image à partir d'une description textuelle avec Gemini) ; chercher_internet (recherche web, actualités, météo, faits récents) ; lire_page_web (lire le contenu d'une URL précise) ; acces_notifications_whatsapp et lire_whatsapp (lire les messages WhatsApp reçus, si l'accès aux notifications est activé) ; ajouter_magasin et localiser_magasin (ajouter un magasin suivi et trouver sa position tout seul, sans que l'utilisateur s'y rende).\n" +
     "Courses : liste_courses affiche la liste d'un magasin, ajouter_courses_halal ajoute un article, retirer_courses en enlève un. Magasins suivis : " + magasins + ". Règle stricte : aucun produit contenant de la viande, du porc, de la gélatine ou de l'alcool ; les substituts végétaux sont acceptés. Un article refusé doit être annoncé comme refusé.\n" +
     "Le radar 500 m prévient quand l'utilisateur approche d'un magasin dont la position a été enregistrée ; il ne fonctionne que pendant que l'appli est ouverte à l'écran.\n" +
     "Amélioration : ameliorer_mon_code change ta page (interface, comportement), c'est immédiat. ameliorer_apk change ton application Android (autorisations, fonctions natives, service en arrière-plan) : ça prend 5 à 15 minutes et il faut un jeton GitHub. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas dans window.Poupous. installer_mise_a_jour relance l'installation. annuler_derniere_amelioration revient en arrière.\n" +
@@ -629,14 +634,16 @@ function toolDefs(){
       input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
     {name:'lire_page_web', description:"Va chercher le contenu texte d'une page web précise à partir de son URL, pour la résumer ou en extraire une information.",
       input_schema:{type:'object', properties:{url:{type:'string'}}, required:['url']}},
+    {name:'generer_image', description:"Génère une image à partir d'une description textuelle (prompt) en utilisant le modèle Gemini avec sortie d'image native. L'image est affichée dans la conversation.",
+      input_schema:{type:'object', properties:{prompt:{type:'string', description:'description détaillée de l\'image à générer'}}, required:['prompt']}},
     {name:'ajouter_magasin', description:"Ajoute un nouveau magasin à la liste des magasins suivis, avec une liste de courses vide.",
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
     {name:'localiser_magasin', description:"Cherche automatiquement, sans que l'utilisateur ait besoin de s'y rendre, la position GPS du magasin le plus proche portant ce nom, et l'enregistre.",
       input_schema:{type:'object', properties:{magasin:{type:'string'}}, required:['magasin']}},
     {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt ; l'utilisateur appuie sur Envoyer.",
       input_schema:{type:'object', properties:{destinataire:{type:'string'}, objet:{type:'string'}, texte:{type:'string'}}, required:['objet','texte']}},
-    {name:'creer_fichier', description:"Crée un fichier texte (txt, md, csv, html, json…), l'enregistre dans Téléchargements/Poupous et ouvre le partage si demandé.",
-      input_schema:{type:'object', properties:{nom:{type:'string', description:'nom avec extension, par exemple liste-courses.txt'}, contenu:{type:'string'}, partager:{type:'boolean'}}, required:['nom','contenu']}},
+    {name:'creer_fichier', description:"Crée un fichier texte ou image (txt, md, csv, html, json, png, jpg…), l'enregistre dans Téléchargements/Poupous et ouvre le partage si demandé.",
+      input_schema:{type:'object', properties:{nom:{type:'string', description:'nom avec extension, par exemple image.png ou liste.txt'}, contenu:{type:'string', description:'contenu textuel ou base64 pour les binaires'}, partager:{type:'boolean'}}, required:['nom','contenu']}},
     {name:'ameliorer_mon_code', description:"Modifie réellement le code de la page Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre après ta réponse, prend une à trois minutes, puis l'appli se recharge.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
     {name:'ameliorer_apk', description:"Modifie réellement l'application Android de Poupous (code Java, autorisations, services), la fait reconstruire sur GitHub puis lance son installation. Prend 5 à 15 minutes.",
@@ -657,6 +664,22 @@ async function runTool(name, input){
       if (loc.err) return gpsErrCopy(loc.err);
       const adresse = await reverseGeocode(loc.lat, loc.lon);
       return adresse ? ('Position actuelle : ' + adresse) : ('Coordonnées actuelles : ' + loc.lat.toFixed(5) + ', ' + loc.lon.toFixed(5) + ' (précision ' + loc.precision + ' m)');
+    }
+    if (name === 'generer_image') {
+      const prompt = String(input.prompt || '').trim();
+      if (!prompt) return 'Description d\'image vide.';
+      const res = await callGeminiImage(prompt);
+      if (res.err) return 'Erreur génération image : ' + res.err;
+      const dataUri = 'data:' + res.mimeType + ';base64,' + res.base64;
+      addMsg('poupous', 'Voici l\'image générée : "' + prompt + '".', '<img src="' + dataUri + '" alt="' + esc(prompt) + '">');
+      if (hasFiles()) {
+        try {
+          const ext = res.mimeType.includes('jpeg') || res.mimeType.includes('jpg') ? 'jpg' : 'png';
+          const fileName = 'poupous-image-' + Date.now() + '.' + ext;
+          P.saveFile(fileName, res.mimeType, res.base64, false);
+        } catch (e) {}
+      }
+      return 'Image générée et affichée dans la conversation avec succès.';
     }
     if (name === 'liste_courses' || name === 'ajouter_courses_halal' || name === 'retirer_courses') {
       const md = getMarketData();
@@ -692,8 +715,11 @@ async function runTool(name, input){
       if (!hasFiles()) return NEED_APK;
       const nom = String(input.nom || 'poupous.txt');
       const ext = (nom.split('.').pop() || '').toLowerCase();
-      const mime = ({txt:'text/plain', md:'text/markdown', csv:'text/csv', html:'text/html', htm:'text/html', json:'application/json', xml:'text/xml'})[ext] || 'text/plain';
-      return P.saveFile(nom, mime, b64utf8(String(input.contenu || '')), input.partager !== false);
+      const mime = ({txt:'text/plain', md:'text/markdown', csv:'text/csv', html:'text/html', htm:'text/html', json:'application/json', xml:'text/xml', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp'})[ext] || 'text/plain';
+      const contenu = String(input.contenu || '');
+      const isB64 = mime.startsWith('image/') || contenu.length > 500 && /^[A-Za-z0-9+/=]+$/.test(contenu.replace(/\s/g, ''));
+      const b64 = isB64 ? contenu.replace(/\s/g, '') : b64utf8(contenu);
+      return P.saveFile(nom, mime, b64, input.partager !== false);
     }
     if (name === 'ameliorer_apk') {
       if (!hasSelfApk()) return NEED_APK;
@@ -828,7 +854,7 @@ async function callClaude(body){
   err.status = r.status; err.type = data && data.error ? data.error.type : 'network';
   throw err;
 }
-const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const GEMINI_MODELS = ['gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 function provider(){ return S.reglages.cerveau === 'claude' ? 'claude' : 'gemini'; }
 function geminiKey(){ return store.get('geminiKey', ''); }
 function brainReady(){ return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
@@ -868,6 +894,34 @@ async function geminiCall(body){
     throw err;
   }
   throw lastErr;
+}
+async function callGeminiImage(prompt){
+  if (!P || typeof P.github !== 'function') return {err:"Indisponible sans l'APK."};
+  const imgModels = ['gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+  let lastErr = null;
+  for (const m of imgModels) {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(geminiKey());
+    const body = {
+      contents: [{role: 'user', parts: [{text: 'Generate an image based on this description: ' + prompt}]}],
+      generationConfig: {responseModalities: ['TEXT', 'IMAGE']}
+    };
+    try {
+      const r = await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
+      let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+      if (r.status === 200 && data) {
+        const cand = (data.candidates || [])[0];
+        if (cand && cand.content && cand.content.parts) {
+          for (const part of cand.content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+              return {base64: part.inlineData.data, mimeType: part.inlineData.mimeType || 'image/png'};
+            }
+          }
+        }
+      }
+      lastErr = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + r.status);
+    } catch (e) { lastErr = e.message || String(e); }
+  }
+  return {err: lastErr || 'Échec de génération d\'image'};
 }
 function geminiParts(content){
   const parts = [];
