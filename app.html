@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=34 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=35 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -255,7 +255,7 @@ function renderHalalInterface(){
               '<span class="nom">' + esc(item.nom) + '</span>' +
             '</label>' +
             '<button class="mini-btn" data-del-item="' + idx + '" aria-label="Supprimer ' + esc(item.nom) + '">×</button>' +
-          '</div>').join('') : '<p class="hint" style="margin:0">Liste vide pour ce magasin.</p>') +
+          '</div>').join('') : '<p class="hint" style="margin:0">Liste vide pour este magasin.</p>') +
       '</div>' +
       '<div style="display:flex;gap:8px;margin-top:4px">' +
         '<input id="new-market-item" placeholder="Ajouter un article (contrôle strict)…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">' +
@@ -326,7 +326,6 @@ function checkStoreProximity(lat, lon){
   const now = Date.now();
   if (now - S.lastProximityAlert < 600000) return;
   
-  // Vérification combinée : magasins manuels et supermarchés OSM
   let allStores = Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
     name: md[k].name,
     lat: md[k].lat,
@@ -399,7 +398,6 @@ async function radarConfig(){
     articles: st.list ? st.list.filter(x => !x.coche).map(x => x.nom) : []
   }));
 
-  // Combiner sans dupliquer (par nom similaire et proximité)
   let combined = [];
   let seenNames = new Set();
   
@@ -415,7 +413,6 @@ async function radarConfig(){
     }
   }
 
-  // Limiter à 100 magasins maximum
   if (combined.length > 100) combined = combined.slice(0, 100);
 
   return {rayon: 500, magasins: combined};
@@ -461,7 +458,6 @@ async function updateOsmRadarData(lat, lon) {
 function startRadarPeriodicRefresh(lat, lon) {
   if (S.radarRefreshTimer) clearInterval(S.radarRefreshTimer);
   updateOsmRadarData(lat, lon);
-  // Rafraîchir toutes les 3 heures (10800000 ms) si le radar reste actif
   S.radarRefreshTimer = setInterval(async () => {
     if (!S.gpsTracking) { clearInterval(S.radarRefreshTimer); S.radarRefreshTimer = null; return; }
     const loc = await getLocation();
@@ -482,7 +478,6 @@ async function toggleGpsTracking(){
     return;
   }
 
-  // Obtenir position initiale pour Overpass
   const loc = await getLocation();
   if (loc.err) { sys(gpsErrCopy(loc.err)); return; }
 
@@ -680,12 +675,18 @@ async function handsFree(){
       sys('[DEBUG MAINS LIBRES] Erreur d\'écoute reçue : ' + r.err);
     }
     if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
-    if (r.err) { await sleep(1500); continue; }
-    if (!r.text) continue;
-    const w = findWake(r.text); if (!w) continue;
+    if (r.err === '10' || r.err === 10 || String(r.err).includes('10')) {
+      await sleep(5000);
+      continue;
+    }
+    if (r.err) { await sleep(2000); continue; }
+    if (!r.text) { await sleep(2000); continue; }
+    const w = findWake(r.text);
+    if (!w) { await sleep(2000); continue; }
     if (/\p{L}{2,}/u.test(w.rest)) await ask(w.rest);
     else { await speak('Oui ?'); setState('ecoute'); const q = await listenOnce(); if (q.text) await ask(q.text); }
     await followUps();
+    await sleep(2000);
   }
   S.hfRunning = false;
   if (!S.busy) idle();
