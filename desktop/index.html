@@ -5,120 +5,267 @@
 <title>Poupous</title>
 <style>
   :root {
-    --bg: #030712;
-    --panel: #111827;
-    --panel2: #1e293b;
+    --bg: #05070d;
+    --panel: #10162a;
+    --line: #ffffff14;
     --accent: #00e5ff;
-    --text: #ffffff;
-    --muted: #94a3b8;
-    --danger: #f87171;
+    --accent-dim: #00e5ff33;
+    --text: #f2f6ff;
+    --muted: #8ba0c2;
+    --danger: #ff6b81;
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
-    margin: 0;
-    background: var(--bg);
+    background:
+      radial-gradient(1200px 800px at 15% -10%, #0d2a3a55, transparent 60%),
+      radial-gradient(900px 700px at 110% 10%, #2a1a4a55, transparent 55%),
+      var(--bg);
     color: var(--text);
-    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
-    height: 100vh;
+    font-family: "Segoe UI Variable", "Segoe UI", -apple-system, system-ui, Arial, sans-serif;
+    display: flex;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #ffffff22; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #ffffff3a; }
+
+  nav.rail {
+    width: 74px;
+    flex: 0 0 auto;
+    background: #070a12;
+    border-right: 1px solid var(--line);
     display: flex;
     flex-direction: column;
-  }
-  header {
-    padding: 16px 20px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--panel2);
-  }
-  header h1 {
-    margin: 0;
-    font-size: 18px;
-    letter-spacing: 3px;
-    color: var(--accent);
-  }
-  header p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-  main { flex: 1; overflow-y: auto; padding: 16px 20px; }
-  section { margin-bottom: 24px; }
-  section h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--accent);
-    margin: 0 0 10px;
-  }
-  .row { display: flex; gap: 8px; margin-bottom: 10px; }
-  input[type=text], input[type=password] {
-    flex: 1;
-    background: var(--panel2);
-    border: 1px solid #334155;
-    color: var(--text);
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 14px;
-  }
-  button {
-    background: var(--accent);
-    color: #001014;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  button.secondary { background: var(--panel2); color: var(--text); }
-  button.danger { background: var(--danger); color: #200; }
-  .fact {
-    display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--panel);
-    border: 1px solid var(--panel2);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
+    padding: 18px 0;
+    -webkit-app-region: drag;
   }
-  .fact span { flex: 1; font-size: 14px; }
-  .turn { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #1e293b33; }
-  .turn.user { color: var(--text); }
-  .turn.assistant { color: var(--muted); }
-  #status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
-  .empty { color: var(--muted); font-size: 13px; }
+  .orb {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #bdfcff, var(--accent) 45%, #007b8c 100%);
+    box-shadow: 0 0 18px 2px var(--accent-dim), 0 0 2px #fff inset;
+    margin-bottom: 22px;
+    animation: pulse 3s ease-in-out infinite;
+    -webkit-app-region: no-drag;
+  }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 14px 1px var(--accent-dim), 0 0 2px #fff inset; } 50% { box-shadow: 0 0 26px 5px var(--accent-dim), 0 0 2px #fff inset; } }
+  .rail button {
+    -webkit-app-region: no-drag;
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .rail button:hover { background: #ffffff0d; color: var(--text); }
+  .rail button.active { background: var(--accent-dim); color: var(--accent); border-color: #00e5ff40; }
+  .rail .spacer { flex: 1; }
+  .rail .dot {
+    -webkit-app-region: no-drag;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--danger); margin-bottom: 14px;
+    box-shadow: 0 0 8px 1px currentColor;
+    transition: background .2s, color .2s;
+  }
+  .rail .dot.on { background: #4ade80; color: #4ade80; }
+  .rail .dot.off { background: var(--danger); color: var(--danger); }
+
+  .app { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  header.top {
+    -webkit-app-region: drag;
+    padding: 16px 26px 12px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  header.top h1 { margin: 0; font-size: 15px; letter-spacing: 4px; font-weight: 700; color: var(--text); }
+  header.top .sub { font-size: 12px; color: var(--muted); }
+
+  main { flex: 1; min-height: 0; overflow: hidden; padding: 0 26px 22px; display: flex; flex-direction: column; }
+  .panel { flex: 1; min-height: 0; display: none; flex-direction: column; animation: fadein .18s ease-out; }
+  .panel.active { display: flex; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h2.section {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--accent); margin: 4px 0 14px; font-weight: 700;
+  }
+  .card {
+    background: linear-gradient(180deg, #ffffff08, #ffffff02);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .row:last-child { margin-bottom: 0; }
+  label.field { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+  input[type=text], input[type=password] {
+    background: #00000055;
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+    font-family: inherit;
+  }
+  input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  button.btn {
+    background: linear-gradient(180deg, #17e2ff, #00b6cc);
+    color: #001217;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: transform .1s, filter .15s;
+    white-space: nowrap;
+  }
+  button.btn:hover { filter: brightness(1.08); }
+  button.btn:active { transform: scale(.97); }
+  button.btn.secondary { background: #ffffff14; color: var(--text); }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  .pill-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .pill {
+    flex: 1; text-align: center; padding: 10px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 600;
+    transition: all .15s;
+  }
+  .pill.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  #status, #brain-status { font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 16px; display: flex; align-items: center; gap: 6px; }
+  .spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--accent-dim); border-top-color: var(--accent); animation: spin .7s linear infinite; display: none; }
+  .spin.show { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #facts { overflow-y: auto; flex: 1; min-height: 0; margin-bottom: 12px; padding-right: 2px; }
+  .fact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .fact {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 8px;
+    transition: border-color .15s;
+  }
+  .fact:hover { border-color: #ffffff30; }
+  .fact span { font-size: 13px; line-height: 1.4; color: var(--text); }
+  .fact .del {
+    align-self: flex-end; background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 6px; transition: color .15s, background .15s;
+  }
+  .fact .del:hover { color: var(--danger); background: #ff6b8118; }
+  .empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; }
+  .addrow { display: flex; gap: 8px; }
+  .addrow input { flex: 1; }
+
+  #chatlog { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 14px; }
+  .bubble { max-width: 78%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; animation: fadein .15s ease-out; white-space: pre-wrap; }
+  .bubble.user { align-self: flex-end; background: linear-gradient(180deg, #17e2ff, #00aec6); color: #001217; border-bottom-right-radius: 4px; }
+  .bubble.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .bubble.thinking { align-self: flex-start; color: var(--muted); font-style: italic; }
+  .chatbar { display: flex; gap: 10px; align-items: flex-end; padding-top: 10px; border-top: 1px solid var(--line); }
+  .chatbar input { flex: 1; }
+  .chatbar button.btn { height: 42px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>POUPOUS</h1>
-  <p>Même mémoire, même historique que sur ton téléphone.</p>
-</header>
-<main>
-  <section id="setup">
-    <h2>Connexion</h2>
-    <div class="row">
-      <input type="text" id="repo" placeholder="chibplanning-blip/poupous">
-    </div>
-    <div class="row">
-      <input type="password" id="token" placeholder="Ton token GitHub (ghp_...)">
-    </div>
-    <div class="row">
-      <button id="save-config">Enregistrer</button>
-      <button id="refresh" class="secondary">Actualiser</button>
-    </div>
-    <div id="status"></div>
-  </section>
 
-  <section>
-    <h2>Souvenirs</h2>
-    <div id="facts"></div>
-    <div class="row">
-      <input type="text" id="new-fact" placeholder="Ajouter un souvenir...">
-      <button id="add-fact">Ajouter</button>
-    </div>
-  </section>
+<nav class="rail">
+  <div class="orb"></div>
+  <div id="rail-dot" class="dot off" title="Statut de connexion"></div>
+  <button class="nav-btn active" data-panel="chat" title="Discussion">
+    <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3.2-6.4M21 4l-9 9M14 4h7v7"/></svg>
+  </button>
+  <button class="nav-btn" data-panel="facts" title="Souvenirs">
+    <svg viewBox="0 0 24 24"><path d="M12 2l2.6 6.2L21 9l-5 4.4L17.4 20 12 16.6 6.6 20 8 13.4 3 9l6.4-.8z"/></svg>
+  </button>
+  <button class="nav-btn" data-panel="brain" title="Cerveau">
+    <svg viewBox="0 0 24 24"><path d="M9 3a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5v1a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM15 3a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5v1a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/></svg>
+  </button>
+  <div class="spacer"></div>
+  <button class="nav-btn" data-panel="connexion" title="Connexion GitHub">
+    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.4l2-2a5 5 0 0 0-7-7l-1.2 1.1M14 11a5 5 0 0 0-7.5-.4l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>
+  </button>
+</nav>
 
-  <section>
-    <h2>Historique récent</h2>
-    <div id="history"></div>
-  </section>
-</main>
+<div class="app">
+  <header class="top">
+    <h1>POUPOUS</h1>
+    <span class="sub">Même mémoire, même historique, et maintenant une vraie discussion — sur ton PC.</span>
+  </header>
+
+  <main>
+
+    <section class="panel active" id="panel-chat">
+      <h2 class="section">Discussion</h2>
+      <div id="chatlog"></div>
+      <div class="chatbar">
+        <input type="text" id="chat-input" placeholder="Écris à Poupous...">
+        <button class="btn" id="chat-send">Envoyer</button>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-facts">
+      <h2 class="section">Souvenirs</h2>
+      <div id="facts"><div class="empty">Aucun souvenir pour l'instant.</div></div>
+      <div class="addrow">
+        <input type="text" id="new-fact" placeholder="Ajouter un souvenir...">
+        <button class="btn" id="add-fact">Ajouter</button>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-brain">
+      <h2 class="section">Cerveau</h2>
+      <div class="card">
+        <div class="pill-row">
+          <div class="pill" data-provider="gemini" id="pill-gemini">Gemini (gratuit)</div>
+          <div class="pill" data-provider="claude" id="pill-claude">Claude (payant)</div>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span id="key-label">Clé API</span>
+            <input type="password" id="ai-key" placeholder="Colle ta clé ici">
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn" id="save-brain">Enregistrer</button>
+        </div>
+        <div id="brain-status"><span class="spin" id="brain-spin"></span><span id="brain-status-text"></span></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-connexion">
+      <h2 class="section">Connexion GitHub</h2>
+      <div class="card">
+        <div class="row">
+          <label class="field">
+            <span>Dépôt</span>
+            <input type="text" id="repo" placeholder="chibplanning-blip/poupous">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span>Jeton GitHub</span>
+            <input type="password" id="token" placeholder="Ton token GitHub (ghp_... ou github_pat_...)">
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn" id="save-config">Enregistrer</button>
+          <button class="btn secondary" id="refresh">Actualiser</button>
+        </div>
+        <div id="status"><span class="spin" id="sync-spin"></span><span id="status-text"></span></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
 <script src="renderer.js"></script>
 </body>
 </html>
