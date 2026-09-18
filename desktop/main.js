@@ -25,6 +25,7 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(permission === 'media');
   });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => permission === 'media');
   createWindow();
 });
 

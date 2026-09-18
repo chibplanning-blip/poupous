@@ -557,6 +557,14 @@ function blobToBase64(blob) {
 
 async function recordAudio(ms) {
   if (!micStream) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (!devices.some(d => d.kind === 'audioinput')) {
+        throw new Error("aucun microphone détecté par Windows (vérifie qu'un micro est branché et activé)");
+      }
+    } catch (e) {
+      if (e.message && e.message.includes('aucun microphone')) throw e;
+    }
     micStream = await withTimeout(
       navigator.mediaDevices.getUserMedia({ audio: true }),
       6000,
