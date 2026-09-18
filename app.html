@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=17 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=18 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -580,7 +580,7 @@ function toolDefs(){
     {name:'oublier', description:"Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer). Renvoie le nombre supprimé.",
       input_schema:{type:'object', properties:{texte:{type:'string'}}, required:['texte']}},
     {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. mainsLibres : true ou false.",
-      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
+      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','connexionPermanente']}, valeur:{type:'string'}}, required:['nom','valeur']}},
     {name:'localiser', description:"Donne la position GPS actuelle de l'utilisateur : adresse approximative et coordonnées. À utiliser quand il demande où il est, ou pour situer un lieu par rapport à lui.",
       input_schema:{type:'object', properties:{}}},
     {name:'liste_courses', description:"Donne la liste de courses d'un magasin, en indiquant ce qui est déjà coché.",
@@ -694,7 +694,12 @@ function setReglage(nom, valeur){
   if (nom === 'vitesse' || nom === 'hauteur') { const v = parseFloat(String(valeur).replace(',', '.')); if (!isFinite(v)) return 'nombre attendu'; r[nom] = Math.min(2, Math.max(.5, v)); applyVoice(); }
   else if (nom === 'voix') { const vs = voicesFr(); const v = vs.find(x => norm(x) === norm(valeur)) || vs.find(x => norm(x).includes(norm(valeur))); if (!v) return 'voix introuvable'; r.voix = v; applyVoice(); }
   else if (nom === 'personnalite') r.personnalite = String(valeur).slice(0, 600);
-  else if (nom === 'mainsLibres') { r.mainsLibres = /^(true|oui|1|on|vrai)$/i.test(String(valeur).trim()); if (r.mainsLibres) setTimeout(handsFree, 0); else if (P && S.listening) P.cancelListening(); }
+    else if (nom === 'mainsLibres') { r.mainsLibres = /^(true|oui|1|on|vrai)$/i.test(String(valeur).trim()); if (r.mainsLibres) setTimeout(handsFree, 0); else if (P && S.listening) P.cancelListening(); }
+  else if (nom === 'connexionPermanente') {
+    r.connexionPermanente = /^(true|oui|1|on|vrai)$/i.test(String(valeur).trim());
+    if (!P || typeof P.startWake !== 'function') return 'APK à jour nécessaire pour cette fonction.';
+    if (r.connexionPermanente) P.startWake(); else P.stopWake();
+  }
   else return 'réglage inconnu';
   store.set('reglages', r);
   return nom + ' = ' + r[nom];
@@ -1205,7 +1210,7 @@ if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forE
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
 idle();
 if (P && !brainReady()) openBrainKey(); else announce();
-if (S.reglages.mainsLibres) handsFree();
+if (S.reglages.connexionPermanente && P && typeof P.startWake === 'function') P.startWake();
 loadShared();
 })();
 </script>
