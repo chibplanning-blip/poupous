@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=26 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=27 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -109,6 +109,8 @@ window.__listenPartial = t => { $('#live').textContent = t; };
 window.__listenReady = () => {};
 window.__contactsDone = (id, json) => settle(id, json);
 window.__githubDone = (id, status, text) => settle(id, {status, text});
+window.__internetGetDone = (id, status, text) => settle(id, {status, text});
+window.__nearbyStoresDone = (id, status, text) => settle(id, {status, text});
 window.__installDone = (id, result) => settle(id, result);
 window.__sharedAvailable = () => loadShared();
 const hasFiles = () => !!(P && typeof P.saveFile === 'function');
@@ -603,6 +605,18 @@ function toolDefs(){
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
     {name:'itineraire', description:"Ouvre Google Maps avec l'itinéraire vers une destination (adresse, lieu, ville).",
       input_schema:{type:'object', properties:{destination:{type:'string'}}, required:['destination']}},
+    {name:'acces_notifications_whatsapp', description:"Vérifie si Poupous a la permission de lire les messages WhatsApp reçus, et ouvre l'écran des réglages pour l'activer si besoin.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'lire_whatsapp', description:"Donne les derniers messages WhatsApp reçus (expéditeur, texte), du plus récent au plus ancien.",
+      input_schema:{type:'object', properties:{nombre:{type:'integer', description:'combien de messages, 5 par défaut'}}}},
+    {name:'chercher_internet', description:"Cherche une information sur Internet (actualité, météo, fait récent, définition) et renvoie un résumé des résultats trouvés.",
+      input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
+    {name:'lire_page_web', description:"Va chercher le contenu texte d'une page web précise à partir de son URL, pour la résumer ou en extraire une information.",
+      input_schema:{type:'object', properties:{url:{type:'string'}}, required:['url']}},
+    {name:'ajouter_magasin', description:"Ajoute un nouveau magasin à la liste des magasins suivis, avec une liste de courses vide.",
+      input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
+    {name:'localiser_magasin', description:"Cherche automatiquement, sans que l'utilisateur ait besoin de s'y rendre, la position GPS du magasin le plus proche portant ce nom, et l'enregistre.",
+      input_schema:{type:'object', properties:{magasin:{type:'string'}}, required:['magasin']}},
     {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt ; l'utilisateur appuie sur Envoyer.",
       input_schema:{type:'object', properties:{destinataire:{type:'string'}, objet:{type:'string'}, texte:{type:'string'}}, required:['objet','texte']}},
     {name:'creer_fichier', description:"Crée un fichier texte (txt, md, csv, html, json…), l'enregistre dans Téléchargements/Poupous et ouvre le partage si demandé.",
@@ -674,6 +688,92 @@ async function runTool(name, input){
     if (name === 'installer_mise_a_jour') {
       if (!hasSelfApk()) return NEED_APK;
       return String(await waitFor('i', id => P.installDownloaded(id)));
+    }
+    if (name === 'acces_notifications_whatsapp') {
+      if (!P || typeof P.hasNotificationAccess !== 'function') return NEED_APK;
+      if (P.hasNotificationAccess()) return "Accès aux notifications déjà actif : je peux lire les messages WhatsApp.";
+      P.requestNotificationAccess();
+      return "J'ouvre les réglages : active l'accès aux notifications pour Poupous, puis reviens me voir.";
+    }
+    if (name === 'lire_whatsapp') {
+      if (!P || typeof P.getWhatsappMessages !== 'function') return NEED_APK;
+      if (!P.hasNotificationAccess()) return "Je n'ai pas encore accès aux notifications. Demande-moi d'abord d'activer l'accès aux notifications WhatsApp.";
+      let liste = [];
+      try { liste = JSON.parse(P.getWhatsappMessages()); } catch (e) {}
+      if (!liste.length) return "Aucun message WhatsApp reçu depuis l'activation.";
+      const n = Math.max(1, Math.min(20, parseInt(input.nombre, 10) || 5));
+      return liste.slice(-n).reverse().map(m => m.expediteur + ' : ' + m.texte).join('\n');
+    }
+    if (name === 'chercher_internet') {
+      if (!P || typeof P.internetGet !== 'function') return NEED_APK;
+      const q = String(input.requete || '').trim();
+      if (!q) return 'requête vide';
+      const url = 'https://duckduckgo.com/html/?q=' + encodeURIComponent(q);
+      const r = await waitFor('n', id => P.internetGet(id, url));
+      if (r.status !== 200) return "Recherche impossible (code " + r.status + ").";
+      const texte = String(r.text || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      return texte.slice(0, 1500) || "Aucun résultat trouvé.";
+    }
+    if (name === 'lire_page_web') {
+      if (!P || typeof P.internetGet !== 'function') return NEED_APK;
+      let url = String(input.url || '').trim();
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      const r = await waitFor('n', id => P.internetGet(id, url));
+      if (r.status !== 200) return "Page inaccessible (code " + r.status + ").";
+      const texte = String(r.text || '')
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return texte.slice(0, 3000) || "Page vide.";
+    }
+    if (name === 'ajouter_magasin') {
+      const nom = String(input.nom || '').trim();
+      if (!nom) return 'Nom de magasin vide.';
+      const md = getMarketData();
+      let cle = norm(nom).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'magasin';
+      let base = cle, i = 2;
+      while (md[cle]) cle = base + '_' + (i++);
+      md[cle] = {name: nom, lat: null, lon: null, posEnregistree: false, promos: [], list: []};
+      saveMarketData(md);
+      S.activeMarket = cle;
+      return nom + " ajouté à la liste des magasins suivis. Dis « cherche la position de " + nom + " » pour que je la trouve automatiquement.";
+    }
+    if (name === 'localiser_magasin') {
+      if (!P || typeof P.findNearbyStores !== 'function') return NEED_APK;
+      const req = String(input.magasin || '').trim();
+      if (!req) return 'Nom de magasin manquant.';
+      const md = getMarketData();
+      let cle = Object.keys(md).find(k => norm(md[k].name) === norm(req)) ||
+                Object.keys(md).find(k => norm(md[k].name).includes(norm(req)) || norm(req).includes(norm(md[k].name)));
+      const nomMagasin = cle ? md[cle].name : req;
+      const loc = await getLocation();
+      if (loc.err) return gpsErrCopy(loc.err);
+      let elements = [];
+      for (const type of ['supermarket', 'convenience', 'department_store']) {
+        let data;
+        try {
+          const r = await waitFor('n', id => P.findNearbyStores(id, loc.lat, loc.lon, type));
+          data = JSON.parse(r.text);
+        } catch (e) { continue; }
+        const trouves = ((data && data.elements) || []).filter(e => typeof e.lat === 'number' && e.tags && norm(e.tags.name || '').includes(norm(nomMagasin)));
+        elements = elements.concat(trouves);
+      }
+      if (!elements.length) return "Aucun " + nomMagasin + " trouvé à moins de 5 km. Tu peux aussi enregistrer sa position en te rendant sur place et en disant « je suis devant ce magasin ».";
+      elements.sort((a, b) => distanceMetres(loc.lat, loc.lon, a.lat, a.lon) - distanceMetres(loc.lat, loc.lon, b.lat, b.lon));
+      const plusProche = elements[0];
+      const dist = Math.round(distanceMetres(loc.lat, loc.lon, plusProche.lat, plusProche.lon));
+      if (!cle) {
+        cle = norm(nomMagasin).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'magasin';
+        let base = cle, i = 2;
+        while (md[cle]) cle = base + '_' + (i++);
+        md[cle] = {name: nomMagasin, lat: null, lon: null, posEnregistree: false, promos: [], list: []};
+      }
+      md[cle].lat = plusProche.lat; md[cle].lon = plusProche.lon; md[cle].posEnregistree = true;
+      saveMarketData(md);
+      return "Position de " + md[cle].name + " enregistrée automatiquement, à environ " + dist + " m de toi.";
     }
     const PHONE_TOOLS = ['chercher_contact','appeler','envoyer_sms','mettre_reveil','minuteur','ouvrir_appli','itineraire','preparer_mail'];
     if (PHONE_TOOLS.includes(name) && !hasPhone()) return OLD_APK;
