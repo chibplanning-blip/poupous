@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=32 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=33 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -82,7 +82,7 @@ const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
 const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
-const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsWatchId:null, gpsDerniere:'', lastProximityAlert:0, lastGpsError:0, activeMarket:'aldi'};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsWatchId:null, gpsDerniere:'', lastProximityAlert:0, lastGpsError:0, activeMarket:'aldi', osmStores:[], radarRefreshTimer:null};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -325,12 +325,19 @@ function checkStoreProximity(lat, lon){
   const md = getMarketData();
   const now = Date.now();
   if (now - S.lastProximityAlert < 600000) return;
-  for (const key in md) {
-    const st = md[key];
-    if (!st.posEnregistree) continue;
+  
+  // Vérification combinée : magasins manuels et supermarchés OSM
+  let allStores = Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
+    name: md[k].name,
+    lat: md[k].lat,
+    lon: md[k].lon,
+    list: md[k].list
+  })).concat(S.osmStores);
+
+  for (const st of allStores) {
     if (distanceMetres(lat, lon, st.lat, st.lon) > 500) continue;
     S.lastProximityAlert = now;
-    const restants = st.list.filter(x => !x.coche).map(x => x.nom);
+    const restants = st.list ? st.list.filter(x => !x.coche).map(x => x.nom) : [];
     const msg = restants.length
       ? "Tu es à moins de 500 mètres de " + st.name + ". Il te reste : " + restants.join(', ') + "."
       : "Tu es à moins de 500 mètres de " + st.name + ", mais ta liste est déjà complète.";
@@ -341,53 +348,159 @@ function checkStoreProximity(lat, lon){
   }
 }
 
-function radarConfig(){
+async function fetchOverpassSupermarkets(lat, lon) {
+  try {
+    const query = '[out:json][timeout:25];(node["shop"="supermarket"](around:20000,' + lat + ',' + lon + ');way["shop"="supermarket"](around:20000,' + lat + ',' + lon + ');relation["shop"="supermarket"](around:20000,' + lat + ',' + lon + '););out body;>;out skel qt;';
+    let textResult = '';
+    if (P && typeof P.internetGet === 'function') {
+      const r = await waitFor('ovp', id => P.internetGet(id, 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query)));
+      if (r.status === 200) textResult = r.text;
+    } else if (typeof fetch === 'function') {
+      const resp = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+      });
+      if (resp.ok) textResult = await resp.text();
+    }
+    if (!textResult) return [];
+    const data = JSON.parse(textResult);
+    const elements = data.elements || [];
+    const nodeCoords = {};
+    elements.forEach(e => { if (e.type === 'node' && typeof e.lat === 'number' && typeof e.lon === 'number') nodeCoords[e.id] = {lat: e.lat, lon: e.lon}; });
+    
+    let stores = [];
+    elements.forEach(e => {
+      let name = e.tags && e.tags.name ? e.tags.name : 'Supermarché';
+      let latVal = e.lat, lonVal = e.lon;
+      if (!latVal && e.nodes && e.nodes.length && nodeCoords[e.nodes[0]]) {
+        latVal = nodeCoords[e.nodes[0]].lat;
+        lonVal = nodeCoords[e.nodes[0]].lon;
+      }
+      if (typeof latVal === 'number' && typeof lonVal === 'number') {
+        stores.push({name: name, lat: latVal, lon: lonVal, list: []});
+      }
+    });
+    return stores;
+  } catch (e) {
+    return [];
+  }
+}
+
+async function radarConfig(){
   const md = getMarketData();
-  return {rayon:500, magasins:Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
-    cle:k, nom:md[k].name, lat:md[k].lat, lon:md[k].lon,
-    articles:md[k].list.filter(x => !x.coche).map(x => x.nom)
-  }))};
+  let manualMagasins = Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
+    cle: k, nom: md[k].name, lat: md[k].lat, lon: md[k].lon,
+    articles: md[k].list.filter(x => !x.coche).map(x => x.nom)
+  }));
+  
+  let osmMagasins = S.osmStores.map((st, idx) => ({
+    cle: 'osm_' + idx, nom: st.name, lat: st.lat, lon: st.lon,
+    articles: st.list ? st.list.filter(x => !x.coche).map(x => x.nom) : []
+  }));
+
+  // Combiner sans dupliquer (par nom similaire et proximité)
+  let combined = [];
+  let seenNames = new Set();
+  
+  for (const m of manualMagasins) {
+    seenNames.add(norm(m.nom));
+    combined.push(m);
+  }
+  for (const m of osmMagasins) {
+    const keyNorm = norm(m.nom);
+    if (!seenNames.has(keyNorm)) {
+      seenNames.add(keyNorm);
+      combined.push(m);
+    }
+  }
+
+  // Limiter à 100 magasins maximum
+  if (combined.length > 100) combined = combined.slice(0, 100);
+
+  return {rayon: 500, magasins: combined};
 }
-function pushRadarConfig(){
-  if (!hasNativeRadar() || !S.gpsTracking) return;
-  const cfg = radarConfig();
-  try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom:m.nom, lat:m.lat, lon:m.lon})))); } catch (e) {}
+
+async function pushRadarConfig(){
+  if (!S.gpsTracking) return;
+  const cfg = await radarConfig();
+  S.osmStores = cfg.magasins.filter(m => m.cle && m.cle.startsWith('osm_')).map(m => ({name: m.nom, lat: m.lat, lon: m.lon, list: []}));
+  if (hasNativeRadar()) {
+    try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom: m.nom, lat: m.lat, lon: m.lon})))); } catch (e) {}
+  }
 }
+
 window.__radarProximite = nom => {
   const md = getMarketData();
   const cle = Object.keys(md).find(k => k === nom || md[k].name === nom);
-  if (!cle) return;
-  const restants = md[cle].list.filter(x => !x.coche).map(x => x.nom);
+  let restants = [];
+  let storeName = nom;
+  if (cle) {
+    storeName = md[cle].name;
+    restants = md[cle].list.filter(x => !x.coche).map(x => x.nom);
+  } else {
+    const foundOsm = S.osmStores.find(st => st.name === nom);
+    if (foundOsm && foundOsm.list) restants = foundOsm.list.filter(x => !x.coche).map(x => x.nom);
+  }
   const msg = restants.length
-    ? "Tu es à moins de 500 mètres de " + md[cle].name + ". Il te reste : " + restants.join(', ') + "."
-    : "Tu es à moins de 500 mètres de " + md[cle].name + ", mais ta liste est déjà complète.";
+    ? "Tu es à moins de 500 mètres de " + storeName + ". Il te reste : " + restants.join(', ') + "."
+    : "Tu es à moins de 500 mètres de " + storeName + ", mais ta liste est déjà complète.";
   S.lastProximityAlert = Date.now();
   addMsg('poupous', msg);
   if (!S.busy && !S.speaking) speak(msg).then(() => { if (!S.busy) idle(); });
 };
-function toggleGpsTracking(){
+
+async function updateOsmRadarData(lat, lon) {
+  const osmList = await fetchOverpassSupermarkets(lat, lon);
+  if (osmList.length) {
+    S.osmStores = osmList;
+    await pushRadarConfig();
+  }
+}
+
+function startRadarPeriodicRefresh(lat, lon) {
+  if (S.radarRefreshTimer) clearInterval(S.radarRefreshTimer);
+  updateOsmRadarData(lat, lon);
+  // Rafraîchir toutes les 3 heures (10800000 ms) si le radar reste actif
+  S.radarRefreshTimer = setInterval(async () => {
+    if (!S.gpsTracking) { clearInterval(S.radarRefreshTimer); S.radarRefreshTimer = null; return; }
+    const loc = await getLocation();
+    if (!loc.err) {
+      updateOsmRadarData(loc.lat, loc.lon);
+    }
+  }, 10800000);
+}
+
+async function toggleGpsTracking(){
   if (S.gpsTracking) {
     S.gpsTracking = false;
     store.set('radarActif', false);
     if (S.gpsWatchId !== null) { navigator.geolocation.clearWatch(S.gpsWatchId); S.gpsWatchId = null; }
+    if (S.radarRefreshTimer) { clearInterval(S.radarRefreshTimer); S.radarRefreshTimer = null; }
     if (hasNativeRadar()) { try { P.stopGeofenceMonitor(); } catch (e) {} }
     sys('Radar de proximité arrêté.');
     return;
   }
-  if (hasNativeRadar()) {
-    const cfg = radarConfig();
-    if (!cfg.magasins.length) { sys("Aucun magasin n'a de position enregistrée : va devant un magasin et touche « Je suis devant ce magasin »."); return; }
-    S.gpsTracking = true;
-    store.set('radarActif', true);
-    try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom:m.nom, lat:m.lat, lon:m.lon})))); }
-    catch (e) { sys('Le service de radar refuse de démarrer.'); S.gpsTracking = false; store.set('radarActif', false); return; }
-    sys('Radar 500 m lancé en arrière-plan : il continue même appli fermée et écran éteint.');
-    return;
-  }
-  if (!hasLocation()) { sys("La géolocalisation n'est pas disponible sur ce téléphone."); return; }
+
+  // Obtenir position initiale pour Overpass
+  const loc = await getLocation();
+  if (loc.err) { sys(gpsErrCopy(loc.err)); return; }
+
   S.gpsTracking = true;
   store.set('radarActif', true);
-  sys("Radar 500 m lancé, mais seulement tant que Poupous reste ouvert. Pour l'arrière-plan, demande « APK : radar magasins en arrière-plan ».");
+  sys('Recherche automatique des supermarchés (OpenStreetMap) dans un rayon de 20 km…');
+  await updateOsmRadarData(loc.lat, loc.lon);
+  startRadarPeriodicRefresh(loc.lat, loc.lon);
+
+  if (hasNativeRadar()) {
+    const cfg = await radarConfig();
+    try { P.startGeofenceMonitor(JSON.stringify(cfg.magasins.map(m => ({nom:m.nom, lat:m.lat, lon:m.lon})))); }
+    catch (e) { sys('Le service de radar refuse de démarrer.'); S.gpsTracking = false; store.set('radarActif', false); return; }
+    sys('Radar 500 m lancé en arrière-plan avec les supermarchés OSM : il continue même appli fermée et écran éteint.');
+    return;
+  }
+
+  sys("Radar 500 m lancé avec les supermarchés OSM, mais seulement tant que Poupous reste ouvert.");
   S.gpsWatchId = navigator.geolocation.watchPosition(
     pos => {
       const lat = pos.coords.latitude, lon = pos.coords.longitude;
@@ -589,14 +702,15 @@ function systemPrompt(){
     "Outils : retenir (mémorise de toi-même ce qui est durable) ; oublier ; changer_reglage ; localiser (position GPS actuelle, adresse approximative) ; " +
     "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier ; generer_image (génère une image à partir d'une description textuelle avec Gemini) ; chercher_internet (recherche web, actualités, météo, faits récents) ; lire_page_web (lire le contenu d'une URL précise) ; acces_notifications_whatsapp et lire_whatsapp (lire les messages WhatsApp reçus, si l'accès aux notifications est activé) ; ajouter_magasin et localiser_magasin (ajouter un magasin suivi et trouver sa position tout seul, sans que l'utilisateur s'y rende).\n" +
     "Courses : liste_courses affiche la liste d'un magasin, ajouter_courses_halal ajoute un article, retirer_courses en enlève un. Magasins suivis : " + magasins + ". Règle stricte : aucun produit contenant de la viande, du porc, de la gélatine ou de l'alcool ; les substituts végétaux sont acceptés. Un article refusé doit être annoncé comme refusé.\n" +
-    "Le radar 500 m prévient quand l'utilisateur approche d'un magasin dont la position a été enregistrée ; il ne fonctionne que pendant que l'appli est ouverte à l'écran.\n" +
+    "Le radar 500 m prévient quand l'utilisateur approche d'un magasin (enregistré ou détecté automatiquement par OpenStreetMap) ; il fonctionne en arrière-plan si activé.\n" +
     "Amélioration : ameliorer_mon_code change ta page (interface, comportement), c'est immédiat. ameliorer_apk change ton application Android (autorisations, fonctions natives, service en arrière-plan) : ça prend 5 à 15 minutes et il faut un jeton GitHub. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas dans window.Poupous. installer_mise_a_jour relance l'installation. annuler_derniere_amelioration revient en arrière.\n" +
     "Limites à dire honnêtement : tu ne lis pas les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et tu n'écoutes pas écran éteint (possible via ameliorer_apk).\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
   const noms = voicesFr().slice(0, 15).join(' ; ') || 'voix par défaut du téléphone';
-  const magasins = Object.keys(getMarketData());
+  const md = getMarketData();
+  const magasins = Object.keys(md);
   return [
     {name:'retenir', description:"Mémorise durablement une information sur l'utilisateur (prénom, goûts, proches, projets, habitudes) ou une consigne qu'il donne.",
       input_schema:{type:'object', properties:{fait:{type:'string'}}, required:['fait']}},
@@ -1398,7 +1512,11 @@ if (hasNativeRadar()) {
   let actif = false;
   try { actif = typeof P.isRadarRunning === 'function' ? String(P.isRadarRunning()) === 'true' : !!store.get('radarActif', false); } catch (e) { actif = !!store.get('radarActif', false); }
   S.gpsTracking = actif;
-  if (actif) pushRadarConfig();
+  if (actif) {
+    getLocation().then(loc => {
+      if (!loc.err) startRadarPeriodicRefresh(loc.lat, loc.lon);
+    });
+  }
 }
 setTimeout(applyVoice, 800);
 if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
