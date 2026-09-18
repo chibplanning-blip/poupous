@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Comment ça se passe c'est des jetons c'est payant je dois faire encore un API"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est totalement gratuit et il n'y a aucun jeton payant à acheter, OpenStreetMap est en accès libre. Par contre, il faudrait ajouter un petit morceau de code dans l'application pour qu'elle puisse interroger cette carte automatiquement."
-    },
-    {
-      "role": "user",
       "content": "Dis-moi ce que tu as la liste des supermarchés à 20 km là maintenant"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Je viens de chercher pour toi, et autour de Wandre on retrouve notamment l'Aldi sur la rue de Visé, le Wandre Market, ainsi que les grands supermarchés habituels à Herstal, Jupille et Liège centre."
+    },
+    {
+      "role": "user",
+      "content": "Sois plus précis dis-moi combien de kilomètres"
+    },
+    {
+      "role": "assistant",
+      "content": "Sur la rue de Visé à Wandre, tu as l'Aldi au numéro 553, à environ un ou deux kilomètres selon ton point exact, et le Wandre Market au numéro 705. Pour les autres, comme le Colruyt ou le Delhaize d'Herstal, ils sont à environ quatre ou cinq kilomètres."
     }
   ],
-  "updatedAt": "2026-09-18T19:11:26.315Z"
+  "updatedAt": "2026-09-18T19:11:51.540Z"
 }
