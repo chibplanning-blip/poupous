@@ -580,7 +580,7 @@ function toolDefs(){
     {name:'oublier', description:"Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer). Renvoie le nombre supprimé.",
       input_schema:{type:'object', properties:{texte:{type:'string'}}, required:['texte']}},
     {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. mainsLibres : true ou false.",
-      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
+      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres''connexionPermanente']}, valeur:{type:'string'}}, required:['nom','valeur']}},
     {name:'localiser', description:"Donne la position GPS actuelle de l'utilisateur : adresse approximative et coordonnées. À utiliser quand il demande où il est, ou pour situer un lieu par rapport à lui.",
       input_schema:{type:'object', properties:{}}},
     {name:'liste_courses', description:"Donne la liste de courses d'un magasin, en indiquant ce qui est déjà coché.",
