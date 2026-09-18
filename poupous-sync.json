@@ -88,7 +88,15 @@
     {
       "role": "assistant",
       "content": "Tu es toujours sur la rue de Visé à Wandre. Tant que je n'ai pas modifié le code de l'application pour y ajouter une requête Overpass, je ne peux pas scanner automatiquement les supermarchés autour de toi."
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut. Comment puis-je t'aider aujourd'hui ?"
     }
   ],
-  "updatedAt": "2026-09-18T18:50:50.636Z"
+  "updatedAt": "2026-09-18T18:53:11.244Z"
 }
