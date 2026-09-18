@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Dis-moi ce que tu as la liste des supermarchés à 20 km là maintenant"
-    },
-    {
-      "role": "assistant",
-      "content": "Je n'ai pas la liste complète sous les yeux car je n'ai pas encore interrogé OpenStreetMap depuis ta position actuelle à Wandre. Si tu veux, je peux lancer la recherche pour les récupérer et les enregistrer."
-    },
-    {
-      "role": "user",
       "content": "Vas-y"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Sur la rue de Visé à Wandre, tu as l'Aldi au numéro 553, à environ un ou deux kilomètres selon ton point exact, et le Wandre Market au numéro 705. Pour les autres, comme le Colruyt ou le Delhaize d'Herstal, ils sont à environ quatre ou cinq kilomètres."
+    },
+    {
+      "role": "user",
+      "content": "Tu peux me dire le Colruyt est à combien de kilomètres"
+    },
+    {
+      "role": "assistant",
+      "content": "Le Colruyt le plus proche de la rue de Visé à Wandre est généralement celui d'Herstal, situé à environ quatre ou cinq kilomètres d'ici."
     }
   ],
-  "updatedAt": "2026-09-18T19:11:51.540Z"
+  "updatedAt": "2026-09-18T19:12:27.778Z"
 }
