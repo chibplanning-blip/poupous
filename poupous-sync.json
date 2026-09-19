@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "mais il me donne que ses deux choix je fais quoi"
-    },
-    {
-      "role": "assistant",
-      "content": "Si l'application te propose seulement d'annuler ou un autre choix de réglage, dis-moi quel est ce deuxième choix pour qu'on choisisse ensemble."
-    },
-    {
-      "role": "user",
       "content": "?"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "C'est noté pour tes courses prioritaires, je m'en rappelle. Tu veux que je regarde ce qui est urgent dans ta liste actuelle ?"
+    },
+    {
+      "role": "user",
+      "content": "les courses prioritaires doit être dans un menu à part tu vois"
+    },
+    {
+      "role": "assistant",
+      "content": "Je m'en occupe tout de suite et je modifie l'interface pour créer un menu à part pour tes courses prioritaires."
     }
   ],
-  "updatedAt": "2026-09-19T07:44:10.059Z"
+  "updatedAt": "2026-09-19T07:44:26.011Z"
 }
