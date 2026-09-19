@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Je cherche un media markt"
-    },
-    {
-      "role": "assistant",
-      "content": "Le MediaMarkt le plus proche est celui d'Herstal, situé rue des Naiveux, à environ quatre ou cinq kilomètres de ton emplacement actuel."
-    },
-    {
-      "role": "user",
       "content": "salut ça marche"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "J'ai trouvé Souhaila dans tes contacts. Dis-moi quel message tu veux lui envoyer et je te prépare ça."
+    },
+    {
+      "role": "user",
+      "content": "je veux lui envoyer un message d'amour tu peux me montrer qu'est-ce que je peux lui envoyer"
+    },
+    {
+      "role": "assistant",
+      "content": "Voici une idée : \"Mon cœur, je pense fort à toi et j'ai hâte qu'on se retrouve.\" Dis-moi si ça te va ou si tu veux autre chose, et je t'ouvre l'application pour l'envoyer."
     }
   ],
-  "updatedAt": "2026-09-19T05:38:13.057Z"
+  "updatedAt": "2026-09-19T05:39:21.423Z"
 }
