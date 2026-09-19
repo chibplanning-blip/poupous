@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=39 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=40 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -89,13 +89,13 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const clean = s => String(s).replace(/https?:\/\/\S+/g, '').replace(/[*_#`>|]/g, '').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').replace(/[ \t]+/g, ' ').trim();
 const STATES = {
-  chargement:['#38d6f5','Démarrage…','green'],
-  veille:['#38d6f5','Appuie sur le micro ou écris-moi','green'],
-  ecoute:['#38d6f5',"Je t'écoute…",'orange'],
-  mainslibres:['#2aa9c7','Mains libres · dis « Poupous »','green'],
-  reflexion:['#9d8cff','Je réfléchis…','orange'],
-  parole:['#ffb547','Je parle…','orange'],
-  amelioration:['#4ee0a6','Je modifie mon code…','red'],
+  chargement:['#4ee0a6','Démarrage…','green'],
+  veille:['#4ee0a6','Appuie sur le micro ou écris-moi','green'],
+  ecoute:['#4ee0a6',"Je t'écoute…",'green'],
+  mainslibres:['#4ee0a6','Mains libres · dis « Poupous »','green'],
+  reflexion:['#ffb547','Je réfléchis…','amber'],
+  parole:['#3aa8ff','Je parle…','blue'],
+  amelioration:['#ff6b6b','Je modifie mon code…','red'],
   erreur:['#ff6b6b','Un souci est survenu','red']
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
@@ -544,7 +544,7 @@ function setState(s){
   const stEl = $('#status');
   stEl.textContent = cfg[1];
   const colorKey = cfg[2] || 'green';
-  const colorVar = colorKey === 'red' ? 'var(--red)' : colorKey === 'orange' ? 'var(--amber)' : 'var(--green)';
+  const colorVar = colorKey === 'red' ? 'var(--red)' : colorKey === 'amber' ? 'var(--amber)' : colorKey === 'blue' ? '#3aa8ff' : 'var(--green)';
   stEl.style.color = colorVar;
   const barWrap = $('#status-bar-wrap');
   if (barWrap) barWrap.hidden = (s !== 'amelioration');
