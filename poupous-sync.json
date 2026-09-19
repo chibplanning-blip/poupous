@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "J'ai deux choix soit annulé soit ? Je fais quoi"
-    },
-    {
-      "role": "assistant",
-      "content": "Tu peux choisir d'activer cette fonction en me demandant d'améliorer mon application pour qu'elle tourne en arrière-plan, ou on en reste là si tu préfères. Qu'est-ce qui te tente ?"
-    },
-    {
-      "role": "user",
       "content": "mais il me donne que ses deux choix je fais quoi"
     },
     {
@@ -101,7 +93,11 @@
     {
       "role": "user",
       "content": "dans la liste des courses il y a des courses prioritaires"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est noté pour tes courses prioritaires, je m'en rappelle. Tu veux que je regarde ce qui est urgent dans ta liste actuelle ?"
     }
   ],
-  "updatedAt": "2026-09-19T07:44:08.882Z"
+  "updatedAt": "2026-09-19T07:44:10.059Z"
 }
