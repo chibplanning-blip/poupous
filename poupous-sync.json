@@ -3,14 +3,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "dans ton programme quand je me déplace est-ce que tu suis ma position en temps réel ou pas"
-    },
-    {
-      "role": "assistant",
-      "content": "Je ne suis pas votre position en continu en arrière-plan pour l'instant, Ahmed, mais je peux l'actualiser à tout moment dès que vous me le demandez."
-    },
-    {
-      "role": "user",
       "content": "il faut l'actualiser dès que je bouge en temps réel on va regarder ce que ça donne"
     },
     {
@@ -80,7 +72,15 @@
     {
       "role": "assistant",
       "content": "J'ouvre l'écran d'installation de la mise à jour, Ahmed. Vous pouvez finaliser l'installation dès à présent."
+    },
+    {
+      "role": "user",
+      "content": "Est-ce que tu as les API de Google maps"
+    },
+    {
+      "role": "assistant",
+      "content": "Je ne dispose pas directement des clés API payantes ou privées de Google Maps dans mon code actuel, Ahmed, mais nous pourrions tout à fait les intégrer lors d'une prochaine mise à jour si vous le souhaitez."
     }
   ],
-  "updatedAt": "2026-09-19T09:14:31.395Z"
+  "updatedAt": "2026-09-19T09:25:23.669Z"
 }
