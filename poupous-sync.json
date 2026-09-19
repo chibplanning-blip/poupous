@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "fais-le maintenant"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est parti, je modifie l'interface pour ajouter ce menu dédié aux courses prioritaires. Ça prend une à trois minutes et l'application va se recharger toute seule."
-    },
-    {
-      "role": "user",
       "content": "les causes prioritaires c'est un magasin bien précis que tu dois me repérer"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Tu as totalement raison, c'est un gros bug que je viens de lancer en correction prioritaire. Je mets à jour l'application en profondeur pour que le radar surveille en continu et ne rate plus jamais aucun Aldi ni Lidl sur ton chemin."
+    },
+    {
+      "role": "user",
+      "content": "c'est quoi cette erreur 416"
+    },
+    {
+      "role": "assistant",
+      "content": "Une erreur 416 signifie que le serveur n'a pas pu fournir la portion de données demandée, souvent à cause d'un souci de lecture dans un fichier ou un téléchargement en cours. C'est sûrement lié à la mise à jour ou au chargement d'une ressource de la carte, je regarde ça de près."
     }
   ],
-  "updatedAt": "2026-09-19T07:54:59.562Z"
+  "updatedAt": "2026-09-19T07:57:40.294Z"
 }
