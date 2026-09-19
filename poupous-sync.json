@@ -8,7 +8,8 @@
     "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
     "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
     "L'utilisateur a posé la question 'tu sais moi'",
-    "La femme de l'utilisateur est la personne la plus importante de sa vie et de son cœur."
+    "La femme de l'utilisateur est la personne la plus importante de sa vie et de son cœur.",
+    "La femme de l'utilisateur s'appelle Souhaila et c'est la personne la plus importante de sa vie et de son cœur."
   ],
   "conversation": [
     {
@@ -90,7 +91,11 @@
     {
       "role": "assistant",
       "content": "C'est fait."
+    },
+    {
+      "role": "user",
+      "content": "si c'est fait dis-moi comment elle s'appelle"
     }
   ],
-  "updatedAt": "2026-09-19T06:52:05.971Z"
+  "updatedAt": "2026-09-19T06:52:14.187Z"
 }
