@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Tu peux me dire le Colruyt est à combien de kilomètres"
-    },
-    {
-      "role": "assistant",
-      "content": "Le Colruyt le plus proche de la rue de Visé à Wandre est généralement celui d'Herstal, situé à environ quatre ou cinq kilomètres d'ici."
-    },
-    {
-      "role": "user",
       "content": "Super"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "J'ai bien regardé le code que tu m'as envoyé, mais je ne vois pas directement l'erreur liée au kit mains-libres. Tu peux m'en dire plus sur le problème exact qui se produit quand tu l'utilises ?"
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut ! Comment ça va ? Qu'est-ce qu'on fait aujourd'hui ?"
     }
   ],
-  "updatedAt": "2026-09-18T22:36:18.308Z"
+  "updatedAt": "2026-09-19T05:09:23.213Z"
 }
