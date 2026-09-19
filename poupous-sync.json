@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "salut ça marche"
-    },
-    {
-      "role": "assistant",
-      "content": "Salut ! Tout fonctionne parfaitement, je suis là et prêt à t'aider. Qu'est-ce qu'on fait ?"
-    },
-    {
-      "role": "user",
       "content": "salut ça va"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Voici une idée : \"Mon cœur, je pense fort à toi et j'ai hâte qu'on se retrouve.\" Dis-moi si ça te va ou si tu veux autre chose, et je t'ouvre l'application pour l'envoyer."
+    },
+    {
+      "role": "user",
+      "content": "oui vas-y sur WhatsApp"
+    },
+    {
+      "role": "assistant",
+      "content": "Je t'ai préparé le message pour Souhaila, il ne te reste plus qu'à appuyer sur envoyer."
     }
   ],
-  "updatedAt": "2026-09-19T05:39:21.423Z"
+  "updatedAt": "2026-09-19T05:39:46.212Z"
 }
