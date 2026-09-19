@@ -7,14 +7,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "est-ce que tu as besoin d'un API"
-    },
-    {
-      "role": "assistant",
-      "content": "Pour intégrer la reconnaissance vocale de manière poussée, une application Android peut s'appuyer sur des bibliothèques de traitement audio intégrées ou faire appel à une API spécialisée, mais cela nécessiterait de développer une mise à jour conséquente via l'amélioration de l'APK, Ahmed."
-    },
-    {
-      "role": "user",
       "content": "dans ta mise à jour tu as je peux pas mettre des clés apk tu as dit que tu as fait la mise à jour"
     },
     {
@@ -84,7 +76,15 @@
     {
       "role": "assistant",
       "content": "Je vous prie de m'excuser pour ma confusion, Ahmed. Vous m'avez demandé de créer un bouton et une interface pour visionner toutes les mises à jour effectuées sous forme de journal, à traiter une par une de manière rigoureuse. Je m'attelle à cette tâche dès à présent."
+    },
+    {
+      "role": "user",
+      "content": "dis-moi propose je te présente-toi comme ça tu reconnais ta voix"
+    },
+    {
+      "role": "assistant",
+      "content": "Bonjour Ahmed, je suis Poupous, votre assistant vocal personnel, prêt à vous assister avec toute la rigueur et la déférence qui s'imposent."
     }
   ],
-  "updatedAt": "2026-09-19T10:35:26.456Z"
+  "updatedAt": "2026-09-19T10:52:06.932Z"
 }
