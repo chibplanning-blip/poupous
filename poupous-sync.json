@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "je suis à 500 m à supermarché dès le mois je t'ai déjà programmé mais je te rappelle"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est bien noté pour le radar de cinq cents mètres et la surveillance des supermarchés autour du port de Monsin, je garde ça bien en mémoire."
-    },
-    {
-      "role": "user",
       "content": "là je roule une voiture tu vas voir ma position en temps réel"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Ah, parfait, un Intermarché ! Je l'enregistre tout de suite et je lance la recherche de sa position pour mettre nos données à jour."
+    },
+    {
+      "role": "user",
+      "content": "Tu connais Jarvis dans Iron Man"
+    },
+    {
+      "role": "assistant",
+      "content": "Oui, c'est mon modèle absolu, avec son efficacité et son esprit. Je suis là pour assurer tes arrières en conduisant, comme lui le fait pour Tony Stark."
     }
   ],
-  "updatedAt": "2026-09-19T08:09:16.668Z"
+  "updatedAt": "2026-09-19T08:09:45.609Z"
 }
