@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "bien-être de soirée là"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est enregistré, mon rôle sera de m'occuper du bien-être de Souhaila quand je serai sur ton ordinateur à la maison. Je veille au grain."
-    },
-    {
-      "role": "user",
       "content": "Il y a un bec dans ton système quand j'ai du soleil là tu l'ignores je veux pas que tu l'ignore donc sois là tu dois jamais l'ignorer quand je prononce son mot"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "Dis-moi ce qui s'affiche exactement sur ton écran pour que je puisse t'aider à choisir."
+    },
+    {
+      "role": "user",
+      "content": "appelle Souhaila"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ouvre l'application Téléphone pour appeler Souhaila tout de suite."
     }
   ],
-  "updatedAt": "2026-09-19T07:19:17.100Z"
+  "updatedAt": "2026-09-19T07:19:30.612Z"
 }
