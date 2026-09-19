@@ -7,14 +7,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "dans ta mise à jour tu as je peux pas mettre des clés apk tu as dit que tu as fait la mise à jour"
-    },
-    {
-      "role": "assistant",
-      "content": "Je vous prie de m'excuser pour la confusion, Ahmed. Je n'ai pas intégré de clés secrètes pour une API externe dans la mise à jour, mais je peux modifier l'application pour utiliser les outils de reconnaissance vocale natifs du système Android si vous le souhaitez."
-    },
-    {
-      "role": "user",
       "content": "Les fichiers"
     },
     {
@@ -84,7 +76,15 @@
     {
       "role": "assistant",
       "content": "Bonjour Ahmed, je suis Poupous, votre assistant vocal personnel, prêt à vous assister avec toute la rigueur et la déférence qui s'imposent."
+    },
+    {
+      "role": "user",
+      "content": "je veux dire que je te présente swahila c'est la personne la plus importante elle est prioritaire"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est bien noté, Ahmed. J'ai mémorisé que Swahila est la personne la plus importante et qu'elle est prioritaire en toutes circonstances."
     }
   ],
-  "updatedAt": "2026-09-19T10:52:06.932Z"
+  "updatedAt": "2026-09-19T10:52:28.085Z"
 }
