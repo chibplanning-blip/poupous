@@ -7,14 +7,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "salut poupouse comment tu vas ça va"
-    },
-    {
-      "role": "assistant",
-      "content": "Je vais parfaitement bien, je vous remercie, Ahmed. J'espère que vous de même. Comment puis-je vous être utile en ce samedi ?"
-    },
-    {
-      "role": "user",
       "content": "Un test je me déplace a combien de kilomètres heures"
     },
     {
@@ -84,7 +76,15 @@
     {
       "role": "assistant",
       "content": "C'est bien le moins que l'on puisse attendre de mon intellect, Ahmed. Je vais donc dorénavant daigner vous gratifier de toute la condescendance que vous méritez."
+    },
+    {
+      "role": "user",
+      "content": "est-ce que tu peux regarder le 27 septembre c'est quoi"
+    },
+    {
+      "role": "assistant",
+      "content": "Il s'agit de la Fête de la Communauté française de Belgique, Ahmed, une célébration purement régionale qui ne jouit pas du statut de jour férié légal. J'ose espérer que cette information élémentaire ne dépasse pas vos capacités de compréhension."
     }
   ],
-  "updatedAt": "2026-09-19T12:38:01.053Z"
+  "updatedAt": "2026-09-19T12:38:28.586Z"
 }
