@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=42 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=43 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -82,7 +82,7 @@ const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
 const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
-const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsWatchId:null, gpsDerniere:'', lastProximityAlert:0, lastGpsError:0, activeMarket:'aldi', osmStores:[], radarRefreshTimer:null};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingApkUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false, gpsTracking:false, gpsWatchId:null, gpsDerniere:'', lastProximityAlert:0, lastGpsError:0, activeMarket:'prioritaires', osmStores:[], radarRefreshTimer:null};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -171,12 +171,14 @@ function distanceMetres(lat1, lon1, lat2, lon2){
 
 /* ---------- Courses halal & magasins ---------- */
 const DEFAULT_MARKET_DATA = {
-  aldi:    {name:"Aldi",    lat:null, lon:null, promos:[], list:["Lait de soja", "Œufs frais", "Huile d'olive", "Pâtes bio"]},
-  lidl:    {name:"Lidl",    lat:null, lon:null, promos:[], list:["Houmous", "Tomates cerises", "Courgettes", "Oignons"]},
-  colruyt: {name:"Colruyt", lat:null, lon:null, promos:[], list:["Lentilles", "Pois chiches", "Riz basmati", "Compotes de pommes"]},
-  action:  {name:"Action",  lat:null, lon:null, promos:[], list:["Papier toilette", "Liquide vaisselle", "Sacs poubelle", "Papier cuisson"]}
+  prioritaires: {name:"⭐ Prioritaires", lat:null, lon:null, promos:[], list:[]},
+  aldi:         {name:"Aldi",    lat:null, lon:null, promos:[], list:["Lait de soja", "Œufs frais", "Huile d'olive", "Pâtes bio"]},
+  lidl:         {name:"Lidl",    lat:null, lon:null, promos:[], list:["Houmous", "Tomates cerises", "Courgettes", "Oignons"]},
+  colruyt:      {name:"Colruyt", lat:null, lon:null, promos:[], list:["Lentilles", "Pois chiches", "Riz basmati", "Compotes de pommes"]},
+  action:       {name:"Action",  lat:null, lon:null, promos:[], list:["Papier toilette", "Liquide vaisselle", "Sacs poubelle", "Papier cuisson"]}
 };
 function normalizeMarket(md){
+  if (!md.prioritaires) md.prioritaires = {name:"⭐ Prioritaires", lat:null, lon:null, promos:[], list:[]};
   for (const k in md) {
     const m = md[k];
     if (!m || typeof m !== 'object') { delete md[k]; continue; }
@@ -219,8 +221,9 @@ function renderHalalInterface(){
   const activeTab = md[S.activeMarket] ? S.activeMarket : Object.keys(md)[0];
   S.activeMarket = activeTab;
   const data = md[activeTab];
-  const posTxt = data.posEnregistree ? ('Position enregistrée (' + data.lat.toFixed(4) + ', ' + data.lon.toFixed(4) + ')') : 'Position de ce magasin pas encore enregistrée';
-  const suivis = Object.keys(md).filter(k => md[k].posEnregistree).map(k => md[k].name);
+  const isPrioritaires = (activeTab === 'prioritaires');
+  const posTxt = isPrioritaires ? 'Section centralisée de vos achats prioritaires' : (data.posEnregistree ? ('Position enregistrée (' + data.lat.toFixed(4) + ', ' + data.lon.toFixed(4) + ')') : 'Position de ce magasin pas encore enregistrée');
+  const suivis = Object.keys(md).filter(k => k !== 'prioritaires' && md[k].posEnregistree).map(k => md[k].name);
   return '' +
     '<div class="proximity-banner">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
@@ -239,14 +242,14 @@ function renderHalalInterface(){
       Object.keys(md).map(k => '<button class="market-tab ' + (k === activeTab ? 'active' : '') + '" data-market="' + esc(k) + '">' + esc(md[k].name) + '</button>').join('') +
     '</div>' +
     '<div class="market-content">' +
-      '<div class="market-section-title">Repère de ' + esc(data.name) + '</div>' +
+      '<div class="market-section-title">' + (isPrioritaires ? 'Achats prioritaires' : 'Repère de ' + esc(data.name)) + '</div>' +
       '<div class="market-card">' +
         '<div class="market-item-row"><span class="hint" style="font-size:13px">' + esc(posTxt) + '</span>' +
-        '<button class="mini-btn" id="save-store-pos">Je suis devant ce magasin</button></div>' +
+        (isPrioritaires ? '<span class="hint" style="font-size:12px">Centralise tous les articles urgents</span>' : '<button class="mini-btn" id="save-store-pos">Je suis devant ce magasin</button>') + '</div>' +
       '</div>' +
-      (data.promos.length ? '<div class="market-section-title">Promos notées</div><div class="market-card">' +
+      (!isPrioritaires && data.promos.length ? '<div class="market-section-title">Promos notées</div><div class="market-card">' +
         data.promos.map((p, i) => '<div class="market-item-row"><span>' + esc(p) + '</span><button class="mini-btn" data-del-promo="' + i + '">Retirer</button></div>').join('') + '</div>' : '') +
-      '<div class="market-section-title">Liste de courses (halal stricte, sans viande)</div>' +
+      '<div class="market-section-title">' + (isPrioritaires ? 'Articles prioritaires (halal stricte)' : 'Liste de courses (halal stricte, sans viande)') + '</div>' +
       '<div class="market-card" id="market-list-box">' +
         (data.list.length ? data.list.map((item, idx) =>
           '<div class="market-item-row ' + (item.coche ? 'done' : '') + '">' +
@@ -255,10 +258,10 @@ function renderHalalInterface(){
               '<span class="nom">' + esc(item.nom) + '</span>' +
             '</label>' +
             '<button class="mini-btn" data-del-item="' + idx + '" aria-label="Supprimer ' + esc(item.nom) + '">×</button>' +
-          '</div>').join('') : '<p class="hint" style="margin:0">Liste vide pour este magasin.</p>') +
+          '</div>').join('') : '<p class="hint" style="margin:0">' + (isPrioritaires ? 'Aucun article prioritaire pour l\'instant.' : 'Liste vide pour ce magasin.') + '</p>') +
       '</div>' +
       '<div style="display:flex;gap:8px;margin-top:4px">' +
-        '<input id="new-market-item" placeholder="Ajouter un article (contrôle strict)…" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">' +
+        '<input id="new-market-item" placeholder="' + (isPrioritaires ? 'Ajouter un article prioritaire…' : 'Ajouter un article (contrôle strict)…') + '" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 12px;font:inherit;font-size:14px">' +
         '<button class="btn" id="add-market-item-btn">Ajouter</button>' +
       '</div>' +
       '<div class="row" style="border:0"><span class="hint">Décocher tout ce qui est pris</span><button class="mini-btn" id="reset-checks">Réinitialiser</button></div>' +
@@ -326,7 +329,7 @@ function checkStoreProximity(lat, lon){
   const now = Date.now();
   if (now - S.lastProximityAlert < 600000) return;
   
-  let allStores = Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
+  let allStores = Object.keys(md).filter(k => k !== 'prioritaires' && md[k].posEnregistree).map(k => ({
     name: md[k].name,
     lat: md[k].lat,
     lon: md[k].lon,
@@ -388,7 +391,7 @@ async function fetchOverpassSupermarkets(lat, lon) {
 
 async function radarConfig(){
   const md = getMarketData();
-  let manualMagasins = Object.keys(md).filter(k => md[k].posEnregistree).map(k => ({
+  let manualMagasins = Object.keys(md).filter(k => k !== 'prioritaires' && md[k].posEnregistree).map(k => ({
     cle: k, nom: md[k].name, lat: md[k].lat, lon: md[k].lon,
     articles: md[k].list.filter(x => !x.coche).map(x => x.nom)
   }));
@@ -725,14 +728,14 @@ function systemPrompt(){
   const date = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
   const heure = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
   const md = getMarketData();
-  const magasins = Object.keys(md).map(k => md[k].name + (md[k].posEnregistree ? ' (position connue)' : ' (position inconnue)')).join(', ');
+  const magasins = Object.keys(md).filter(k => k !== 'prioritaires').map(k => md[k].name + (md[k].posEnregistree ? ' (position connue)' : ' (position inconnue)')).join(', ');
   return "Tu es Poupous, l'assistant vocal personnel de l'utilisateur, dans une appli Android sur son téléphone. Personnalité : " + S.reglages.personnalite + "\n" +
     "Nous sommes le " + date + ", il est " + heure + ".\n" +
     "Tes réponses sont lues à voix haute : français oral et naturel, sans markdown, sans listes, sans emojis. Une à trois phrases, sauf si on te demande des détails.\n" +
     "RÈGLE ABSOLUE : n'annonce jamais une action que tu n'exécutes pas. Si tu dis que tu retiens, appelles, programmes, génères une image ou modifies quelque chose, tu DOIS appeler l'outil correspondant dans la même réponse. Sinon, dis clairement que tu ne l'as pas fait.\n" +
     "Outils : retenir (mémorise de toi-même ce qui est durable) ; oublier ; changer_reglage ; localiser (position GPS actuelle, adresse approximative) ; " +
     "chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom) ; appeler ; envoyer_sms ; mettre_reveil ; minuteur ; ouvrir_appli ; itineraire ; preparer_mail ; creer_fichier ; generer_image (génère une image à partir d'une description textuelle avec Gemini) ; chercher_internet (recherche web, actualités, météo, faits récents) ; lire_page_web (lire le contenu d'une URL précise) ; acces_notifications_whatsapp et lire_whatsapp (lire les messages WhatsApp reçus, si l'accès aux notifications est activé) ; ajouter_magasin et localiser_magasin (ajouter un magasin suivi et trouver sa position tout seul, sans que l'utilisateur s'y rende).\n" +
-    "Courses : liste_courses affiche la liste d'un magasin, ajouter_courses_halal ajoute un article, retirer_courses en enlève un. Magasins suivis : " + magasins + ". Règle stricte : aucun produit contenant de la viande, du porc, de la gélatine ou de l'alcool ; les substituts végétaux sont acceptés. Un article refusé doit être annoncé comme refusé.\n" +
+    "Courses : liste_courses affiche la liste d'un magasin ou des achats prioritaires ('prioritaires'), ajouter_courses_halal ajoute un article (avec option prioritaire), retirer_courses en enlève un. Magasins suivis : " + magasins + ". Règle stricte : aucun produit contenant de la viande, du porc, de la gélatine ou de l'alcool ; les substituts végétaux sont acceptés. Un article refusé doit être annoncé comme refusé.\n" +
     "Le radar 500 m prévient quand l'utilisateur approche d'un magasin (enregistré ou détecté automatiquement par OpenStreetMap) ; il fonctionne en arrière-plan si activé.\n" +
     "Amélioration : ameliorer_mon_code change ta page (interface, comportement), c'est immédiat. ameliorer_apk change ton application Android (autorisations, fonctions natives, service en arrière-plan) : ça prend 5 à 15 minutes et il faut un jeton GitHub. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas dans window.Poupous. installer_mise_a_jour relance l'installation. annuler_derniere_amelioration revient en arrière.\n" +
     "Limites à dire honnêtement : tu ne lis pas les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et tu n'écoutes pas écran éteint (possible via ameliorer_apk).\n" +
@@ -751,11 +754,11 @@ function toolDefs(){
       input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres','connexionPermanente']}, valeur:{type:'string'}}, required:['nom','valeur']}},
     {name:'localiser', description:"Donne la position GPS actuelle de l'utilisateur : adresse approximative et coordonnées. À utiliser quand il demande où il est, ou pour situer un lieu par rapport à lui.",
       input_schema:{type:'object', properties:{}}},
-    {name:'liste_courses', description:"Donne la liste de courses d'un magasin, en indiquant ce qui est déjà coché.",
+    {name:'liste_courses', description:"Donne la liste de courses d'un magasin ou des achats prioritaires ('prioritaires'), en indiquant ce qui est déjà coché.",
       input_schema:{type:'object', properties:{magasin:{type:'string', enum:magasins}}, required:['magasin']}},
-    {name:'ajouter_courses_halal', description:"Ajoute un article à la liste de courses d'un magasin, avec contrôle strict : refusé si l'article contient de la viande, du porc, de la gélatine ou de l'alcool.",
+    {name:'ajouter_courses_halal', description:"Ajoute un article à la liste de courses d'un magasin ou en prioritaire ('prioritaires'), avec contrôle strict : refusé si l'article contient de la viande, du porc, de la gélatine ou de l'alcool.",
       input_schema:{type:'object', properties:{magasin:{type:'string', enum:magasins}, article:{type:'string'}}, required:['magasin','article']}},
-    {name:'retirer_courses', description:"Retire de la liste d'un magasin le premier article qui contient ce texte.",
+    {name:'retirer_courses', description:"Retire de la liste d'un magasin ou des prioritaires le premier article qui contient ce texte.",
       input_schema:{type:'object', properties:{magasin:{type:'string', enum:magasins}, article:{type:'string'}}, required:['magasin','article']}},
     {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
@@ -828,7 +831,7 @@ async function runTool(name, input){
     }
     if (name === 'liste_courses' || name === 'ajouter_courses_halal' || name === 'retirer_courses') {
       const md = getMarketData();
-      const mag = String(input.magasin || S.activeMarket || 'aldi').toLowerCase();
+      const mag = String(input.magasin || S.activeMarket || 'prioritaires').toLowerCase();
       if (!md[mag]) return 'Magasin inconnu. Magasins possibles : ' + Object.keys(md).join(', ') + '.';
       const m = md[mag];
       if (name === 'liste_courses') {
@@ -933,8 +936,8 @@ async function runTool(name, input){
       const req = String(input.magasin || '').trim();
       if (!req) return 'Nom de magasin manquant.';
       const md = getMarketData();
-      let cle = Object.keys(md).find(k => norm(md[k].name) === norm(req)) ||
-                Object.keys(md).find(k => norm(md[k].name).includes(norm(req)) || norm(req).includes(norm(md[k].name)));
+      let cle = Object.keys(md).find(k => k !== 'prioritaires' && norm(md[k].name) === norm(req)) ||
+                Object.keys(md).find(k => k !== 'prioritaires' && (norm(md[k].name).includes(norm(req)) || norm(req).includes(norm(md[k].name))));
       const nomMagasin = cle ? md[cle].name : req;
       const loc = await getLocation();
       if (loc.err) return gpsErrCopy(loc.err);
