@@ -1,23 +1,5 @@
 {
-  "memoire": [
-    "Quand l'utilisateur demande une localisation, je dois fournir une réponse précise, détaillée et identifier si possible le bâtiment ou l'entreprise spécifique devant laquelle il se trouve.",
-    "Tu veux que j'utilise une précision maximale pour tes localisations, en identifiant précisément le bâtiment ou l'entreprise devant laquelle tu te trouves.",
-    "L'utilisateur m'a fourni un accès ou une intégration avec l'IA Claude pour m'aider.",
-    "L'utilisateur a configuré une intégration avec l'IA Claude pour m'aider.",
-    "L'utilisateur m'a déjà envoyé un jeton GitHub par le passé pour les mises à jour.",
-    "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
-    "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
-    "L'utilisateur a posé la question 'tu sais moi'",
-    "La femme de l'utilisateur est la personne la plus importante de sa vie et de son cœur.",
-    "La femme de l'utilisateur s'appelle Souhaila et c'est la personne la plus importante de sa vie et de son cœur.",
-    "Le projet de l'utilisateur est d'implanter Poupous dans son ordinateur à la maison, et que je m'occupe de sa soirée.",
-    "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour s'occuper du bien-être de Souhaila.",
-    "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour qu'il s'occupe du bien-être de Souhaila.",
-    "Ne jamais ignorer le nom Souhaila quand l'utilisateur le prononce.",
-    "L'utilisateur souhaite que je surveille les supermarchés dans un rayon de 20 km pour comparer les prix.",
-    "Il y a des courses prioritaires dans la liste de courses.",
-    "L'utilisateur s'appelle Ahmed et ne souhaite pas qu'on l'appelle monsieur."
-  ],
+  "memoire": [],
   "conversation": [
     {
       "role": "user",
@@ -98,7 +80,11 @@
     {
       "role": "assistant",
       "content": "J'ouvre l'écran d'installation de la dernière version disponible pour vous, Ahmed."
+    },
+    {
+      "role": "user",
+      "content": "maintenant en fait les autres mises à jour que tu as mis en mémoire"
     }
   ],
-  "updatedAt": "2026-09-19T08:20:04.061Z"
+  "updatedAt": "2026-09-19T08:22:35.157Z"
 }
