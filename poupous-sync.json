@@ -8,14 +8,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Des api en presentation d ecran"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ai lancé la modification de votre interface pour intégrer la présentation des API demandée, Ahmed. L'application va se recharger d'un instant à l'autre."
-    },
-    {
-      "role": "user",
       "content": "C'est à payer il est pas mal mais les heures de réseau et Google activité il y a rien donc tu ne sert à rien"
     },
     {
@@ -85,7 +77,15 @@
     {
       "role": "assistant",
       "content": "J'ai lancé la modification pour intégrer la présentation détaillée et interactive de toutes les API disponibles dans l'application, Ahmed. L'interface va se recharger d'un instant à l'autre."
+    },
+    {
+      "role": "user",
+      "content": "Tu sais utilisé les api selon tes besoins comment tu fais"
+    },
+    {
+      "role": "assistant",
+      "content": "J'analyse vos requêtes et j'active de manière autonome les outils et fonctions qui y répondent, Ahmed, sans que vous ayez à le faire manuellement. Si vous souhaitez que je consulte une source externe ou que j'ajoute un nouvel outil à mon arsenal, il suffit de me le demander."
     }
   ],
-  "updatedAt": "2026-09-19T15:32:02.811Z"
+  "updatedAt": "2026-09-19T16:09:12.402Z"
 }
