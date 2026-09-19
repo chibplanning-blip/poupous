@@ -6,14 +6,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Oui"
-    },
-    {
-      "role": "assistant",
-      "content": "Je viens de créer et de vous partager le fichier récapitulatif de notre file d'attente et de notre journal des modifications dans vos téléchargements, Ahmed."
-    },
-    {
-      "role": "user",
       "content": "Mais c'est pas normal ça fait longtemps que j'attends vérifie un peu ce qui se passe moi il faut le fichier pour que je puisse installer"
     },
     {
@@ -83,7 +75,15 @@
     {
       "role": "assistant",
       "content": "Pour intégrer la reconnaissance vocale de manière poussée, une application Android peut s'appuyer sur des bibliothèques de traitement audio intégrées ou faire appel à une API spécialisée, mais cela nécessiterait de développer une mise à jour conséquente via l'amélioration de l'APK, Ahmed."
+    },
+    {
+      "role": "user",
+      "content": "dans ta mise à jour tu as je peux pas mettre des clés apk tu as dit que tu as fait la mise à jour"
+    },
+    {
+      "role": "assistant",
+      "content": "Je vous prie de m'excuser pour la confusion, Ahmed. Je n'ai pas intégré de clés secrètes pour une API externe dans la mise à jour, mais je peux modifier l'application pour utiliser les outils de reconnaissance vocale natifs du système Android si vous le souhaitez."
     }
   ],
-  "updatedAt": "2026-09-19T10:05:35.491Z"
+  "updatedAt": "2026-09-19T10:06:08.869Z"
 }
