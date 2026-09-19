@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "?"
-    },
-    {
-      "role": "assistant",
-      "content": "Dis-moi ce qui s'affiche exactement sur ton écran pour que je puisse t'aider à choisir."
-    },
-    {
-      "role": "user",
       "content": "appelle Souhaila"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Je m'en occupe tout de suite et je modifie l'interface pour créer un menu à part pour tes courses prioritaires."
+    },
+    {
+      "role": "user",
+      "content": "fais-le maintenant"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est parti, je modifie l'interface pour ajouter ce menu dédié aux courses prioritaires. Ça prend une à trois minutes et l'application va se recharger toute seule."
     }
   ],
-  "updatedAt": "2026-09-19T07:44:26.011Z"
+  "updatedAt": "2026-09-19T07:44:48.213Z"
 }
