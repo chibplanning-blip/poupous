@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "tu dois savoir une chose"
-    },
-    {
-      "role": "assistant",
-      "content": "Je t'écoute, dis-moi tout !"
-    },
-    {
-      "role": "user",
       "content": "sois là c'est la femme de ma vie c'est la personne la plus importante à mon cœur"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "Je suis prêt, lance l'essai quand tu veux !"
+    },
+    {
+      "role": "user",
+      "content": "sois là c'est la personne la plus importante dans mon cœur"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est bien Souhaila, la personne la plus importante de ta vie et de ton cœur, et je ne l'oublierai jamais."
     }
   ],
-  "updatedAt": "2026-09-19T06:53:50.224Z"
+  "updatedAt": "2026-09-19T06:53:59.717Z"
 }
