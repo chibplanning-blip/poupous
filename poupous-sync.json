@@ -15,7 +15,8 @@
     "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour qu'il s'occupe du bien-être de Souhaila.",
     "Ne jamais ignorer le nom Souhaila quand l'utilisateur le prononce.",
     "L'utilisateur souhaite que je surveille les supermarchés dans un rayon de 20 km pour comparer les prix.",
-    "Il y a des courses prioritaires dans la liste de courses."
+    "Il y a des courses prioritaires dans la liste de courses.",
+    "L'utilisateur s'appelle Ahmed et ne souhaite pas qu'on l'appelle monsieur."
   ],
   "conversation": [
     {
@@ -97,7 +98,11 @@
     {
       "role": "assistant",
       "content": "C'est bien noté, monsieur Ahmed. Je retiens ce nom avec tout le respect qui s'impose."
+    },
+    {
+      "role": "user",
+      "content": "et tu enlèves monsieur"
     }
   ],
-  "updatedAt": "2026-09-19T08:12:17.740Z"
+  "updatedAt": "2026-09-19T08:12:40.938Z"
 }
