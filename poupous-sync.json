@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Dis une question j'ai un robot aspirateur Wi-Fi est-ce qu'on peut le diriger avec mon interface de poupousse"
-    },
-    {
-      "role": "assistant",
-      "content": "Oui, c'est tout à fait possible. Je lance une modification de mon code pour intégrer une interface de contrôle pour ton robot aspirateur, ça prend une à trois minutes et l'application va se recharger toute seule."
-    },
-    {
-      "role": "user",
       "content": "Dis-moi les supermarchés qui se trouve juste à côté de moi"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "C'est parti ! On continue à faire évoluer Poupous. Dis-moi ce qu'on ajoute ou ce qu'on règle aujourd'hui."
+    },
+    {
+      "role": "user",
+      "content": "les propose je dois envoyer un message"
+    },
+    {
+      "role": "assistant",
+      "content": "Je ne trouve aucun contact au nom de Propose dans ton répertoire. Comment s'appelle la personne à qui tu veux envoyer un message ?"
     }
   ],
-  "updatedAt": "2026-09-19T05:37:15.631Z"
+  "updatedAt": "2026-09-19T05:37:47.368Z"
 }
