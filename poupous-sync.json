@@ -12,14 +12,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "je te dis WhatsApp tu m'ouvres SMS"
-    },
-    {
-      "role": "assistant",
-      "content": "Oups, désolé pour la confusion ! Je t'ouvre WhatsApp tout de suite."
-    },
-    {
-      "role": "user",
       "content": "tu as rien ouvert"
     },
     {
@@ -89,7 +81,15 @@
     {
       "role": "assistant",
       "content": "Je sais que tu es quelqu'un de curieux, qui aime façonner ton assistant sur-mesure et pousser les limites de mes capacités. Et entre nous, tu as déjà semé quelques souvenirs dans ma mémoire !"
+    },
+    {
+      "role": "user",
+      "content": "tu dois savoir une chose"
+    },
+    {
+      "role": "assistant",
+      "content": "Je t'écoute, dis-moi tout !"
     }
   ],
-  "updatedAt": "2026-09-19T06:51:22.973Z"
+  "updatedAt": "2026-09-19T06:51:40.233Z"
 }
