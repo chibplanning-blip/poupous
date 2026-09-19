@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "elle s'appelle Souhaila"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est fait."
-    },
-    {
-      "role": "user",
       "content": "si c'est fait dis-moi comment elle s'appelle"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "Ah, pardon, j'ai fourché ! Je voulais dire Souhaila, bien sûr. C'est elle la personne la plus importante de ton cœur, et je ne l'oublierai plus jamais."
+    },
+    {
+      "role": "user",
+      "content": "Salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut ! Comment ça va ce matin ?"
     }
   ],
-  "updatedAt": "2026-09-19T06:54:11.747Z"
+  "updatedAt": "2026-09-19T06:56:02.322Z"
 }
