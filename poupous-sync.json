@@ -3,14 +3,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "j'en sais rien dis-moi"
-    },
-    {
-      "role": "assistant",
-      "content": "La compilation de cette mise à jour sur GitHub prend entre cinq et quinze minutes, monsieur. Je vous préviendrai dès que ce sera terminé et prêt à être installé."
-    },
-    {
-      "role": "user",
       "content": "appelle-moi Ahmed"
     },
     {
@@ -80,7 +72,15 @@
     {
       "role": "assistant",
       "content": "J'ai lancé la modification de l'application sur GitHub pour intégrer le suivi de votre position en temps réel en arrière-plan, Ahmed. Cette reconstruction complète prendra entre cinq et quinze minutes, et je vous préviendrai dès que le fichier APK sera prêt à être installé."
+    },
+    {
+      "role": "user",
+      "content": "Envoie-moi l'installation"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ouvre l'écran d'installation de la mise à jour, Ahmed. Vous n'avez plus qu'à valider pour l'appliquer."
     }
   ],
-  "updatedAt": "2026-09-19T08:54:22.488Z"
+  "updatedAt": "2026-09-19T08:58:47.438Z"
 }
