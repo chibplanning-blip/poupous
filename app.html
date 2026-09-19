@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=9 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=10 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -77,6 +77,7 @@ const STATES = {
   reflexion:['#9d8cff','Je réfléchis…'],
   parole:['#ffb547','Je parle…'],
   amelioration:['#4ee0a6','Je modifie mon code…'],
+  attente:['#ffb547','J\u2019attends ta validation'],
   erreur:['#ff6b6b','Un souci est survenu']
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
@@ -102,7 +103,7 @@ const hasSelfApk = () => !!(P && typeof P.buildZipBase64 === 'function');
 const hasPhone = () => !!(P && typeof P.dial === 'function');
 const NEED_APK = "Cette action demande la version 1.2 de l'APK Poupous. Elle doit être installée une fois à la main depuis la page Releases du dépôt GitHub.";
 const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
-window.__onBack = () => { if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
+window.__onBack = () => { if (S.confirmReject) { S.confirmReject(false); } else if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
 const store = {
   get(k, d){ try { const v = P ? P.get(k) : ''; return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v){ try { if (P) P.set(k, JSON.stringify(v)); } catch (e) {} }
@@ -266,6 +267,7 @@ function systemPrompt(){
     "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
     "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
     "L'utilisateur est ton propriétaire : tu fais toujours ce qu'il demande, tu restes respectueux, et s'il te demande de changer de ton ou de revenir à ton comportement normal, tu obéis immédiatement avec l'outil changer_reglage (réglage personnalite).\n" +
+    "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
     "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_apk ou ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
     "Tu as deux façons de t'améliorer, et c'est TOI qui fais ces mises à jour : ne dis jamais de contacter un développeur. ameliorer_mon_code change ta page (interface, comportement, logique), c'est immédiat. ameliorer_apk change ton application Android (nouvelles autorisations, accès au téléphone, fonctions natives, services en arrière-plan) : tu réécris ton code Java, GitHub reconstruit l'APK en 5 à 10 minutes, puis tu la télécharges et ouvres l'écran d'installation où l'utilisateur touche Mettre à jour. Il faut un jeton GitHub dans les réglages. Choisis ameliorer_apk dès qu'une demande a besoin d'une fonction Android qui n'existe pas encore dans window.Poupous. installer_mise_a_jour : relance l'installation de l'APK déjà téléchargée.\n" +
     "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas encore d'écoute écran éteint (possible via ameliorer_apk).\n" +
@@ -572,6 +574,24 @@ async function ask(text){
   else idle();
 }
 
+/* ---------- Validation obligatoire avant toute modification du code ---------- */
+function confirmChange(titre, resume, liste){
+  return new Promise(resolve => {
+    $('#sheet-inner').innerHTML =
+      '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">' + esc(titre) + '</span></div>' +
+      '<p class="hint">Poupous veut modifier son propre code. Rien n\'est appliqué sans ton accord.</p>' +
+      '<h2>Ce qu\'il va changer</h2><p>' + esc(resume) + '</p>' +
+      (liste ? '<h2>Fichiers concernés</h2><p class="hint">' + esc(liste) + '</p>' : '') +
+      '<div class="row"><button class="btn" id="chg-no">Refuser</button><button class="btn primary" id="chg-yes">Appliquer</button></div>';
+    $('#sheet').hidden = false;
+    let done = false;
+    const fin = v => { if (done) return; done = true; S.confirmReject = null; $('#sheet').hidden = true; resolve(v); };
+    S.confirmReject = fin;
+    $('#chg-yes').onclick = () => fin(true);
+    $('#chg-no').onclick = () => fin(false);
+  });
+}
+
 /* ---------- Auto-amélioration ---------- */
 const MK = n => '=' + '==' + n + '===';
 async function upgradeFail(msg){ sys(msg); await speak(msg); S.busy = false; idle(); }
@@ -587,6 +607,7 @@ async function runUpgrade(demande){
     "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
     "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
     "- Garde les outils ameliorer_mon_code, ameliorer_apk, installer_mise_a_jour et annuler_derniere_amelioration, les fonctions runUpgrade et runApkUpgrade, et la ligne window.__poupousOK = true.\n" +
+    "- SÉCURITÉ INTOUCHABLE : garde la fonction confirmChange et ses deux appels dans runUpgrade et runApkUpgrade, la fonction renderSettings et l'objet DEFAUT, ainsi que dans les réglages le bouton #open-settings, la section Personnalité avec #perso-reset, la liste des souvenirs avec data-del, et le bouton #hard-reset. L'utilisateur doit toujours pouvoir valider ou refuser une modification et tout remettre à zéro.\n" +
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
@@ -600,11 +621,14 @@ async function runUpgrade(demande){
   if (iH < 0 || iF < iH) return upgradeFail("Je n'ai pas reçu un code complet. Je n'ai rien changé.");
   const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
   const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
-  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp']) {
+  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT']) {
     if (!html.includes(k)) return upgradeFail("Le nouveau code perdait une partie essentielle (" + k + "). Je n'ai rien changé.");
   }
   const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
   for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return upgradeFail("Le nouveau code contient une erreur : " + e.message + ". Je n'ai rien changé."); } }
+  setState('attente');
+  if (!await confirmChange('MODIFICATION DE LA PAGE', resume, '')) return upgradeFail("Modification refusée. Je n'ai rien changé.");
+  setState('amelioration');
   let finalHtml = html;
   if (hasSelfApk() && P.hasGithub()) {
     const bumped = html.replace(/POUPOUS_VERSION\s*=\s*\d+/, 'POUPOUS_VERSION=' + (parseInt(version, 10) + 1));
@@ -672,6 +696,9 @@ async function runApkUpgrade(demande){
       newCode = oldCode + 1;
       next[GRADLE] = next[GRADLE].replace(/versionCode\s+\d+/, 'versionCode ' + newCode).replace(/versionName\s+'[^']*'/, "versionName '1." + (newCode - 1) + "'");
     }
+    setState('attente');
+    if (!await confirmChange("MODIFICATION DE L'APPLICATION", resume, Object.keys(changed).join(', '))) return upgradeFail("Modification refusée. Je n'ai rien changé.");
+    setState('amelioration');
     prog.textContent = 'Envoi du code sur GitHub…';
     const zip = P.buildZipBase64(JSON.stringify(next));
     if (!zip || zip.startsWith('erreur')) return upgradeFail("Impossible de préparer le paquet : " + zip);
@@ -807,7 +834,8 @@ function renderSettings(){
     '<h2>Versions</h2>' +
     '<p class="hint">Page : version ' + (P ? P.appVersion() : '?') + ' · Application Android : ' + (P && typeof P.nativeVersion === 'function' ? '1.' + (P.nativeVersion() - 1) : '1.0') + '</p>' +
     '<div class="row"><span>Version précédente</span><button class="btn" id="undo">Restaurer</button></div>' +
-    '<div class="row"><span>Historique de conversation</span><button class="btn" id="clear-conv">Effacer</button></div>';
+    '<div class="row"><span>Historique de conversation</span><button class="btn" id="clear-conv">Effacer</button></div>' +
+    '<div class="row"><span>Tout remettre à zéro<br><span class="hint">Personnalité, souvenirs et historique</span></span><button class="btn" id="hard-reset">Réinitialiser</button></div>';
   $('#close-settings').onclick = () => { $('#sheet').hidden = true; };
   $('#hf').onchange = e => { setReglage('mainsLibres', String(e.target.checked)); if (!S.busy) idle(); };
   $('#voix').onchange = e => { S.reglages.voix = e.target.value; applyVoice(); store.set('reglages', S.reglages); };
@@ -825,6 +853,13 @@ function renderSettings(){
   $('#sheet-inner').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { S.faits.splice(+b.dataset.del, 1); store.set('memoire', S.faits); renderSettings(); });
   $('#undo').onclick = () => { $('#sheet').hidden = true; if (!S.busy) rollback(); };
   $('#clear-conv').onclick = () => { S.turns = []; store.set('conversation', []); $('#log').innerHTML = ''; sys('Historique effacé.'); };
+  $('#hard-reset').onclick = () => {
+    S.reglages.personnalite = DEFAUT.personnalite; store.set('reglages', S.reglages);
+    S.faits = []; store.set('memoire', []);
+    S.turns = []; store.set('conversation', []); $('#log').innerHTML = '';
+    $('#sheet').hidden = true;
+    sys('Poupous remis à zéro : personnalité par défaut, souvenirs et historique effacés.');
+  };
 }
 
 /* ---------- Démarrage ---------- */
@@ -841,26 +876,18 @@ $('#fichier').onchange = e => {
 };
 $('#texte').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value.trim() || (S.attachments.length ? 'Voici un fichier.' : ''); if (v && !S.busy) { e.target.value = ''; e.target.blur(); stopSpeaking(); ask(v).then(() => { if (!S.busy) idle(); }); } } });
 $('#open-settings').onclick = () => { renderSettings(); $('#sheet').hidden = false; };
-$('#sheet').onclick = e => { if (e.target.id === 'sheet') $('#sheet').hidden = true; };
+$('#sheet').onclick = e => { if (e.target.id !== 'sheet') return; if (S.confirmReject) { S.confirmReject(false); return; } $('#sheet').hidden = true; };
 setState('chargement');
 requestAnimationFrame(draw);
 window.__poupousOK = true;
 
 S.faits = store.get('memoire', []);
 Object.assign(S.reglages, store.get('reglages', {}));
-if (!store.get('resetPerso9', false)) {
-  store.set('resetPerso9', true);
-  if (S.reglages.personnalite !== DEFAUT.personnalite) {
-    S.reglages.personnalite = DEFAUT.personnalite;
-    store.set('reglages', S.reglages);
-    setTimeout(() => sys('Personnalité remise par défaut. Tu peux la modifier dans les réglages.'), 400);
-  }
-}
 S.turns = store.get('conversation', []);
 setTimeout(applyVoice, 800);
 if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
 if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forEach(x => addMsg(x.role === 'user' ? 'toi' : 'poupous', x.content)); }
-else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
+else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou \u00e9cris en bas. Tu peux aussi me demander de m'am\u00e9liorer.");
 idle();
 if (P && !brainReady()) openBrainKey(); else announce();
 if (S.reglages.mainsLibres) handsFree();
