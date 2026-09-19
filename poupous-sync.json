@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "sois là c'est la femme de ma vie c'est la personne la plus importante à mon cœur"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est gravé dans ma mémoire. Elle a une place précieuse dans ton cœur, et je serai toujours là pour veiller sur ce qui compte vraiment pour toi."
-    },
-    {
-      "role": "user",
       "content": "elle s'appelle Souhaila"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "C'est bien Souhaila, la personne la plus importante de ta vie et de ton cœur, et je ne l'oublierai jamais."
+    },
+    {
+      "role": "user",
+      "content": "j'ai du soleil là et tu as dit sois là"
+    },
+    {
+      "role": "assistant",
+      "content": "Ah, pardon, j'ai fourché ! Je voulais dire Souhaila, bien sûr. C'est elle la personne la plus importante de ton cœur, et je ne l'oublierai plus jamais."
     }
   ],
-  "updatedAt": "2026-09-19T06:53:59.717Z"
+  "updatedAt": "2026-09-19T06:54:11.747Z"
 }
