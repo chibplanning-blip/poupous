@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=41 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=42 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -1594,7 +1594,7 @@ if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forE
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
 idle();
 if (S.reglages.mainsLibres) setTimeout(handsFree, 300);
-if (P && !brainReady()) openBrainKey(); else { announce(); setTimeout(checkDailyDiagnostic, 2000); }
+if (P && !brainReady()) openBrainKey(); else { announce(); setTimeout(checkDailyDiagnostic, 5000); }
 loadShared();
 })();
 </script>
