@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "appelle Souhaila"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ouvre l'application Téléphone pour appeler Souhaila tout de suite."
-    },
-    {
-      "role": "user",
       "content": "il me faut des œufs"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "C'est parti, je modifie l'interface pour ajouter ce menu dédié aux courses prioritaires. Ça prend une à trois minutes et l'application va se recharger toute seule."
+    },
+    {
+      "role": "user",
+      "content": "les causes prioritaires c'est un magasin bien précis que tu dois me repérer"
+    },
+    {
+      "role": "assistant",
+      "content": "Je modifie l'interface pour bien séparer et repérer ce magasin ou cette catégorie de courses prioritaires. Ça prend une à trois minutes et l'application va se recharger toute seule."
     }
   ],
-  "updatedAt": "2026-09-19T07:44:48.213Z"
+  "updatedAt": "2026-09-19T07:46:52.134Z"
 }
