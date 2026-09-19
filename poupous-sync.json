@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Dis-moi les supermarchés qui se trouve juste à côté de moi"
-    },
-    {
-      "role": "assistant",
-      "content": "Juste à côté de toi sur la rue de Visé à Wandre, il y a le supermarché Aldi et le Wandre Market, tous deux implantés directement le long de cette même artère."
-    },
-    {
-      "role": "user",
       "content": "Je cherche un media markt"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "Je ne trouve aucun contact au nom de Propose dans ton répertoire. Comment s'appelle la personne à qui tu veux envoyer un message ?"
+    },
+    {
+      "role": "user",
+      "content": "il s'appelle Souhaila"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai trouvé Souhaila dans tes contacts. Dis-moi quel message tu veux lui envoyer et je te prépare ça."
     }
   ],
-  "updatedAt": "2026-09-19T05:37:47.368Z"
+  "updatedAt": "2026-09-19T05:38:13.057Z"
 }
