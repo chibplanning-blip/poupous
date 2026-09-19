@@ -14,7 +14,8 @@
     "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour s'occuper du bien-être de Souhaila.",
     "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour qu'il s'occupe du bien-être de Souhaila.",
     "Ne jamais ignorer le nom Souhaila quand l'utilisateur le prononce.",
-    "L'utilisateur souhaite que je surveille les supermarchés dans un rayon de 20 km pour comparer les prix."
+    "L'utilisateur souhaite que je surveille les supermarchés dans un rayon de 20 km pour comparer les prix.",
+    "Il y a des courses prioritaires dans la liste de courses."
   ],
   "conversation": [
     {
@@ -96,7 +97,11 @@
     {
       "role": "assistant",
       "content": "J'ai bien lancé la modification de l'application pour régler ce problème de batterie et de fond, ça va prendre quelques minutes. Tu me disais qu'il y avait eu une tentative, raconte-moi ce qui s'est passé."
+    },
+    {
+      "role": "user",
+      "content": "dans la liste des courses il y a des courses prioritaires"
     }
   ],
-  "updatedAt": "2026-09-19T07:34:34.227Z"
+  "updatedAt": "2026-09-19T07:44:08.882Z"
 }
