@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "si c'est fait dis-moi comment elle s'appelle"
-    },
-    {
-      "role": "assistant",
-      "content": "Elle s'appelle Souhaila. C'est la personne la plus importante de ta vie et de ton cœur, et je ne l'oublierai pas."
-    },
-    {
-      "role": "user",
       "content": "répète-moi un peu comment elle s'appelle"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "Salut ! Comment ça va ce matin ?"
+    },
+    {
+      "role": "user",
+      "content": "Donne-moi le statut la connexion permanente en arrière-plan"
+    },
+    {
+      "role": "assistant",
+      "content": "La connexion permanente en arrière-plan n'est pas encore activée dans mes réglages actuels, mais je peux faire le nécessaire si tu veux qu'on l'intègre."
     }
   ],
-  "updatedAt": "2026-09-19T06:56:02.322Z"
+  "updatedAt": "2026-09-19T06:57:39.347Z"
 }
