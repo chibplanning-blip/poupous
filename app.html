@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=40 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=41 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--green:#4ee0a6;--red:#ff6b6b;color-scheme:dark}
@@ -1267,6 +1267,42 @@ async function ask(text){
   else idle();
 }
 
+/* ---------- Auto-diagnostic quotidien ---------- */
+async function checkDailyDiagnostic() {
+  try {
+    if (!brainReady() || !P || typeof P.getApp !== 'function') return;
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const dernierDiag = store.get('dernierDiagnostic', '');
+    if (dernierDiag === aujourdhui) return;
+
+    const source = P.getApp();
+    if (!source) return;
+
+    store.set('dernierDiagnostic', aujourdhui);
+    
+    const sysPrompt = "Tu es Poupous, un assistant expert en code et auto-diagnostic. Analyse le code source de ton application fourni et repère 3 à 5 problèmes concrets (bugs, incohérences, fonctions cassées ou améliorations indispensables). Réponds directement sous forme d'un message chaleureux et naturel de Poupous (en français, sans markdown, sans émojis, une à trois phrases) commençant par \"Diagnostic du jour : j'ai repéré ceci...\" en listant les points précis et en demandant si l'utilisateur souhaite que tu en corriges un en particulier.";
+    const userMsg = "Voici mon code source actuel :\n" + source.slice(0, 40000);
+
+    let diagText = "";
+    if (provider() === 'gemini') {
+      const data = await geminiCall({systemInstruction:{parts:[{text:sysPrompt}]}, contents:[{role:'user', parts:[{text:userMsg}]}], generationConfig:{maxOutputTokens:1024}});
+      const c = (data.candidates || [])[0] || {};
+      diagText = ((c.content && c.content.parts) || []).filter(x => x.text && !x.thought).map(x => x.text).join('');
+    } else {
+      const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, system:sysPrompt, messages:[{role:'user', content:userMsg}]});
+      diagText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    }
+
+    if (diagText) {
+      const cleanedDiag = clean(diagText);
+      addMsg('poupous', cleanedDiag);
+      if (!S.busy && !S.speaking) {
+        speak(cleanedDiag).then(() => { if (!S.busy) idle(); });
+      }
+    }
+  } catch (e) {}
+}
+
 /* ---------- Auto-amélioration ---------- */
 const MK = n => '=' + '==' + n + '===';
 async function upgradeFail(msg){ sys(msg); await speak(msg); S.busy = false; idle(); }
@@ -1558,7 +1594,7 @@ if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forE
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
 idle();
 if (S.reglages.mainsLibres) setTimeout(handsFree, 300);
-if (P && !brainReady()) openBrainKey(); else announce();
+if (P && !brainReady()) openBrainKey(); else { announce(); setTimeout(checkDailyDiagnostic, 2000); }
 loadShared();
 })();
 </script>
