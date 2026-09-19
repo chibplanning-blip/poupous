@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "répète-moi un peu comment elle s'appelle"
-    },
-    {
-      "role": "assistant",
-      "content": "Elle s'appelle Souhaila, la personne la plus importante de ta vie et de ton cœur."
-    },
-    {
-      "role": "user",
       "content": "tu sais mon projet c'est d'implanter dans mon ordinateur ici maison et tu t'occupes de soirée là"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "La connexion permanente en arrière-plan n'est pas encore activée dans mes réglages actuels, mais je peux faire le nécessaire si tu veux qu'on l'intègre."
+    },
+    {
+      "role": "user",
+      "content": "J'ai deux choix soit annulé soit ? Je fais quoi"
+    },
+    {
+      "role": "assistant",
+      "content": "Tu peux choisir d'activer cette fonction en me demandant d'améliorer mon application pour qu'elle tourne en arrière-plan, ou on en reste là si tu préfères. Qu'est-ce qui te tente ?"
     }
   ],
-  "updatedAt": "2026-09-19T06:57:39.347Z"
+  "updatedAt": "2026-09-19T07:16:47.238Z"
 }
