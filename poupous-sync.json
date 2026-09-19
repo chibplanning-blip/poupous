@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "les propose je dois envoyer un message"
-    },
-    {
-      "role": "assistant",
-      "content": "Je ne trouve aucun contact au nom de Propose dans ton répertoire. Comment s'appelle la personne à qui tu veux envoyer un message ?"
-    },
-    {
-      "role": "user",
       "content": "il s'appelle Souhaila"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "C'est parti pour la mise à jour des couleurs de l'orbe et du texte de statut. Ça prend une à trois minutes, et l'application va se recharger toute seule juste après."
+    },
+    {
+      "role": "user",
+      "content": "Ajoute un auto-diagnostic quotidien. Au démarrage de l'application, vérifie la date du dernier diagnostic stockée (avec store.get et store.set, une nouvelle clé comme \"dernierDiagnostic\"). Si aucun diagnostic n'a été fait aujourd'hui, lance-en un automatiquement, une seule fois par jour, sans que je aie besoin de le demander. Le diagnostic : récupère ton propre code avec P.getApp(), puis envoie-le au cerveau (Claude ou Gemini selon le réglage actuel) avec une demande de relecture technique : repérer au maximum 3 à 5 problèmes concrets (bugs probables, incohérences, fonctions inutilisées ou cassées, oublis), pas de simples suggestions de style. Récupère la réponse sous forme de liste courte. Affiche ensuite ce résultat comme un message de toi dans la conversation, par exemple \"Diagnostic du jour : j'ai repéré ceci... Dis-moi si tu veux que je corrige un point en particulier.\" Important : n'applique aucune correction automatiquement. Attends que je te dise explicitement lequel corriger avant d'utiliser ameliorer_mon_code ou ameliorer_apk sur ce point précis. Enregistre la date du jour une fois le diagnostic terminé pour ne pas le refaire plusieurs fois le même jour."
+    },
+    {
+      "role": "assistant",
+      "content": "C'est parti ! J'ajoute l'auto-diagnostic quotidien. Ça prend une à trois minutes, et l'application va se recharger toute seule juste après."
     }
   ],
-  "updatedAt": "2026-09-19T05:45:30.416Z"
+  "updatedAt": "2026-09-19T06:03:10.906Z"
 }
