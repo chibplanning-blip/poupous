@@ -697,15 +697,20 @@ async function handsFree(){
     
     const w = findWake(r.text);
     if (!w) { await sleep(200); continue; }
-    
-    await speak("Oui, je t'écoute");
-    setState('ecoute');
-    const q = await listenOnce();
-    if (!S.reglages.mainsLibres) break;
-    if (q.text) {
-      const qNorm = norm(q.text);
-      if (qNorm === 'stop' || qNorm.includes('arrete')) continue;
-      await ask(q.text);
+
+    if (w.rest) {
+      const restNorm = norm(w.rest);
+      if (restNorm !== 'stop' && !restNorm.includes('arrete')) await ask(w.rest);
+    } else {
+      await speak("Oui, je t'écoute");
+      setState('ecoute');
+      const q = await listenOnce();
+      if (!S.reglages.mainsLibres) break;
+      if (q.text) {
+        const qNorm = norm(q.text);
+        if (qNorm === 'stop' || qNorm.includes('arrete')) continue;
+        await ask(q.text);
+      }
     }
     await followUps();
     await sleep(200);
@@ -1552,6 +1557,7 @@ if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
 if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forEach(x => addMsg(x.role === 'user' ? 'toi' : 'poupous', x.content)); }
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou écris en bas. Tu peux aussi me demander de m'améliorer.");
 idle();
+if (S.reglages.mainsLibres) setTimeout(handsFree, 300);
 if (P && !brainReady()) openBrainKey(); else announce();
 loadShared();
 })();
