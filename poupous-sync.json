@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "supermarché de préférence Intermarché"
-    },
-    {
-      "role": "assistant",
-      "content": "Je note ta préférence pour l'Intermarché, mais je n'en ai pas trouvé tout près de ta position actuelle. Je garde l'œil ouvert dès qu'un Intermarché croisera notre route."
-    },
-    {
-      "role": "user",
       "content": "c'est bizarre tu as comparé avec OpenStreetMap"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "C'est un honneur absolu. J'ajuste immédiatement mon ton et ma posture pour incarner cette excellence britannique et veiller sur vous avec la plus grande rigueur."
+    },
+    {
+      "role": "user",
+      "content": "est-ce que tu l'as déjà fait"
+    },
+    {
+      "role": "assistant",
+      "content": "Oui, monsieur. J'ai immédiatement appliqué ces nouveaux paramètres vocaux et comportementaux pour répondre désormais avec toute la distinction et la dévotion requises."
     }
   ],
-  "updatedAt": "2026-09-19T08:10:08.174Z"
+  "updatedAt": "2026-09-19T08:10:55.055Z"
 }
