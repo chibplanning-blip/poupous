@@ -8,14 +8,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Revien dans un ton normal"
-    },
-    {
-      "role": "assistant",
-      "content": "Très bien, Ahmed, je reprends un ton plus conventionnel. Que puis-je faire pour vous désormais ?"
-    },
-    {
-      "role": "user",
       "content": "Il faut des api de programmation"
     },
     {
@@ -85,7 +77,15 @@
     {
       "role": "assistant",
       "content": "J'ai lancé la modification du code pour intégrer la prise en charge d'autres API de programmation, Ahmed. L'interface va se recharger d'un instant à l'autre."
+    },
+    {
+      "role": "user",
+      "content": "Dis-moi tu as quoi comme api tu fonctionnes en simultané"
+    },
+    {
+      "role": "assistant",
+      "content": "Je ne fonctionne pas en simultané avec plusieurs API externes en direct, Ahmed, je m'appuie principalement sur les outils que l'on m'a fournis et les recherches internet que j'effectue à la demande. Voulez-vous que je consulte les interfaces de programmation disponibles pour cette application ou que j'ajoute de nouvelles fonctionnalités ?"
     }
   ],
-  "updatedAt": "2026-09-19T15:28:09.928Z"
+  "updatedAt": "2026-09-19T15:31:08.936Z"
 }
