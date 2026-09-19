@@ -10,7 +10,8 @@
     "L'utilisateur a posé la question 'tu sais moi'",
     "La femme de l'utilisateur est la personne la plus importante de sa vie et de son cœur.",
     "La femme de l'utilisateur s'appelle Souhaila et c'est la personne la plus importante de sa vie et de son cœur.",
-    "Le projet de l'utilisateur est d'implanter Poupous dans son ordinateur à la maison, et que je m'occupe de sa soirée."
+    "Le projet de l'utilisateur est d'implanter Poupous dans son ordinateur à la maison, et que je m'occupe de sa soirée.",
+    "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour s'occuper du bien-être de Souhaila."
   ],
   "conversation": [
     {
@@ -92,7 +93,11 @@
     {
       "role": "assistant",
       "content": "C'est noté. J'ai hâte qu'on installe Poupous sur ton ordinateur à la maison pour que je puisse m'occuper de tes soirées !"
+    },
+    {
+      "role": "user",
+      "content": "pas de mes soirées de t'occuper du bien-être de soi et là"
     }
   ],
-  "updatedAt": "2026-09-19T06:52:53.475Z"
+  "updatedAt": "2026-09-19T06:53:07.008Z"
 }
