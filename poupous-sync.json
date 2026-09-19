@@ -11,14 +11,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "il s'appelle Souhaila"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ai trouvé Souhaila dans tes contacts. Dis-moi quel message tu veux lui envoyer et je te prépare ça."
-    },
-    {
-      "role": "user",
       "content": "je veux lui envoyer un message d'amour tu peux me montrer qu'est-ce que je peux lui envoyer"
     },
     {
@@ -88,7 +80,15 @@
     {
       "role": "assistant",
       "content": "C'est parti ! J'ajoute l'auto-diagnostic quotidien. Ça prend une à trois minutes, et l'application va se recharger toute seule juste après."
+    },
+    {
+      "role": "user",
+      "content": "laisse-le appliquer (une à trois minutes), et la prochaine fois que tu rouvriras l'appli un nouveau jour, tu devrais voir apparaître son premier diagnostic. Dis-moi ce qu'il en ressort."
+    },
+    {
+      "role": "assistant",
+      "content": "C'est parti ! J'ajoute l'auto-diagnostic quotidien. Ça prend une à trois minutes, et l'application va se recharger toute seule juste après."
     }
   ],
-  "updatedAt": "2026-09-19T06:03:10.906Z"
+  "updatedAt": "2026-09-19T06:46:35.716Z"
 }
