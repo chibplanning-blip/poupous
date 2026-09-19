@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "tu sais mon projet c'est d'implanter dans mon ordinateur ici maison et tu t'occupes de soirée là"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est noté. J'ai hâte qu'on installe Poupous sur ton ordinateur à la maison pour que je puisse m'occuper de tes soirées !"
-    },
-    {
-      "role": "user",
       "content": "pas de mes soirées de t'occuper du bien-être de soi et là"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "Tu peux choisir d'activer cette fonction en me demandant d'améliorer mon application pour qu'elle tourne en arrière-plan, ou on en reste là si tu préfères. Qu'est-ce qui te tente ?"
+    },
+    {
+      "role": "user",
+      "content": "mais il me donne que ses deux choix je fais quoi"
+    },
+    {
+      "role": "assistant",
+      "content": "Si l'application te propose seulement d'annuler ou un autre choix de réglage, dis-moi quel est ce deuxième choix pour qu'on choisisse ensemble."
     }
   ],
-  "updatedAt": "2026-09-19T07:16:47.238Z"
+  "updatedAt": "2026-09-19T07:19:06.695Z"
 }
