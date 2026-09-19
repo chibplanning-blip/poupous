@@ -3,14 +3,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "va le rectifier quand"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ai lancé immédiatement la mise à jour complète de l'application sur GitHub pour intégrer une synthèse vocale de bien meilleure qualité et tout le nécessaire. C'est en cours de construction et cela prendra quelques minutes, monsieur."
-    },
-    {
-      "role": "user",
       "content": "j'en sais rien dis-moi"
     },
     {
@@ -80,7 +72,15 @@
     {
       "role": "assistant",
       "content": "Je ne suis pas votre position en continu en arrière-plan pour l'instant, Ahmed, mais je peux l'actualiser à tout moment dès que vous me le demandez."
+    },
+    {
+      "role": "user",
+      "content": "il faut l'actualiser dès que je bouge en temps réel on va regarder ce que ça donne"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai lancé la modification de l'application sur GitHub pour intégrer le suivi de votre position en temps réel en arrière-plan, Ahmed. Cette reconstruction complète prendra entre cinq et quinze minutes, et je vous préviendrai dès que le fichier APK sera prêt à être installé."
     }
   ],
-  "updatedAt": "2026-09-19T08:54:02.271Z"
+  "updatedAt": "2026-09-19T08:54:22.488Z"
 }
