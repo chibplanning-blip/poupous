@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Vas-y fais le truc là qu'on a parlé de la batterie"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est parti, je lance la modification de l'application pour activer cette connexion permanente en arrière-plan. Ça va prendre entre cinq et quinze minutes, garde l'application ouverte et je te préviendrai dès que ce sera prêt."
-    },
-    {
-      "role": "user",
       "content": "je t'avais dit que j'ai reçu une tentative"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Je vois que tu roules le long du port de Monsin à Liège, je suis ton déplacement en temps réel pour repérer le prochain supermarché."
+    },
+    {
+      "role": "user",
+      "content": "supermarché de préférence Intermarché"
+    },
+    {
+      "role": "assistant",
+      "content": "Je note ta préférence pour l'Intermarché, mais je n'en ai pas trouvé tout près de ta position actuelle. Je garde l'œil ouvert dès qu'un Intermarché croisera notre route."
     }
   ],
-  "updatedAt": "2026-09-19T07:52:40.272Z"
+  "updatedAt": "2026-09-19T07:53:00.012Z"
 }
