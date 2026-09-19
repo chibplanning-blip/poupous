@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "c'est quoi le supermarchés qui est le plus proche de moi"
-    },
-    {
-      "role": "assistant",
-      "content": "D'après ta position actuelle au port de Monsin à Liège, le supermarché le plus proche est le Colruyt ou le Carrefour situés un peu plus bas vers Herstal ou Liège centre, à quelques minutes en voiture."
-    },
-    {
-      "role": "user",
       "content": "je suis à 500 m à supermarché dès le mois je t'ai déjà programmé mais je te rappelle"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "J'ai lancé la correction immédiate sur GitHub pour régler le radar des supermarchés et ajouter l'affichage de mes réflexions en direct. Ça va prendre entre cinq et quinze minutes, laisse bien l'application ouverte et je te préviens dès que c'est prêt à installer."
+    },
+    {
+      "role": "user",
+      "content": "popo c'est ici c'est le Intermarché"
+    },
+    {
+      "role": "assistant",
+      "content": "Ah, parfait, un Intermarché ! Je l'enregistre tout de suite et je lance la recherche de sa position pour mettre nos données à jour."
     }
   ],
-  "updatedAt": "2026-09-19T08:02:03.887Z"
+  "updatedAt": "2026-09-19T08:09:16.668Z"
 }
