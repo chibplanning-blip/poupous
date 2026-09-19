@@ -6,14 +6,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Dis-moi c'est comment tu recherches toi les a payés sur Google sur je veux dire open street Map c'est quoi la formule que tu tapes"
-    },
-    {
-      "role": "assistant",
-      "content": "J'interroge généralement OpenStreetMap via des requêtes de type Overpass API en envoyant des coordonnées géographiques ou un nom de lieu pour récupérer des données cartographiques précises. Concernant les clés API, je ne vais pas les chercher moi-même sur Internet, c'est vous qui me les fournissez pour que je puisse accéder aux services correspondants."
-    },
-    {
-      "role": "user",
       "content": "Tu as fait la mise à jour"
     },
     {
@@ -83,7 +75,15 @@
     {
       "role": "assistant",
       "content": "C'est un week-end fort paisible qui s'annonce, propice à la détente et à une bonne conversation. Et de votre côté, Wael, avez-vous de beaux projets prévus pour ces deux jours ?"
+    },
+    {
+      "role": "user",
+      "content": "et ce weekend"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est un week-end fort calme et reposant qui se profile à l'horizon, Ahmed. Si vous avez le moindre projet ou la moindre course à préparer, je reste entièrement à votre service."
     }
   ],
-  "updatedAt": "2026-09-19T10:04:31.000Z"
+  "updatedAt": "2026-09-19T10:04:42.641Z"
 }
