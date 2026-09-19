@@ -12,7 +12,8 @@
     "La femme de l'utilisateur s'appelle Souhaila et c'est la personne la plus importante de sa vie et de son cœur.",
     "Le projet de l'utilisateur est d'implanter Poupous dans son ordinateur à la maison, et que je m'occupe de sa soirée.",
     "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour s'occuper du bien-être de Souhaila.",
-    "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour qu'il s'occupe du bien-être de Souhaila."
+    "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour qu'il s'occupe du bien-être de Souhaila.",
+    "Ne jamais ignorer le nom Souhaila quand l'utilisateur le prononce."
   ],
   "conversation": [
     {
@@ -94,7 +95,11 @@
     {
       "role": "assistant",
       "content": "C'est enregistré, mon rôle sera de m'occuper du bien-être de Souhaila quand je serai sur ton ordinateur à la maison. Je veille au grain."
+    },
+    {
+      "role": "user",
+      "content": "Il y a un bec dans ton système quand j'ai du soleil là tu l'ignores je veux pas que tu l'ignore donc sois là tu dois jamais l'ignorer quand je prononce son mot"
     }
   ],
-  "updatedAt": "2026-09-19T06:53:15.318Z"
+  "updatedAt": "2026-09-19T06:53:34.887Z"
 }
