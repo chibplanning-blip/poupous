@@ -5,14 +5,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Lance-moi l'installation"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ouvre l'écran d'installation de la mise à jour, Ahmed. Vous pouvez finaliser l'installation dès à présent."
-    },
-    {
-      "role": "user",
       "content": "Est-ce que tu as les API de Google maps"
     },
     {
@@ -86,7 +78,11 @@
     {
       "role": "user",
       "content": "Tu as besoin d outils fais le a la prochaine mise a jour tu fais la mise a jour 1 par 1 tu mets ça dans une liste ici il est chaud tu mets pas les autres tant que ce qui échoué n'a pas été fait compris donc la mise à jour que tu es en train de faire tant qu'il a pas été fait tu peux pas tu passes pas la suivante c'est celle que je te demande là maintenant tu le laisses dans une liste tu crées une liste avec les mises à jour mais à chaque fois qu'il faut que je te demande une mise à jour tu le mets dans la liste et tu lui supprime mais tu le laisses dans ton look pour voir les changements"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est parfaitement compris, Ahmed. J'ai enregistré cette consigne essentielle : dorénavant, les demandes de mise à jour seront gérées dans une file d'attente stricte, une seule à la fois, et je ne passerai à la suivante qu'une fois la précédente totalement achevée, tout en maintenant un journal détaillé des changements."
     }
   ],
-  "updatedAt": "2026-09-19T09:35:06.623Z"
+  "updatedAt": "2026-09-19T09:35:07.851Z"
 }
