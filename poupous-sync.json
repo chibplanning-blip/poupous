@@ -6,14 +6,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Est-ce que tu as les API de Google maps"
-    },
-    {
-      "role": "assistant",
-      "content": "Je ne dispose pas directement des clés API payantes ou privées de Google Maps dans mon code actuel, Ahmed, mais nous pourrions tout à fait les intégrer lors d'une prochaine mise à jour si vous le souhaitez."
-    },
-    {
-      "role": "user",
       "content": "Comment tu vas les intégrer si je peux pas il y a rien pour faire rentrer les API"
     },
     {
@@ -87,7 +79,11 @@
     {
       "role": "user",
       "content": "Dis-moi c'est comment tu recherches toi les a payés sur Google sur je veux dire open street Map c'est quoi la formule que tu tapes"
+    },
+    {
+      "role": "assistant",
+      "content": "J'interroge généralement OpenStreetMap via des requêtes de type Overpass API en envoyant des coordonnées géographiques ou un nom de lieu pour récupérer des données cartographiques précises. Concernant les clés API, je ne vais pas les chercher moi-même sur Internet, c'est vous qui me les fournissez pour que je puisse accéder aux services correspondants."
     }
   ],
-  "updatedAt": "2026-09-19T09:40:04.394Z"
+  "updatedAt": "2026-09-19T09:40:27.255Z"
 }
