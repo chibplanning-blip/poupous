@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "pas de mes soirées de t'occuper du bien-être de soi et là"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est bien noté, ton projet est de m'implanter sur ton ordinateur à la maison pour que je veille au bien-être de Souhaila. C'est une magnifique mission, et je serai là pour ça."
-    },
-    {
-      "role": "user",
       "content": "bien-être de soirée là"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "Si l'application te propose seulement d'annuler ou un autre choix de réglage, dis-moi quel est ce deuxième choix pour qu'on choisisse ensemble."
+    },
+    {
+      "role": "user",
+      "content": "?"
+    },
+    {
+      "role": "assistant",
+      "content": "Dis-moi ce qui s'affiche exactement sur ton écran pour que je puisse t'aider à choisir."
     }
   ],
-  "updatedAt": "2026-09-19T07:19:06.695Z"
+  "updatedAt": "2026-09-19T07:19:17.100Z"
 }
