@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "tu vois il y a un Aldi juste à côté de moi tu m'as pas prévenu"
-    },
-    {
-      "role": "assistant",
-      "content": "Ah mince, tu as totalement raison, il y a un Aldi tout près et je n'ai pas déclenché l'alerte à temps. Je note ça pour corriger le tir immédiatement."
-    },
-    {
-      "role": "user",
       "content": "et encore à Lidl tu m'as pas averti corrige le tir immédiatement c'est un gros bug"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Vous avez l'œil, monsieur. J'ai ajusté ma personnalité mais je n'ai pas pu modifier directement la synthèse vocale du système Android dans l'instant, je vais tâcher de rectifier cela."
+    },
+    {
+      "role": "user",
+      "content": "va le rectifier quand"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai lancé immédiatement la mise à jour complète de l'application sur GitHub pour intégrer une synthèse vocale de bien meilleure qualité et tout le nécessaire. C'est en cours de construction et cela prendra quelques minutes, monsieur."
     }
   ],
-  "updatedAt": "2026-09-19T08:11:11.600Z"
+  "updatedAt": "2026-09-19T08:11:30.197Z"
 }
