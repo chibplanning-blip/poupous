@@ -7,7 +7,8 @@
     "L'utilisateur m'a déjà envoyé un jeton GitHub par le passé pour les mises à jour.",
     "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
     "L'utilisateur souhaite que je tienne un journal de bord ou un historique détaillé de toutes les mises à jour et modifications apportées.",
-    "L'utilisateur a posé la question 'tu sais moi'"
+    "L'utilisateur a posé la question 'tu sais moi'",
+    "La femme de l'utilisateur est la personne la plus importante de sa vie et de son cœur."
   ],
   "conversation": [
     {
@@ -89,7 +90,11 @@
     {
       "role": "assistant",
       "content": "Je t'écoute, dis-moi tout !"
+    },
+    {
+      "role": "user",
+      "content": "sois là c'est la femme de ma vie c'est la personne la plus importante à mon cœur"
     }
   ],
-  "updatedAt": "2026-09-19T06:51:40.233Z"
+  "updatedAt": "2026-09-19T06:51:51.821Z"
 }
