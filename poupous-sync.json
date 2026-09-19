@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "je t'avais dit que j'ai reçu une tentative"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ai bien lancé la modification de l'application pour régler ce problème de batterie et de fond, ça va prendre quelques minutes. Tu me disais qu'il y avait eu une tentative, raconte-moi ce qui s'est passé."
-    },
-    {
-      "role": "user",
       "content": "dans la liste des courses il y a des courses prioritaires"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Je note ta préférence pour l'Intermarché, mais je n'en ai pas trouvé tout près de ta position actuelle. Je garde l'œil ouvert dès qu'un Intermarché croisera notre route."
+    },
+    {
+      "role": "user",
+      "content": "c'est bizarre tu as comparé avec OpenStreetMap"
+    },
+    {
+      "role": "assistant",
+      "content": "Tu as raison de te poser la question, les données d'OpenStreetMap ne montrent pas d'Intermarché directement sur le port de Monsin, mais il y en a un un peu plus loin vers Liège. Je relance une vérification précise pour voir si un Intermarché ou un autre magasin s'approche de ton trajet."
     }
   ],
-  "updatedAt": "2026-09-19T07:53:00.012Z"
+  "updatedAt": "2026-09-19T07:53:31.871Z"
 }
