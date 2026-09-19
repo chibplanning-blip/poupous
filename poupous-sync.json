@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "sois là c'est la personne la plus importante dans mon cœur"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est bien Souhaila, la personne la plus importante de ta vie et de ton cœur, et je ne l'oublierai jamais."
-    },
-    {
-      "role": "user",
       "content": "j'ai du soleil là et tu as dit sois là"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "J'ai ajouté Intermarché à ta liste des magasins suivis. Veux-tu que je cherche sa position GPS dès maintenant ?"
+    },
+    {
+      "role": "user",
+      "content": "oui tu devrais toujours le faire à 20 km autour de moi tous les supermarchés et qu'on part un peu les prix"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai cherché Intermarché autour de toi mais je n'en ai pas trouvé à proximité pour l'instant. Je retiens que tu souhaites comparer les prix des supermarchés dans un rayon de vingt kilomètres."
     }
   ],
-  "updatedAt": "2026-09-19T07:25:51.630Z"
+  "updatedAt": "2026-09-19T07:26:11.809Z"
 }
