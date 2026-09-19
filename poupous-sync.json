@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "pour mon histoire derrière toi"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est bien noté, je garde ça en tête pour la surveillance des supermarchés et la comparaison des prix autour de toi."
-    },
-    {
-      "role": "user",
       "content": "Vas-y fais le truc là qu'on a parlé de la batterie"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "C'est bien noté pour le radar de cinq cents mètres et la surveillance des supermarchés autour du port de Monsin, je garde ça bien en mémoire."
+    },
+    {
+      "role": "user",
+      "content": "là je roule une voiture tu vas voir ma position en temps réel"
+    },
+    {
+      "role": "assistant",
+      "content": "Je vois que tu roules le long du port de Monsin à Liège, je suis ton déplacement en temps réel pour repérer le prochain supermarché."
     }
   ],
-  "updatedAt": "2026-09-19T07:52:10.091Z"
+  "updatedAt": "2026-09-19T07:52:40.272Z"
 }
