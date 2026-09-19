@@ -17,14 +17,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "laisse-le appliquer (une à trois minutes), et la prochaine fois que tu rouvriras l'appli un nouveau jour, tu devrais voir apparaître son premier diagnostic. Dis-moi ce qu'il en ressort."
-    },
-    {
-      "role": "assistant",
-      "content": "C'est parti ! J'ajoute l'auto-diagnostic quotidien. Ça prend une à trois minutes, et l'application va se recharger toute seule juste après."
-    },
-    {
-      "role": "user",
       "content": "Repare le et fait la mise a jour"
     },
     {
@@ -98,7 +90,11 @@
     {
       "role": "user",
       "content": "bien-être de soirée là"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est enregistré, mon rôle sera de m'occuper du bien-être de Souhaila quand je serai sur ton ordinateur à la maison. Je veille au grain."
     }
   ],
-  "updatedAt": "2026-09-19T06:53:14.270Z"
+  "updatedAt": "2026-09-19T06:53:15.318Z"
 }
