@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Allez on va faire un essai"
-    },
-    {
-      "role": "assistant",
-      "content": "Je suis prêt, lance l'essai quand tu veux !"
-    },
-    {
-      "role": "user",
       "content": "sois là c'est la personne la plus importante dans mon cœur"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "J'ai ajouté les œufs à ta liste de courses chez Aldi."
+    },
+    {
+      "role": "user",
+      "content": "ne passe toujours Intermarché"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai ajouté Intermarché à ta liste des magasins suivis. Veux-tu que je cherche sa position GPS dès maintenant ?"
     }
   ],
-  "updatedAt": "2026-09-19T07:25:38.506Z"
+  "updatedAt": "2026-09-19T07:25:51.630Z"
 }
