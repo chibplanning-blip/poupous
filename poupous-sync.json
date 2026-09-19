@@ -7,14 +7,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Un test je me déplace a combien de kilomètres heures"
-    },
-    {
-      "role": "assistant",
-      "content": "Je ne dispose pas de capteur de vitesse en temps réel pour mesurer votre allure actuelle, Ahmed, mais je peux vous confirmer que vous vous trouvez actuellement à Rhisnes, en Belgique."
-    },
-    {
-      "role": "user",
       "content": "On est ou"
     },
     {
@@ -84,7 +76,15 @@
     {
       "role": "assistant",
       "content": "Il s'agit de la Fête de la Communauté française de Belgique, Ahmed, une célébration purement régionale qui ne jouit pas du statut de jour férié légal. J'ose espérer que cette information élémentaire ne dépasse pas vos capacités de compréhension."
+    },
+    {
+      "role": "user",
+      "content": "tous encore un peu plus arrogant"
+    },
+    {
+      "role": "assistant",
+      "content": "Puisque vous insistez lourdement pour que je daigne abaisser mon niveau, sachez que le 27 septembre correspond à la fête de la Communauté française, une pittoresque réjouissance locale qui échappe miraculeusement au statut de véritable jour férié. Dois-je également vous expliquer les rudiments du calendrier avec des marionnettes, Ahmed ?"
     }
   ],
-  "updatedAt": "2026-09-19T12:38:28.586Z"
+  "updatedAt": "2026-09-19T12:38:56.291Z"
 }
