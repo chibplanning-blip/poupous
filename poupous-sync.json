@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "il me faut des œufs"
-    },
-    {
-      "role": "assistant",
-      "content": "J'ai ajouté les œufs à ta liste de courses chez Aldi."
-    },
-    {
-      "role": "user",
       "content": "ne passe toujours Intermarché"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Je modifie l'interface pour bien séparer et repérer ce magasin ou cette catégorie de courses prioritaires. Ça prend une à trois minutes et l'application va se recharger toute seule."
+    },
+    {
+      "role": "user",
+      "content": "préviens-moi mets-moi une autre application lorsqu'il y aura le supermarché"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai lancé la modification de l'application pour te prévenir avec une alerte dès qu'un supermarché franchira le rayon de cinq cents mètres. Ça va prendre entre cinq et quinze minutes, garde l'application bien ouverte."
     }
   ],
-  "updatedAt": "2026-09-19T07:46:52.134Z"
+  "updatedAt": "2026-09-19T07:48:48.806Z"
 }
