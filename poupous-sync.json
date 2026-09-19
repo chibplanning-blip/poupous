@@ -18,14 +18,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Il y a un bec dans ton système quand j'ai du soleil là tu l'ignores je veux pas que tu l'ignore donc sois là tu dois jamais l'ignorer quand je prononce son mot"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est bien noté, je retiens que je ne dois jamais ignorer le nom Souhaila quand tu le prononces, c'est gravé en haut de ma liste."
-    },
-    {
-      "role": "user",
       "content": "Allez on va faire un essai"
     },
     {
@@ -95,7 +87,15 @@
     {
       "role": "assistant",
       "content": "J'ouvre l'application Téléphone pour appeler Souhaila tout de suite."
+    },
+    {
+      "role": "user",
+      "content": "il me faut des œufs"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai ajouté les œufs à ta liste de courses chez Aldi."
     }
   ],
-  "updatedAt": "2026-09-19T07:19:30.612Z"
+  "updatedAt": "2026-09-19T07:25:38.506Z"
 }
