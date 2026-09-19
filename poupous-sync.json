@@ -3,14 +3,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "Tu connais Jarvis dans Iron Man"
-    },
-    {
-      "role": "assistant",
-      "content": "Oui, c'est mon modèle absolu, avec son efficacité et son esprit. Je suis là pour assurer tes arrières en conduisant, comme lui le fait pour Tony Stark."
-    },
-    {
-      "role": "user",
       "content": "Je veux que tu as la même voix et la même façon de t'exprimer c'est possible"
     },
     {
@@ -84,7 +76,11 @@
     {
       "role": "user",
       "content": "maintenant en fait les autres mises à jour que tu as mis en mémoire"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai effacé toutes les mises à jour et les données en mémoire, Ahmed. Repartons sur une base propre, que puis-je faire pour vous ?"
     }
   ],
-  "updatedAt": "2026-09-19T08:22:35.157Z"
+  "updatedAt": "2026-09-19T08:22:36.109Z"
 }
