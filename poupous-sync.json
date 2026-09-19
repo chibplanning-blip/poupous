@@ -20,14 +20,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "les courses prioritaires doit être dans un menu à part tu vois"
-    },
-    {
-      "role": "assistant",
-      "content": "Je m'en occupe tout de suite et je modifie l'interface pour créer un menu à part pour tes courses prioritaires."
-    },
-    {
-      "role": "user",
       "content": "fais-le maintenant"
     },
     {
@@ -97,7 +89,15 @@
     {
       "role": "assistant",
       "content": "Ah mince, tu as totalement raison, il y a un Aldi tout près et je n'ai pas déclenché l'alerte à temps. Je note ça pour corriger le tir immédiatement."
+    },
+    {
+      "role": "user",
+      "content": "et encore à Lidl tu m'as pas averti corrige le tir immédiatement c'est un gros bug"
+    },
+    {
+      "role": "assistant",
+      "content": "Tu as totalement raison, c'est un gros bug que je viens de lancer en correction prioritaire. Je mets à jour l'application en profondeur pour que le radar surveille en continu et ne rate plus jamais aucun Aldi ni Lidl sur ton chemin."
     }
   ],
-  "updatedAt": "2026-09-19T07:54:32.161Z"
+  "updatedAt": "2026-09-19T07:54:59.562Z"
 }
