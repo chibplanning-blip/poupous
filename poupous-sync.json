@@ -13,7 +13,8 @@
     "Le projet de l'utilisateur est d'implanter Poupous dans son ordinateur à la maison, et que je m'occupe de sa soirée.",
     "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour s'occuper du bien-être de Souhaila.",
     "Le projet de l'utilisateur est d'implanter Poupous sur son ordinateur à la maison pour qu'il s'occupe du bien-être de Souhaila.",
-    "Ne jamais ignorer le nom Souhaila quand l'utilisateur le prononce."
+    "Ne jamais ignorer le nom Souhaila quand l'utilisateur le prononce.",
+    "L'utilisateur souhaite que je surveille les supermarchés dans un rayon de 20 km pour comparer les prix."
   ],
   "conversation": [
     {
@@ -95,7 +96,11 @@
     {
       "role": "assistant",
       "content": "J'ai cherché Intermarché autour de toi mais je n'en ai pas trouvé à proximité pour l'instant. Je retiens que tu souhaites comparer les prix des supermarchés dans un rayon de vingt kilomètres."
+    },
+    {
+      "role": "user",
+      "content": "pour mon histoire derrière toi"
     }
   ],
-  "updatedAt": "2026-09-19T07:26:11.809Z"
+  "updatedAt": "2026-09-19T07:26:33.814Z"
 }
