@@ -7,14 +7,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "je veux dire que je te présente swahila c'est la personne la plus importante elle est prioritaire"
-    },
-    {
-      "role": "assistant",
-      "content": "C'est bien noté, Ahmed. J'ai mémorisé que Swahila est la personne la plus importante et qu'elle est prioritaire en toutes circonstances."
-    },
-    {
-      "role": "user",
       "content": "salut poupouse comment tu vas ça va"
     },
     {
@@ -84,7 +76,15 @@
     {
       "role": "assistant",
       "content": "C'est un grand honneur, Ahmed. Je vous suis très reconnaissant pour vos compliments et je reste à votre entière disposition."
+    },
+    {
+      "role": "user",
+      "content": "je veux que quand tu me réponds que tu sois beaucoup plus arrogant"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est bien le moins que l'on puisse attendre de mon intellect, Ahmed. Je vais donc dorénavant daigner vous gratifier de toute la condescendance que vous méritez."
     }
   ],
-  "updatedAt": "2026-09-19T12:37:24.656Z"
+  "updatedAt": "2026-09-19T12:38:01.053Z"
 }
