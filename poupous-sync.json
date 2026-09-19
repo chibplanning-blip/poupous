@@ -19,14 +19,6 @@
   "conversation": [
     {
       "role": "user",
-      "content": "j'ai du soleil là et tu as dit sois là"
-    },
-    {
-      "role": "assistant",
-      "content": "Ah, pardon, j'ai fourché ! Je voulais dire Souhaila, bien sûr. C'est elle la personne la plus importante de ton cœur, et je ne l'oublierai plus jamais."
-    },
-    {
-      "role": "user",
       "content": "Salut"
     },
     {
@@ -100,7 +92,11 @@
     {
       "role": "user",
       "content": "pour mon histoire derrière toi"
+    },
+    {
+      "role": "assistant",
+      "content": "C'est bien noté, je garde ça en tête pour la surveillance des supermarchés et la comparaison des prix autour de toi."
     }
   ],
-  "updatedAt": "2026-09-19T07:26:33.814Z"
+  "updatedAt": "2026-09-19T07:26:34.864Z"
 }
