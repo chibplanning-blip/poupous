@@ -1,6 +1,7 @@
 {
   "memoire": [
-    "Mettre en place une file d'attente rigoureuse pour les mises à jour : une seule à la fois, bloquante jusqu'à son achèvement, et garder un journal (log) des changements effectués."
+    "Mettre en place une file d'attente rigoureuse pour les mises à jour : une seule à la fois, bloquante jusqu'à son achèvement, et garder un journal (log) des changements effectués.",
+    "L'utilisateur Ahmed demande comment je cherche les API et utilise OpenStreetMap. Je dois retenir la file d'attente rigoureuse pour les mises à jour et le journal des changements."
   ],
   "conversation": [
     {
@@ -82,7 +83,11 @@
     {
       "role": "assistant",
       "content": "C'est parfaitement compris, Ahmed. J'ai enregistré cette consigne essentielle : dorénavant, les demandes de mise à jour seront gérées dans une file d'attente stricte, une seule à la fois, et je ne passerai à la suivante qu'une fois la précédente totalement achevée, tout en maintenant un journal détaillé des changements."
+    },
+    {
+      "role": "user",
+      "content": "Dis-moi c'est comment tu recherches toi les a payés sur Google sur je veux dire open street Map c'est quoi la formule que tu tapes"
     }
   ],
-  "updatedAt": "2026-09-19T09:35:07.851Z"
+  "updatedAt": "2026-09-19T09:40:04.394Z"
 }
