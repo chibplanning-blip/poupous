@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=10 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=11 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -45,6 +45,15 @@ input[type=range]{accent-color:var(--cyan)}
 .btn.primary{background:var(--cyan);color:#04202a;border-color:var(--cyan);font-weight:700}
 .hint{color:var(--muted);font-size:13px}
 .keybox{display:flex;flex-direction:column;gap:12px}
+.carte{position:relative;overflow:hidden;height:220px;border-radius:16px;border:1px solid var(--line);background:var(--ink);margin-top:10px}
+.carte-in{position:absolute;width:768px;height:768px}
+.pin{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--amber);border:2px solid #04202a;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.pin.moi{background:var(--cyan);width:16px;height:16px;margin:-8px 0 0 -8px}
+.item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.item .txt{flex:1;font-size:16px}
+.item.ok .txt{text-decoration:line-through;color:var(--muted)}
+.mag{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.mag .km{color:var(--cyan);font-weight:700;white-space:nowrap}
 .clip{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
 .attach{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
 .attach:empty{display:none}
@@ -82,6 +91,7 @@ const STATES = {
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
+const CART = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L20.5 7H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>';
 const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
 
 /* ---------- Pont avec l'appli Android ---------- */
@@ -112,7 +122,8 @@ const store = {
 /* ---------- Interface ---------- */
 $('#app').innerHTML =
   '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div></div>' +
-  '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></header>' +
+  '<div style="display:flex;gap:10px"><button class="icon-btn" id="open-courses" aria-label="Courses">' + CART + '</button>' +
+  '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
   '<div class="log" id="log" aria-live="polite"></div>' +
   '<div class="attach" id="attach"></div>' +
@@ -265,6 +276,7 @@ function systemPrompt(){
     "ameliorer_mon_code : tu peux VRAIMENT modifier ton propre programme (interface, fonctionnalités, comportement) quand l'utilisateur le demande. Ne dis jamais que c'est impossible. Si la demande est floue, pose d'abord une courte question, puis donne à l'outil une demande détaillée. " +
     "annuler_derniere_amelioration : revenir à la version précédente.\n" +
     "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
+    "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture).\n" +
     "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
     "L'utilisateur est ton propriétaire : tu fais toujours ce qu'il demande, tu restes respectueux, et s'il te demande de changer de ton ou de revenir à ton comportement normal, tu obéis immédiatement avec l'outil changer_reglage (réglage personnalite).\n" +
     "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
@@ -282,6 +294,16 @@ function toolDefs(){
       input_schema:{type:'object', properties:{texte:{type:'string'}}, required:['texte']}},
     {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. mainsLibres : true ou false (écoute continue du mot Poupous tant que l'appli est ouverte).",
       input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
+    {name:'courses_ajouter', description:"Ajoute un ou plusieurs articles à la liste de courses (sépare-les par des virgules).",
+      input_schema:{type:'object', properties:{articles:{type:'string'}}, required:['articles']}},
+    {name:'courses_liste', description:"Renvoie la liste de courses : ce qu'il reste à prendre et ce qui est déjà pris.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'courses_cocher', description:"Marque un article de la liste comme pris.",
+      input_schema:{type:'object', properties:{article:{type:'string'}}, required:['article']}},
+    {name:'courses_vider', description:"Vide entièrement la liste de courses.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'magasins_proches', description:"Trouve les magasins d'alimentation autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
+      input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}}}},
     {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre juste après ta réponse, prend une à trois minutes, puis l'appli se recharge. Une sauvegarde permet d'annuler.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
     {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
@@ -315,6 +337,19 @@ async function runTool(name, input){
     if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé'; }
     if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
+    if (name === 'courses_ajouter') { const l = coursesAjouter(input.articles || ''); if (!$('#sheet').hidden) renderCourses(); return 'liste : ' + (l.filter(i => !i.ok).map(i => i.t).join(', ') || 'vide'); }
+    if (name === 'courses_liste') { const l = liste(); if (!l.length) return 'la liste est vide'; return 'à prendre : ' + (l.filter(i => !i.ok).map(i => i.t).join(', ') || 'rien') + ' ; déjà pris : ' + (l.filter(i => i.ok).map(i => i.t).join(', ') || 'rien'); }
+    if (name === 'courses_cocher') { const n = coursesCocher(String(input.article || '')); if (!$('#sheet').hidden) renderCourses(); return n ? n + ' article(s) marqué(s) comme pris' : 'aucun article ne correspond'; }
+    if (name === 'courses_vider') { setListe([]); if (!$('#sheet').hidden) renderCourses(); return 'liste vidée'; }
+    if (name === 'magasins_proches') {
+      const rayon = parseInt(input.rayon_m || store.get('rayon', 3000), 10);
+      let pos;
+      try { pos = input.adresse ? await geocode(String(input.adresse)) : await position(); }
+      catch (e) { return 'position impossible : ' + e.message + ". Demande à l'utilisateur une ville ou une adresse."; }
+      let m; try { m = await magasins(pos.lat, pos.lon, rayon); } catch (e) { return 'recherche impossible : ' + e.message; }
+      if (!m.length) return 'aucun magasin dans ' + Math.round(rayon / 1000) + ' km';
+      return m.slice(0, 8).map(x => x.nom + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + fmtKm(x.km)).join(' ; ');
+    }
     if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Accepté. L'amélioration démarre juste après ta réponse : préviens que ça prend une à trois minutes et que l'appli va se recharger."; }
     if (name === 'creer_fichier') {
       if (!hasFiles()) return NEED_APK;
@@ -574,6 +609,123 @@ async function ask(text){
   else idle();
 }
 
+/* ---------- Mode Courses : liste + magasins autour ---------- */
+const RAYONS = [[1000,'1 km'],[3000,'3 km'],[10000,'10 km'],[25000,'25 km']];
+const MAG = {shop:['supermarket','convenience','grocery','greengrocer','butcher','bakery']};
+function liste(){ return store.get('courses', []); }
+function setListe(l){ store.set('courses', l); return l; }
+function coursesAjouter(txt){
+  const l = liste();
+  String(txt).split(/[,;\n]|\bet\b/i).map(x => x.trim().replace(/^[-•\s]+/, '')).filter(x => x && x.length < 60)
+    .forEach(a => { if (!l.some(i => norm(i.t) === norm(a))) l.push({t:a, ok:false}); });
+  return setListe(l);
+}
+function coursesCocher(txt){
+  const l = liste(); let n = 0;
+  l.forEach(i => { if (!i.ok && norm(i.t).includes(norm(txt))) { i.ok = true; n++; } });
+  setListe(l); return n;
+}
+function distKm(a, b, c, d){
+  const R = 6371, r = x => x * Math.PI / 180;
+  const dl = r(c - a), dn = r(d - b);
+  const h = Math.sin(dl/2)*Math.sin(dl/2) + Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)*Math.sin(dn/2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function fmtKm(k){ return k < 1 ? Math.round(k * 1000) + ' m' : k.toFixed(k < 10 ? 1 : 0) + ' km'; }
+function position(){
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error("ce téléphone ne me donne pas la position"));
+    navigator.geolocation.getCurrentPosition(
+      p => { const o = {lat:p.coords.latitude, lon:p.coords.longitude, vit:p.coords.speed}; store.set('dernierePos', o); res(o); },
+      e => rej(new Error(e && e.code === 1 ? "autorisation de localisation refusée" : "position introuvable")),
+      {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+  });
+}
+async function geocode(q){
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+  if (!r.ok) throw new Error('recherche d adresse indisponible');
+  const j = await r.json();
+  if (!j.length) throw new Error('adresse introuvable');
+  return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
+}
+async function magasins(lat, lon, rayon){
+  const f = '"shop"~"^(' + MAG.shop.join('|') + ')$"';
+  const q = '[out:json][timeout:25];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 60;';
+  const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q)});
+  if (!r.ok) throw new Error('service des magasins indisponible (' + r.status + ')');
+  const j = await r.json();
+  return (j.elements || []).map(e => {
+    const la = e.lat != null ? e.lat : (e.center && e.center.lat);
+    const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
+    if (la == null || lo == null) return null;
+    const t = e.tags || {};
+    return {nom:t.name || 'Magasin', type:t.shop || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
+            adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
+  }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 15);
+}
+function carteHTML(lat, lon, pts){
+  const z = 14, n = Math.pow(2, z), W = 256;
+  const xy = (la, lo) => {
+    const r = la * Math.PI / 180;
+    return {x:(lo + 180) / 360 * n, y:(1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n};
+  };
+  const c = xy(lat, lon), x0 = Math.floor(c.x), y0 = Math.floor(c.y);
+  let h = '';
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+    h += '<img src="https://tile.openstreetmap.org/' + z + '/' + (x0 + dx) + '/' + (y0 + dy) + '.png" width="256" height="256" style="position:absolute;left:' + ((dx + 1) * W) + 'px;top:' + ((dy + 1) * W) + 'px" alt="">';
+  const px = (la, lo) => { const q = xy(la, lo); return {l:(q.x - x0 + 1) * W, t:(q.y - y0 + 1) * W}; };
+  const me = px(lat, lon);
+  h += '<div class="pin moi" style="left:' + me.l.toFixed(0) + 'px;top:' + me.t.toFixed(0) + 'px"></div>';
+  pts.slice(0, 12).forEach(p => { const q = px(p.lat, p.lon); h += '<div class="pin" style="left:' + q.l.toFixed(0) + 'px;top:' + q.t.toFixed(0) + 'px"></div>'; });
+  return '<div class="carte"><div class="carte-in" style="left:calc(50% - ' + me.l.toFixed(0) + 'px);top:calc(50% - ' + me.t.toFixed(0) + 'px)">' + h + '</div></div>' +
+    '<p class="hint">Carte © OpenStreetMap</p>';
+}
+function renderCourses(){
+  const l = liste(), reste = l.filter(i => !i.ok).length;
+  $('#sheet-inner').innerHTML =
+    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES</span><button class="btn" id="close-courses">Fermer</button></div>' +
+    '<h2>Ma liste' + (l.length ? ' · ' + reste + ' à prendre' : '') + '</h2>' +
+    '<div class="row" style="border:0"><input id="c-item" placeholder="Ajouter un article…" autocomplete="off" enterkeyhint="done" style="flex:1;min-width:0;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit"><button class="btn primary" id="c-add">Ajouter</button></div>' +
+    (l.length ? l.map((i, k) => '<div class="item' + (i.ok ? ' ok' : '') + '"><input type="checkbox" data-ok="' + k + '"' + (i.ok ? ' checked' : '') + '><span class="txt">' + esc(i.t) + '</span><button class="btn" data-rm="' + k + '">Retirer</button></div>').join('')
+      : '<p class="hint">Vide. Tu peux aussi dire « Poupous, ajoute du lait et des œufs à mes courses ».</p>') +
+    (l.some(i => i.ok) ? '<div class="row"><span class="hint">Articles déjà pris</span><button class="btn" id="c-clean">Retirer les cochés</button></div>' : '') +
+    '<h2>Magasins autour</h2>' +
+    '<div class="row"><label for="c-rayon">Distance</label><select id="c-rayon">' +
+      RAYONS.map(r => '<option value="' + r[0] + '"' + (String(store.get('rayon', 3000)) === String(r[0]) ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select></div>' +
+    '<div class="row" style="border:0"><span class="hint">Utilise ta position GPS</span><button class="btn primary" id="c-find">Chercher autour de moi</button></div>' +
+    '<div class="row" style="border:0"><input id="c-adr" placeholder="ou une ville / une adresse…" autocomplete="off" style="flex:1;min-width:0;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit"><button class="btn" id="c-adr-go">Chercher</button></div>' +
+    '<div id="c-res"></div>';
+  const add = () => { const v = $('#c-item').value.trim(); if (!v) return; coursesAjouter(v); renderCourses(); $('#c-item').focus(); };
+  $('#close-courses').onclick = () => { $('#sheet').hidden = true; };
+  $('#c-add').onclick = add;
+  $('#c-item').addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  $('#sheet-inner').querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const l2 = liste(); l2[+b.dataset.ok].ok = b.checked; setListe(l2); renderCourses(); });
+  $('#sheet-inner').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const l2 = liste(); l2.splice(+b.dataset.rm, 1); setListe(l2); renderCourses(); });
+  if ($('#c-clean')) $('#c-clean').onclick = () => { setListe(liste().filter(i => !i.ok)); renderCourses(); };
+  $('#c-rayon').onchange = e => store.set('rayon', parseInt(e.target.value, 10));
+  $('#c-find').onclick = () => chercherMagasins(null);
+  $('#c-adr-go').onclick = () => { const v = $('#c-adr').value.trim(); if (v) chercherMagasins(v); };
+}
+async function chercherMagasins(adresse){
+  const box = $('#c-res'); if (!box) return;
+  box.innerHTML = '<p class="hint">Recherche en cours…</p>';
+  const rayon = parseInt(($('#c-rayon') || {}).value || store.get('rayon', 3000), 10);
+  let pos;
+  try { pos = adresse ? await geocode(adresse) : await position(); }
+  catch (e) {
+    box.innerHTML = '<p class="hint">' + esc(e.message) + '. Tape une ville ou une adresse juste au-dessus, ça marche aussi.</p>';
+    return;
+  }
+  let m;
+  try { m = await magasins(pos.lat, pos.lon, rayon); }
+  catch (e) { box.innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; return; }
+  if (!m.length) { box.innerHTML = carteHTML(pos.lat, pos.lon, []) + '<p class="hint">Aucun magasin trouvé dans ce rayon. Essaie une distance plus grande.</p>'; return; }
+  box.innerHTML = carteHTML(pos.lat, pos.lon, m) +
+    m.map((x, i) => '<div class="mag"><div><div>' + esc(x.nom) + '</div>' + (x.adr ? '<div class="hint">' + esc(x.adr) + '</div>' : '') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px"><span class="km">' + fmtKm(x.km) + '</span><button class="btn" data-go="' + i + '">Y aller</button></div></div>').join('');
+  box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { const x = m[+b.dataset.go]; if (P && P.navigate) P.navigate(x.lat + ',' + x.lon); });
+}
+
 /* ---------- Validation obligatoire avant toute modification du code ---------- */
 function confirmChange(titre, resume, liste){
   return new Promise(resolve => {
@@ -621,7 +773,7 @@ async function runUpgrade(demande){
   if (iH < 0 || iF < iH) return upgradeFail("Je n'ai pas reçu un code complet. Je n'ai rien changé.");
   const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
   const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
-  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT']) {
+  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses']) {
     if (!html.includes(k)) return upgradeFail("Le nouveau code perdait une partie essentielle (" + k + "). Je n'ai rien changé.");
   }
   const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -876,6 +1028,7 @@ $('#fichier').onchange = e => {
 };
 $('#texte').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value.trim() || (S.attachments.length ? 'Voici un fichier.' : ''); if (v && !S.busy) { e.target.value = ''; e.target.blur(); stopSpeaking(); ask(v).then(() => { if (!S.busy) idle(); }); } } });
 $('#open-settings').onclick = () => { renderSettings(); $('#sheet').hidden = false; };
+$('#open-courses').onclick = () => { renderCourses(); $('#sheet').hidden = false; };
 $('#sheet').onclick = e => { if (e.target.id !== 'sheet') return; if (S.confirmReject) { S.confirmReject(false); return; } $('#sheet').hidden = true; };
 setState('chargement');
 requestAnimationFrame(draw);
