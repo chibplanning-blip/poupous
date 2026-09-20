@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=105 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=106 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -640,7 +640,7 @@ async function ask(text){
     if (e.gemini && e.message) sys('Détail Gemini (' + e.status + ') : ' + String(e.message).slice(0, 200));
   }
   if (S.lastOk && !S.pendingUpgrade && /(je (la |te la )?lance|je démarre|je m'en occupe|je (vais )?modifi|lance (vraiment )?la modif|patiente quelques minutes|c'est parti)/i.test(answer) && /(amélior|modifi|ajout|apk|mise à jour|code)/i.test(text + ' ' + answer)) {
-    sys("Attention : en réalité rien n'a été lancé. Pour lancer vraiment une modification, écris « APK: » suivi de ta demande (application Android) ou « PAGE: » suivi de ta demande (interface et comportement), ou utilise la rubrique Améliorer dans les réglages.");
+    sys("Attention : en réalité rien n'a été lancé. Pour une modification de son interface, passe par les réglages, rubrique Améliorer Poupous. Pour une fonction du téléphone, c'est Claude qui prépare la nouvelle version.");
   }
   if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
   await speak(answer);
