@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=13 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=14 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -85,7 +85,7 @@ const STATES = {
   reflexion:['#9d8cff','Je réfléchis…'],
   parole:['#ffb547','Je parle…'],
   amelioration:['#4ee0a6','Je modifie mon code…'],
-  attente:['#ffb547','J\u2019attends ta validation'],
+  attente:['#ffb547','Je j\u2019attends ta validation'],
   erreur:['#ff6b6b','Un souci est survenu']
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
@@ -638,31 +638,54 @@ function position(){
         navigator.geolocation.getCurrentPosition(
             p => { const o = {lat:p.coords.latitude, lon:p.coords.longitude, vit:p.coords.speed}; store.set('dernierePos', o); res(o); },
             e => {
-                if (high) attempt(false);
-                else rej(new Error(e && e.code === 1 ? "autorisation de localisation refusée" : "position introuvable"));
+                if (high) {
+                    attempt(false);
+                } else {
+                    const last = store.get('dernierePos', null);
+                    if (last) res(last);
+                    else rej(new Error(e && e.code === 1 ? "autorisation de localisation refusée" : "position introuvable (active le GPS)"));
+                }
             },
-            {enableHighAccuracy:high, timeout:20000, maximumAge:60000});
+            {enableHighAccuracy:high, timeout:10000, maximumAge:60000});
     };
     attempt(true);
   });
 }
 async function geocode(q){
-  const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
-  if (!r.ok) throw new Error('recherche d adresse indisponible');
-  const j = await r.json();
-  if (!j.length) throw new Error('adresse introuvable');
-  return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
+  const endpoints = [
+    'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q),
+    'https://nominatim.openstreetmap.fr/search?format=json&limit=1&q=' + encodeURIComponent(q)
+  ];
+  let lastErr;
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) throw new Error('status ' + r.status);
+      const j = await r.json();
+      if (j && j.length) return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
+    } catch(e) { lastErr = e; }
+  }
+  throw lastErr || new Error('adresse introuvable');
 }
 async function magasins(lat, lon, rayon){
   const f = '"shop"~"^(' + MAG.shop.join('|') + ')$"';
   const q = '[out:json][timeout:25];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 60;';
-  const endpoints = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://z.overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter'
+  ];
   let lastErr;
   for (const url of endpoints) {
     try {
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 10000);
-      const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q), signal:controller.signal});
+      const id = setTimeout(() => controller.abort(), 12000);
+      const targetUrl = url + '?data=' + encodeURIComponent(q);
+      const r = await fetch(targetUrl, {
+        method: 'GET',
+        signal: controller.signal
+      });
       clearTimeout(id);
       if (!r.ok) throw new Error('status ' + r.status);
       const j = await r.json();
@@ -676,7 +699,7 @@ async function magasins(lat, lon, rayon){
       }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 15);
     } catch(e) { lastErr = e; }
   }
-  throw lastErr;
+  throw lastErr || new Error('Erreur de connexion aux serveurs OpenStreetMap');
 }
 function carteHTML(lat, lon, pts){
   const z = 14, n = Math.pow(2, z), W = 256;
@@ -702,7 +725,7 @@ function renderCourses(){
     '<h2>Ma liste' + (l.length ? ' · ' + reste + ' à prendre' : '') + '</h2>' +
     '<div class="row" style="border:0"><input id="c-item" placeholder="Ajouter un article…" autocomplete="off" enterkeyhint="done" style="flex:1;min-width:0;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit"><button class="btn primary" id="c-add">Ajouter</button></div>' +
     (l.length ? l.map((i, k) => '<div class="item' + (i.ok ? ' ok' : '') + '"><input type="checkbox" data-ok="' + k + '"' + (i.ok ? ' checked' : '') + '><span class="txt">' + esc(i.t) + '</span><button class="btn" data-rm="' + k + '">Retirer</button></div>').join('')
-      : '<p class="hint">Vide. Tu peux aussi dire « Poupous, ajoute du lait et des œufs à mes courses ».</p>') +
+      : '<p class="hint">Vide. Tu peux aussi say « Poupous, ajoute du lait et des œufs à mes courses ».</p>') +
     (l.some(i => i.ok) ? '<div class="row"><span class="hint">Articles déjà pris</span><button class="btn" id="c-clean">Retirer les cochés</button></div>' : '') +
     '<h2>Magasins autour</h2>' +
     '<div class="row"><label for="c-rayon">Distance</label><select id="c-rayon">' +
