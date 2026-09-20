@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=14 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=15 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -659,7 +659,7 @@ async function geocode(q){
   let lastErr;
   for (const url of endpoints) {
     try {
-      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const r = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'PoupousAssistant/1.0' } });
       if (!r.ok) throw new Error('status ' + r.status);
       const j = await r.json();
       if (j && j.length) return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
@@ -669,21 +669,22 @@ async function geocode(q){
 }
 async function magasins(lat, lon, rayon){
   const f = '"shop"~"^(' + MAG.shop.join('|') + ')$"';
-  const q = '[out:json][timeout:25];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 60;';
+  const q = '[out:json][timeout:15];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 50;';
   const endpoints = [
+    'https://overpass.openstreetmap.fr/api/interpreter',
     'https://overpass-api.de/api/interpreter',
     'https://lz4.overpass-api.de/api/interpreter',
-    'https://z.overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter'
   ];
   let lastErr;
   for (const url of endpoints) {
     try {
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 12000);
-      const targetUrl = url + '?data=' + encodeURIComponent(q);
-      const r = await fetch(targetUrl, {
-        method: 'GET',
+      const id = setTimeout(() => controller.abort(), 15000);
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: 'data=' + encodeURIComponent(q),
         signal: controller.signal
       });
       clearTimeout(id);
@@ -697,7 +698,13 @@ async function magasins(lat, lon, rayon){
         return {nom:t.name || 'Magasin', type:t.shop || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
                 adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
       }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 15);
-    } catch(e) { lastErr = e; }
+    } catch(e) {
+      if (e.name === 'AbortError') {
+        lastErr = new Error("Délai d'attente dépassé pour " + new URL(url).hostname);
+      } else {
+        lastErr = e;
+      }
+    }
   }
   throw lastErr || new Error('Erreur de connexion aux serveurs OpenStreetMap');
 }
@@ -1078,7 +1085,7 @@ S.turns = store.get('conversation', []);
 setTimeout(applyVoice, 800);
 if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
 if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forEach(x => addMsg(x.role === 'user' ? 'toi' : 'poupous', x.content)); }
-else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou \u00e9cris en bas. Tu peux aussi me demander de m'am\u00e9liorer.");
+else addMsg('poupous', "Salut ! Appuie sur le micro and parle-moi, ou \u00e9cris en bas. Tu peux aussi me demander de m'am\u00e9liorer.");
 idle();
 if (P && !brainReady()) openBrainKey(); else announce();
 if (S.reglages.mainsLibres) handsFree();
