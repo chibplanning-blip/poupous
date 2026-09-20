@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=12 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=13 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -50,7 +50,6 @@ input[type=range]{accent-color:var(--cyan)}
 .pin{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--amber);border:2px solid #04202a;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 .pin.moi{background:var(--cyan);width:16px;height:16px;margin:-8px 0 0 -8px}
 .item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
-.item .txt{flex:1;font-size:16px}
 .item.ok .txt{text-decoration:line-through;color:var(--muted)}
 .mag{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .mag .km{color:var(--cyan);font-weight:700;white-space:nowrap}
@@ -635,10 +634,16 @@ function fmtKm(k){ return k < 1 ? Math.round(k * 1000) + ' m' : k.toFixed(k < 10
 function position(){
   return new Promise((res, rej) => {
     if (!navigator.geolocation) return rej(new Error("ce téléphone ne me donne pas la position"));
-    navigator.geolocation.getCurrentPosition(
-      p => { const o = {lat:p.coords.latitude, lon:p.coords.longitude, vit:p.coords.speed}; store.set('dernierePos', o); res(o); },
-      e => rej(new Error(e && e.code === 1 ? "autorisation de localisation refusée" : "position introuvable")),
-      {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+    const attempt = (high) => {
+        navigator.geolocation.getCurrentPosition(
+            p => { const o = {lat:p.coords.latitude, lon:p.coords.longitude, vit:p.coords.speed}; store.set('dernierePos', o); res(o); },
+            e => {
+                if (high) attempt(false);
+                else rej(new Error(e && e.code === 1 ? "autorisation de localisation refusée" : "position introuvable"));
+            },
+            {enableHighAccuracy:high, timeout:20000, maximumAge:60000});
+    };
+    attempt(true);
   });
 }
 async function geocode(q){
