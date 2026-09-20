@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=102 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=104 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -57,6 +57,7 @@ input[type=range]{accent-color:var(--cyan)}
 .clip{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
 .attach{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
 .attach:empty{display:none}
+.vidgen{max-width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin-top:8px;background:#000}
 .imggen{max-width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin-top:8px}
 .chipfile{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 12px;font-size:13px;max-width:100%}
 .chipfile span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
@@ -109,6 +110,7 @@ window.__contactsDone = (id, json) => settle(id, json);
 window.__posDone = (id, json) => settle(id, json);
 window.__githubDone = (id, status, text) => settle(id, {status, text});
 window.__httpDone = (id, status, text) => settle(id, {status, text});
+window.__telechargeDone = (id, res) => settle(id, res);
 window.__installDone = (id, result) => settle(id, result);
 window.__sharedAvailable = () => loadShared();
 const hasFiles = () => !!(P && typeof P.saveFile === 'function');
@@ -278,6 +280,8 @@ function systemPrompt(){
     "ameliorer_mon_code : tu peux VRAIMENT modifier ton propre programme (interface, fonctionnalités, comportement) quand l'utilisateur le demande. Ne dis jamais que c'est impossible. Si la demande est floue, pose d'abord une courte question, puis donne à l'outil une demande détaillée. " +
     "annuler_derniere_amelioration : revenir à la version précédente.\n" +
     "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
+    "Notifications : notifier envoie une notification tout de suite ; rappel en programme une pour plus tard, même appli fermée. Pour rappel, calcule toi-même le délai en secondes à partir de la date et de l'heure données plus haut. Utilise rappel plutôt que mettre_reveil quand l'utilisateur veut qu'on lui dise quelque chose, et mettre_reveil quand il veut vraiment une sonnerie de réveil.\n" +
+    "Vidéos : generer_video crée une vraie petite vidéo, en une à trois minutes. Décris la scène en anglais avec le mouvement de caméra. Préviens que c'est long et que l'appli doit rester ouverte. N'en propose pas pour une demande où une image suffirait.\n" +
     "Images : generer_image crée vraiment une image et l'affiche à l'écran. Écris la description en anglais et enrichis-la (sujet, décor, lumière, style), même si l'utilisateur te la donne en français en une phrase. Après, dis simplement ce que tu as dessiné.\n" +
     "Position : l'outil ma_position te donne sa rue et sa ville. Utilise-le dès qu'il demande où il est ; ne réponds jamais que tu n'as pas accès au GPS sans l'avoir appelé.\n" +
     "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
@@ -309,6 +313,12 @@ function toolDefs(){
     {name:'courses_vider', description:"Vide entièrement la liste de courses.",
       input_schema:{type:'object', properties:{}}},
     {name:'generer_image', description:"Crée une image à partir d'une description et l'affiche dans la conversation. Décris la scène en anglais, avec des détails visuels (sujet, décor, lumière, style).",
+      input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
+    {name:'notifier', description:"Envoie tout de suite une notification sur le téléphone, visible même si l'appli est fermée. Sers-t'en quand l'utilisateur veut être prévenu de quelque chose maintenant.",
+      input_schema:{type:'object', properties:{titre:{type:'string'}, message:{type:'string'}}, required:['titre','message']}},
+    {name:'rappel', description:"Programme une notification pour plus tard. Donne le délai en secondes à partir de maintenant : calcule-le toi-même à partir de ce que dit l'utilisateur (dans 10 minutes = 600, demain 9h = le nombre de secondes jusqu'à demain 9h en te servant de la date et de l'heure actuelles). Fonctionne appli fermée.",
+      input_schema:{type:'object', properties:{dans_secondes:{type:'integer'}, titre:{type:'string'}, message:{type:'string'}}, required:['dans_secondes','titre','message']}},
+    {name:'generer_video', description:"Crée une courte vidéo à partir d'une description. Décris la scène en anglais avec le mouvement de caméra. Prévient l'utilisateur que ça prend une à trois minutes.",
       input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
     {name:'ma_position', description:"Donne la position actuelle de l'utilisateur : rue, ville et pays.",
       input_schema:{type:'object', properties:{}}},
@@ -353,6 +363,34 @@ async function runTool(name, input){
       sys('Je dessine…');
       try { const b64 = await genererImage(sujet); afficherImage(b64, sujet); return 'image affichée dans la conversation'; }
       catch (e) { return "je n'ai pas pu créer l'image : " + e.message; }
+    }
+    if (name === 'notifier') {
+      if (!P || typeof P.notifier !== 'function') return "cette version de l'application ne sait pas encore envoyer de notification";
+      const r = String(P.notifier(String(input.titre || 'Poupous'), String(input.message || '')));
+      return r === 'ok' ? 'notification envoyée' : r;
+    }
+    if (name === 'rappel') {
+      if (!P || typeof P.rappel !== 'function') return "cette version de l'application ne sait pas encore programmer de rappel";
+      const sec = Math.max(5, parseInt(input.dans_secondes, 10) || 0);
+      if (sec > 60 * 60 * 24 * 60) return 'je ne peux pas programmer un rappel aussi loin';
+      const r = String(P.rappel(sec, String(input.titre || 'Poupous'), String(input.message || '')));
+      if (r !== 'ok') return r;
+      const q = new Date(Date.now() + sec * 1000);
+      return 'rappel programmé pour le ' + q.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) + ' à ' + q.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }
+    if (name === 'generer_video') {
+      const sujet = String(input.description || '').trim();
+      if (sujet.length < 3) return 'décris la vidéo que je dois créer';
+      if (!P || typeof P.http !== 'function') return "cette version de l'application ne sait pas encore appeler ce service";
+      if (!pxJeton()) return "il manque la clé Pixazo : réglages, rubrique Vidéos";
+      const prog = sys('Vidéo en cours de création…');
+      try {
+        const poll = await pixazo('text-to-video', {prompt:sujet});
+        const url = await attendreVideo(poll, prog);
+        prog.textContent = 'Vidéo prête.';
+        afficherVideo(url, sujet);
+        return 'vidéo affichée dans la conversation';
+      } catch (e) { prog.textContent = "Vidéo impossible : " + e.message; return "je n'ai pas pu créer la vidéo : " + e.message; }
     }
     if (name === 'ma_position') {
       let pos; try { pos = await position(); } catch (e) { return 'position indisponible : ' + e.message; }
@@ -662,6 +700,71 @@ function openCloudflare(){
   };
 }
 
+/* ---------- Génération de vidéos (Pixazo / LTX, gratuit en préversion) ---------- */
+const VID_BASE = 'https://gateway.pixazo.ai/ltx-video/v1/';
+const pxJeton = () => store.get('pxJeton', '');
+async function pixazo(chemin, corps){
+  const r = await waitFor('h', id => P.http(id, 'POST', VID_BASE + chemin,
+    JSON.stringify({'Ocp-Apim-Subscription-Key': pxJeton(), 'Content-Type':'application/json'}), JSON.stringify(corps)));
+  let d = null; try { d = JSON.parse(r.text); } catch (e) {}
+  if (r.status === 401 || r.status === 403) throw new Error('la clé Pixazo est refusée');
+  if (r.status === 429) throw new Error('trop de demandes, laisse passer une minute');
+  if (!d || !d.polling_url) throw new Error('réponse inattendue (' + r.status + ') : ' + (r.text || '').slice(0, 140));
+  return d.polling_url;
+}
+async function attendreVideo(pollingUrl, prog){
+  for (let i = 0; i < 60; i++) {
+    await sleep(5000);
+    const r = await waitFor('h', id => P.http(id, 'GET', pollingUrl,
+      JSON.stringify({'Ocp-Apim-Subscription-Key': pxJeton()}), ''));
+    let d = null; try { d = JSON.parse(r.text); } catch (e) {}
+    if (!d) continue;
+    const etat = String(d.status || '').toUpperCase();
+    if (prog) prog.textContent = 'Vidéo en cours de création… (' + ((i + 1) * 5) + ' s)';
+    if (etat === 'COMPLETED') {
+      const u = d.output && (d.output.media_url || d.output.url || d.output.video_url);
+      if (!u) throw new Error('la vidéo est prête mais je ne trouve pas son adresse');
+      return u;
+    }
+    if (etat === 'FAILED' || etat === 'ERROR') throw new Error(String((d.error && d.error.message) || 'la création a échoué'));
+  }
+  throw new Error('la vidéo met trop de temps, réessaie plus tard');
+}
+function afficherVideo(url, sujet){
+  const d = document.createElement('div');
+  d.className = 'msg poupous';
+  const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Poupous'; d.appendChild(w);
+  const v = document.createElement('video');
+  v.className = 'vidgen'; v.src = url; v.controls = true; v.playsInline = true; v.loop = true;
+  d.appendChild(v);
+  const row = document.createElement('div'); row.className = 'row'; row.style.border = '0';
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Enregistrer et partager';
+  b.onclick = async () => {
+    if (!P || typeof P.telecharger !== 'function') { sys("Cette version de l'application ne sait pas encore enregistrer les vidéos."); return; }
+    b.disabled = true; b.textContent = 'Enregistrement…';
+    const res = String(await waitFor('t', id => P.telecharger(id, url, 'poupous-' + Date.now() + '.mp4', 'video/mp4', true)));
+    b.disabled = false; b.textContent = 'Enregistrer et partager';
+    sys(res);
+  };
+  row.appendChild(b); d.appendChild(row);
+  $('#log').appendChild(d); scrollLog();
+}
+function openPixazo(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">VIDÉOS (PIXAZO, GRATUIT)</span>' +
+    '<p class="hint">1. Crée un compte sur pixazo.ai (sans carte bancaire).<br>2. Récupère ta clé API dans ton tableau de bord.<br>3. Colle-la ici. Elle reste sur ce téléphone.<br>Gratuit pendant la préversion du modèle LTX : ça peut changer un jour.</p>' +
+    '<input id="pxj" type="password" autocomplete="off" placeholder="Clé Pixazo" aria-label="Clé Pixazo">' +
+    '<div class="row" style="border:0"><button class="btn" id="px-cancel">Plus tard</button><button class="btn primary" id="px-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#px-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#px-save').onclick = () => {
+    const j = $('#pxj').value.replace(/\s+/g, '');
+    if (j.length < 16) { $('#pxj').style.borderColor = '#ff6b6b'; return; }
+    store.set('pxJeton', j); $('#sheet').hidden = true;
+    sys('Clé Pixazo enregistrée. Demande-moi une vidéo quand tu veux.');
+  };
+}
+
 /* ---------- Mode Courses : liste + magasins autour ---------- */
 const RAYONS = [[1000,'1 km'],[3000,'3 km'],[10000,'10 km'],[25000,'25 km']];
 const MAG = {shop:['supermarket','convenience','grocery','greengrocer','butcher','bakery']};
@@ -825,7 +928,7 @@ async function runUpgrade(demande){
   if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
   const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
   const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
-    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
+    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)), telecharger(id, url, nom, mime, partager) (résultat via window.__telechargeDone(id, texte)), notifier(titre, texte), rappel(dansSecondes, titre, texte). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
     "Contraintes impératives :\n" +
     "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
     "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
@@ -845,7 +948,7 @@ async function runUpgrade(demande){
   if (iH < 0 || iF < iH) return upgradeFail("Je n'ai pas reçu un code complet. Je n'ai rien changé.");
   const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
   const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
-  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf']) {
+  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel']) {
     if (!html.includes(k)) return upgradeFail("Le nouveau code perdait une partie essentielle (" + k + "). Je n'ai rien changé.");
   }
   const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -927,6 +1030,7 @@ function renderSettings(){
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<h2>Images</h2>' +
     '<div class="row"><span>' + (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré') + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>' + (pxJeton() ? 'Vidéos configurées' : 'Vidéos non configurées') + '<br><span class="hint">Pixazo, gratuit en préversion</span></span><button class="btn" id="change-px">' + (pxJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<h2>Personnalité</h2>' +
     '<textarea id="perso" rows="3" style="width:100%;box-sizing:border-box;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:10px 14px;font:inherit">' + esc(r.personnalite) + '</textarea>' +
     '<div class="row"><button class="btn" id="perso-reset">Remettre par défaut</button><button class="btn primary" id="perso-save">Enregistrer</button></div>' +
@@ -951,6 +1055,7 @@ function renderSettings(){
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
   $('#change-gem').onclick = openGeminiKey;
   $('#change-cf').onclick = openCloudflare;
+  $('#change-px').onclick = openPixazo;
   $('#cerveau').onchange = e => { S.reglages.cerveau = e.target.value; store.set('reglages', S.reglages); renderSettings(); if (!brainReady()) openBrainKey(); };
   $('#sheet-inner').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { S.faits.splice(+b.dataset.del, 1); store.set('memoire', S.faits); renderSettings(); });
   $('#undo').onclick = () => { $('#sheet').hidden = true; if (!S.busy) rollback(); };
