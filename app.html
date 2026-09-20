@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=104 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=105 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -280,6 +280,7 @@ function systemPrompt(){
     "ameliorer_mon_code : tu peux VRAIMENT modifier ton propre programme (interface, fonctionnalités, comportement) quand l'utilisateur le demande. Ne dis jamais que c'est impossible. Si la demande est floue, pose d'abord une courte question, puis donne à l'outil une demande détaillée. " +
     "annuler_derniere_amelioration : revenir à la version précédente.\n" +
     "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
+    "Sur la route : surveiller_route prévient l'utilisateur quand un supermarché est sur son chemin pendant qu'il conduit, à condition que sa liste de courses ne soit pas vide. Ça consomme de la batterie : dis-le une fois, sans insister.\n" +
     "Notifications : notifier envoie une notification tout de suite ; rappel en programme une pour plus tard, même appli fermée. Pour rappel, calcule toi-même le délai en secondes à partir de la date et de l'heure données plus haut. Utilise rappel plutôt que mettre_reveil quand l'utilisateur veut qu'on lui dise quelque chose, et mettre_reveil quand il veut vraiment une sonnerie de réveil.\n" +
     "Vidéos : generer_video crée une vraie petite vidéo, en une à trois minutes. Décris la scène en anglais avec le mouvement de caméra. Préviens que c'est long et que l'appli doit rester ouverte. N'en propose pas pour une demande où une image suffirait.\n" +
     "Images : generer_image crée vraiment une image et l'affiche à l'écran. Écris la description en anglais et enrichis-la (sujet, décor, lumière, style), même si l'utilisateur te la donne en français en une phrase. Après, dis simplement ce que tu as dessiné.\n" +
@@ -314,6 +315,8 @@ function toolDefs(){
       input_schema:{type:'object', properties:{}}},
     {name:'generer_image', description:"Crée une image à partir d'une description et l'affiche dans la conversation. Décris la scène en anglais, avec des détails visuels (sujet, décor, lumière, style).",
       input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
+    {name:'surveiller_route', description:"Active ou désactive l'alerte des magasins pendant que l'utilisateur conduit. Ne marche que si sa liste de courses n'est pas vide.",
+      input_schema:{type:'object', properties:{actif:{type:'boolean'}}, required:['actif']}},
     {name:'notifier', description:"Envoie tout de suite une notification sur le téléphone, visible même si l'appli est fermée. Sers-t'en quand l'utilisateur veut être prévenu de quelque chose maintenant.",
       input_schema:{type:'object', properties:{titre:{type:'string'}, message:{type:'string'}}, required:['titre','message']}},
     {name:'rappel', description:"Programme une notification pour plus tard. Donne le délai en secondes à partir de maintenant : calcule-le toi-même à partir de ce que dit l'utilisateur (dans 10 minutes = 600, demain 9h = le nombre de secondes jusqu'à demain 9h en te servant de la date et de l'heure actuelles). Fonctionne appli fermée.",
@@ -363,6 +366,13 @@ async function runTool(name, input){
       sys('Je dessine…');
       try { const b64 = await genererImage(sujet); afficherImage(b64, sujet); return 'image affichée dans la conversation'; }
       catch (e) { return "je n'ai pas pu créer l'image : " + e.message; }
+    }
+    if (name === 'surveiller_route') {
+      if (!routeDispo()) return "cette version de l'application ne sait pas encore surveiller la route";
+      store.set('route', input.actif !== false);
+      majRoute();
+      if (input.actif !== false && resteAPrendre() === 0) return "c'est activé, mais ta liste de courses est vide : la surveillance ne démarrera que quand tu y mettras quelque chose";
+      return input.actif !== false ? 'surveillance activée' : 'surveillance arrêtée';
     }
     if (name === 'notifier') {
       if (!P || typeof P.notifier !== 'function') return "cette version de l'application ne sait pas encore envoyer de notification";
@@ -769,7 +779,7 @@ function openPixazo(){
 const RAYONS = [[1000,'1 km'],[3000,'3 km'],[10000,'10 km'],[25000,'25 km']];
 const MAG = {shop:['supermarket','convenience','grocery','greengrocer','butcher','bakery']};
 function liste(){ return store.get('courses', []); }
-function setListe(l){ store.set('courses', l); return l; }
+function setListe(l){ store.set('courses', l); setTimeout(majRoute, 0); return l; }
 function coursesAjouter(txt){
   const l = liste();
   String(txt).split(/[,;\n]|\bet\b/i).map(x => x.trim().replace(/^[-•\s]+/, '')).filter(x => x && x.length < 60)
@@ -845,6 +855,17 @@ function carteHTML(lat, lon, pts){
   return '<div class="carte"><div class="carte-in" style="left:calc(50% - ' + me.l.toFixed(0) + 'px);top:calc(50% - ' + me.t.toFixed(0) + 'px)">' + h + '</div></div>' +
     '<p class="hint">Carte © OpenStreetMap</p>';
 }
+const routeDispo = () => !!(P && typeof P.surveillerRoute === 'function');
+function resteAPrendre(){ return liste().filter(i => !i.ok).length; }
+function majRoute(){
+  if (!routeDispo()) return;
+  const veut = store.get('route', false) && resteAPrendre() > 0;
+  if (veut === store.get('routeActive', false)) return;
+  const r = String(P.surveillerRoute(veut));
+  if (veut && r !== 'ok') { store.set('route', false); sys(r); store.set('routeActive', false); return; }
+  store.set('routeActive', veut);
+  if (veut) sys('Surveillance de la route activée : je te préviendrai si un magasin est sur ton chemin.');
+}
 function renderCourses(){
   const l = liste(), reste = l.filter(i => !i.ok).length;
   $('#sheet-inner').innerHTML =
@@ -854,6 +875,8 @@ function renderCourses(){
     (l.length ? l.map((i, k) => '<div class="item' + (i.ok ? ' ok' : '') + '"><input type="checkbox" data-ok="' + k + '"' + (i.ok ? ' checked' : '') + '><span class="txt">' + esc(i.t) + '</span><button class="btn" data-rm="' + k + '">Retirer</button></div>').join('')
       : '<p class="hint">Vide. Tu peux aussi dire « Poupous, ajoute du lait et des œufs à mes courses ».</p>') +
     (l.some(i => i.ok) ? '<div class="row"><span class="hint">Articles déjà pris</span><button class="btn" id="c-clean">Retirer les cochés</button></div>' : '') +
+    (routeDispo() ? '<h2>Sur la route</h2>' +
+      '<div class="row"><label for="hr">Me prévenir en voiture<br><span class="hint">Quand un magasin est sur mon chemin et que ma liste n\'est pas vide</span></label><input type="checkbox" id="hr"' + (store.get('route', false) ? ' checked' : '') + '></div>' : '') +
     '<h2>Magasins autour</h2>' +
     '<div class="row"><label for="c-rayon">Distance</label><select id="c-rayon">' +
       RAYONS.map(r => '<option value="' + r[0] + '"' + (String(store.get('rayon', 3000)) === String(r[0]) ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select></div>' +
@@ -868,6 +891,7 @@ function renderCourses(){
   $('#sheet-inner').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const l2 = liste(); l2.splice(+b.dataset.rm, 1); setListe(l2); renderCourses(); });
   if ($('#c-clean')) $('#c-clean').onclick = () => { setListe(liste().filter(i => !i.ok)); renderCourses(); };
   $('#c-rayon').onchange = e => store.set('rayon', parseInt(e.target.value, 10));
+  if ($('#hr')) $('#hr').onchange = e => { store.set('route', e.target.checked); majRoute(); };
   $('#c-find').onclick = () => chercherMagasins(null);
   $('#c-adr-go').onclick = () => { const v = $('#c-adr').value.trim(); if (v) chercherMagasins(v); };
 }
@@ -928,7 +952,7 @@ async function runUpgrade(demande){
   if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
   const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
   const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
-    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)), telecharger(id, url, nom, mime, partager) (résultat via window.__telechargeDone(id, texte)), notifier(titre, texte), rappel(dansSecondes, titre, texte). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
+    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)), telecharger(id, url, nom, mime, partager) (résultat via window.__telechargeDone(id, texte)), notifier(titre, texte), rappel(dansSecondes, titre, texte), surveillerRoute(actif). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
     "Contraintes impératives :\n" +
     "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
     "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
@@ -948,7 +972,7 @@ async function runUpgrade(demande){
   if (iH < 0 || iF < iH) return upgradeFail("Je n'ai pas reçu un code complet. Je n'ai rien changé.");
   const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
   const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
-  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel']) {
+  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute']) {
     if (!html.includes(k)) return upgradeFail("Le nouveau code perdait une partie essentielle (" + k + "). Je n'ai rien changé.");
   }
   const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -1090,6 +1114,8 @@ requestAnimationFrame(draw);
 window.__poupousOK = true;
 
 S.faits = store.get('memoire', []);
+store.set('routeActive', false);
+setTimeout(majRoute, 1500);
 Object.assign(S.reglages, store.get('reglages', {}));
 S.turns = store.get('conversation', []);
 setTimeout(applyVoice, 800);
