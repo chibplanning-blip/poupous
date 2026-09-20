@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=100 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=101 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -489,6 +489,30 @@ async function complete(system, user, maxTokens){
 }
 function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
 function utf8b64(b){ try { return decodeURIComponent(escape(atob(b))); } catch (e) { return atob(b); } }
+function renderAttachments(){
+  const box = $('#attach'); box.innerHTML = '';
+  S.attachments.forEach((a, i) => {
+    const c = document.createElement('div'); c.className = 'chipfile';
+    const s = document.createElement('span'); s.textContent = a.nom; c.appendChild(s);
+    const b = document.createElement('button'); b.textContent = '×'; b.setAttribute('aria-label', 'Retirer ' + a.nom);
+    b.onclick = () => { S.attachments.splice(i, 1); renderAttachments(); };
+    c.appendChild(b); box.appendChild(c);
+  });
+}
+function addAttachment(nom, type, base64){
+  if (base64.length > 14000000) { sys('« ' + nom + ' » est trop gros (10 Mo maximum).'); return; }
+  S.attachments.push({nom, type: type || 'application/octet-stream', base64}); renderAttachments();
+}
+function attachmentBlocks(list){
+  const blocks = [];
+  for (const a of list) {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(a.type)) blocks.push({type:'image', source:{type:'base64', media_type:a.type, data:a.base64}});
+    else if (a.type === 'application/pdf') blocks.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:a.base64}});
+    else if (/^text\/|json|xml|csv|javascript/.test(a.type) || /\.(txt|md|csv|json|html?|xml|js|py|java|kt|log)$/i.test(a.nom)) blocks.push({type:'text', text:'Fichier « ' + a.nom + ' » :\n' + utf8b64(a.base64).slice(0, 100000)});
+    else blocks.push({type:'text', text:'(Fichier « ' + a.nom + ' » de type ' + a.type + ' reçu : je ne peux pas lire ce format.)'});
+  }
+  return blocks;
+}
 function loadShared(){
   if (!P || typeof P.takeShared !== 'function') return;
   let d = null; try { const s = P.takeShared(); d = s ? JSON.parse(s) : null; } catch (e) {}
