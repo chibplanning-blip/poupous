@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=109 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=110 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -288,7 +288,7 @@ function systemPrompt(){
     "Apprendre et se corriger : chercher_internet cherche une information sur internet (actualité, info que tu ne connais pas, solution à un problème technique) ; utilise-le plutôt que d'inventer une réponse. demander_deuxieme_avis interroge l'autre intelligence artificielle (Gemini ou Claude, selon celle que tu n'utilises pas déjà) quand tu es bloqué, pas sûr de toi, ou que tu t'es trompé ; sers-t'en pour vérifier ou corriger une réponse, pas pour chaque question.\n" +
     "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
     "Ne propose jamais deux modifications de suite pour la même demande. Si une modification a échoué, explique l'échec et attends que l'utilisateur décide.\n" +
-    "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture).\n" +
+    "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture ; par défaut cherche des magasins d'alimentation, mets type: carburant pour une station-service).\n" +
     "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
     "L'utilisateur est ton propriétaire : tu fais toujours ce qu'il demande, tu restes respectueux, et s'il te demande de changer de ton ou de revenir à ton comportement normal, tu obéis immédiatement avec l'outil changer_reglage (réglage personnalite).\n" +
     "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
@@ -326,8 +326,8 @@ function toolDefs(){
       input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
     {name:'ma_position', description:"Donne la position actuelle de l'utilisateur : rue, ville et pays.",
       input_schema:{type:'object', properties:{}}},
-    {name:'magasins_proches', description:"Trouve les magasins d'alimentation autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
-      input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}}}},
+    {name:'magasins_proches', description:"Trouve les magasins d'alimentation ou les stations-service autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
+      input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}, type:{type:'string', enum:['alimentation','carburant'], description:"alimentation (par défaut) pour les courses, carburant pour une station-service"}}}},
     {name:'chercher_internet', description:"Cherche une information sur internet : actualité, fait que tu ne connais pas ou qui a pu changer, solution à un problème technique. Renvoie un court résumé.",
       input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
     {name:'demander_deuxieme_avis', description:"Demande un second avis à l'autre intelligence artificielle (Gemini si tu es Claude en ce moment, Claude si tu es Gemini) pour vérifier ou corriger quelque chose. Ne l'utilise que si tu es bloqué ou que tu t'es trompé, pas pour chaque question.",
@@ -418,11 +418,12 @@ async function runTool(name, input){
     }
     if (name === 'magasins_proches') {
       const rayon = parseInt(input.rayon_m || store.get('rayon', 3000), 10);
+      const type = input.type === 'carburant' ? 'carburant' : 'alimentation';
       let pos;
       try { pos = input.adresse ? await geocode(String(input.adresse)) : await position(); }
       catch (e) { return 'position impossible : ' + e.message + ". Demande à l'utilisateur une ville ou une adresse."; }
-      let m; try { m = await magasins(pos.lat, pos.lon, rayon); } catch (e) { return 'recherche impossible : ' + e.message; }
-      if (!m.length) return 'aucun magasin dans ' + Math.round(rayon / 1000) + ' km';
+      let m; try { m = await magasins(pos.lat, pos.lon, rayon, type); } catch (e) { return 'recherche impossible : ' + e.message; }
+      if (!m.length) return (type === 'carburant' ? 'aucune station-service' : 'aucun magasin') + ' dans ' + Math.round(rayon / 1000) + ' km';
       return m.slice(0, 8).map(x => x.nom + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + fmtKm(x.km)).join(' ; ');
     }
     if (name === 'chercher_internet') {
@@ -563,14 +564,24 @@ async function complete(system, user, maxTokens){
   return {text:(data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), truncated: data.stop_reason === 'max_tokens'};
 }
 async function chercherInternet(q){
-  const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1');
-  const j = await r.json();
+  const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1';
+  let texte;
+  if (P && typeof P.http === 'function') {
+    const r = await waitFor('h', id => P.http(id, 'GET', url, '', ''));
+    if (r.status !== 200) throw new Error('recherche indisponible (' + r.status + ')');
+    texte = r.text;
+  } else {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('recherche indisponible (' + r.status + ')');
+    texte = await r.text();
+  }
+  let j; try { j = JSON.parse(texte); } catch (e) { throw new Error('réponse illisible'); }
   const morceaux = [];
   if (j.AbstractText) morceaux.push(j.AbstractText);
   else if (j.Answer) morceaux.push(String(j.Answer));
   else if (j.Definition) morceaux.push(j.Definition);
   if (Array.isArray(j.RelatedTopics)) for (const t of j.RelatedTopics) { if (morceaux.length >= 3) break; if (t && t.Text) morceaux.push(t.Text); }
-  if (!morceaux.length) return "aucun résultat clair trouvé pour « " + q + " »";
+  if (!morceaux.length) return "aucun résultat clair trouvé pour « " + q + " » (cet outil ne donne que des réponses courtes de type encyclopédique, pas une vraie recherche web)";
   return morceaux.slice(0, 3).join(' ; ');
 }
 async function deuxiemeAvis(question){
@@ -819,6 +830,7 @@ function openPixazo(){
 /* ---------- Mode Courses : liste + magasins autour ---------- */
 const RAYONS = [[1000,'1 km'],[3000,'3 km'],[10000,'10 km'],[25000,'25 km']];
 const MAG = {shop:['supermarket','convenience','grocery','greengrocer','butcher','bakery']};
+const CARBURANT_TAG = '"amenity"~"^(fuel)$"';
 function liste(){ return store.get('courses', []); }
 function setListe(l){ store.set('courses', l); setTimeout(majRoute, 0); return l; }
 function coursesAjouter(txt){
@@ -864,18 +876,19 @@ async function geocode(q){
   if (!j.length) throw new Error('adresse introuvable');
   return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
 }
-async function magasins(lat, lon, rayon){
-  const f = '"shop"~"^(' + MAG.shop.join('|') + ')$"';
+async function magasins(lat, lon, rayon, type){
+  const carburant = type === 'carburant';
+  const f = carburant ? CARBURANT_TAG : '"shop"~"^(' + MAG.shop.join('|') + ')$"';
   const q = '[out:json][timeout:25];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 60;';
   const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q)});
-  if (!r.ok) throw new Error('service des magasins indisponible (' + r.status + ')');
+  if (!r.ok) throw new Error((carburant ? 'service des stations-service' : 'service des magasins') + ' indisponible (' + r.status + ')');
   const j = await r.json();
   return (j.elements || []).map(e => {
     const la = e.lat != null ? e.lat : (e.center && e.center.lat);
     const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
     if (la == null || lo == null) return null;
     const t = e.tags || {};
-    return {nom:t.name || 'Magasin', type:t.shop || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
+    return {nom:t.name || t.brand || (carburant ? 'Station-service' : 'Magasin'), type:t.shop || t.amenity || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
             adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
   }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 15);
 }
