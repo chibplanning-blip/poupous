@@ -1,0 +1,1218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- POUPOUS_APP  POUPOUS_VERSION=111 -->
+<title>Poupous</title>
+<style>
+:root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--text)}
+body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+#app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 12px);box-sizing:border-box}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:800;letter-spacing:.2em;font-size:18px}
+.status{color:var(--muted);font-size:13px;margin-top:2px}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
+.orb-wrap{position:relative;height:clamp(170px,32vh,270px);flex:none}
+#orb{width:100%;height:100%;display:block}
+.live{position:absolute;left:0;right:0;bottom:4px;text-align:center;color:var(--cyan);font-size:15px;min-height:22px;padding:0 8px}
+.log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:6px 2px 12px;overscroll-behavior:contain}
+.msg{max-width:88%}
+.msg .who{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.msg p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.toi{align-self:flex-end;text-align:right}
+.msg.toi p{background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:18px 18px 4px 18px;text-align:left}
+.msg.poupous .who{color:var(--cyan)}
+.msg.sys{align-self:center;color:var(--muted);font-size:13px;text-align:center;max-width:95%}
+.bar{display:flex;gap:10px;align-items:center;padding-top:10px;border-top:1px solid var(--line)}
+.bar input{flex:1;min-width:0;height:48px;border-radius:24px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 18px;font:inherit}
+.mic{width:64px;height:64px;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#8ff3ff,var(--cyan) 45%,#1289a8);color:#04202a;display:grid;place-items:center;flex:none;box-shadow:0 0 0 6px rgba(56,214,245,.12)}
+.mic.on{background:radial-gradient(circle at 35% 30%,#ffe0ad,var(--amber) 50%,#c77a12);box-shadow:0 0 0 9px rgba(255,181,71,.2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.sheet{position:fixed;inset:0;background:rgba(3,6,14,.78);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet-inner{background:var(--panel);width:100%;max-width:560px;max-height:88%;overflow-y:auto;border-radius:22px 22px 0 0;padding:18px 18px calc(env(safe-area-inset-bottom,0px) + 24px);box-sizing:border-box;border-top:1px solid var(--line)}
+.sheet h2{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin:22px 0 4px}
+.row,.chip{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.chip{align-items:flex-start;font-size:15px}
+.row label{flex:1}
+.row select,.row input[type=range]{width:55%}
+select{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:10px;height:40px;padding:0 8px;font:inherit;max-width:60%}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--cyan)}
+input[type=range]{accent-color:var(--cyan)}
+.btn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;flex:none}
+.btn.primary{background:var(--cyan);color:#04202a;border-color:var(--cyan);font-weight:700}
+.hint{color:var(--muted);font-size:13px}
+.keybox{display:flex;flex-direction:column;gap:12px}
+.carte{position:relative;overflow:hidden;height:220px;border-radius:16px;border:1px solid var(--line);background:var(--ink);margin-top:10px}
+.carte-in{position:absolute;width:768px;height:768px}
+.pin{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--amber);border:2px solid #04202a;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.pin.moi{background:var(--cyan);width:16px;height:16px;margin:-8px 0 0 -8px}
+.item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.item .txt{flex:1;font-size:16px}
+.item.ok .txt{text-decoration:line-through;color:var(--muted)}
+.mag{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.mag .km{color:var(--cyan);font-weight:700;white-space:nowrap}
+.clip{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
+.attach{display:flex;flex-wrap:wrap;gap:8px;padding-top:8px}
+.attach:empty{display:none}
+.vidgen{max-width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin-top:8px;background:#000}
+.imggen{max-width:100%;border-radius:16px;border:1px solid var(--line);display:block;margin-top:8px}
+.chipfile{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 12px;font-size:13px;max-width:100%}
+.chipfile span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
+.keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+const P = window.Poupous;
+const CHAT_MODEL = 'claude-sonnet-5';
+const UPGRADE_MODEL = 'claude-opus-5';
+const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
+const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false};
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const clean = s => String(s).replace(/https?:\/\/\S+/g, '').replace(/[*_#`>|]/g, '').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').replace(/[ \t]+/g, ' ').trim();
+const STATES = {
+  chargement:['#38d6f5','Démarrage…'],
+  veille:['#38d6f5','Appuie sur le micro ou écris-moi'],
+  ecoute:['#38d6f5',"Je t'écoute…"],
+  mainslibres:['#2aa9c7','Mains libres · dis « Poupous »'],
+  reflexion:['#9d8cff','Je réfléchis…'],
+  parole:['#ffb547','Je parle…'],
+  amelioration:['#4ee0a6','Je modifie mon code…'],
+  attente:['#ffb547','J\u2019attends ta validation'],
+  erreur:['#ff6b6b','Un souci est survenu']
+};
+const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
+const CART = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L20.5 7H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>';
+const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
+
+/* ---------- Pont avec l'appli Android ---------- */
+let seq = 0;
+const pend = {};
+function waitFor(prefix, start){ return new Promise(res => { const id = prefix + (++seq); pend[id] = res; start(id); }); }
+function settle(id, value){ const f = pend[id]; delete pend[id]; if (f) f(value); }
+window.__claudeDone = (id, status, text) => settle(id, {status, text});
+window.__ttsDone = id => settle(id, true);
+window.__listenDone = (id, text, err) => settle(id, {text, err});
+window.__listenPartial = t => { $('#live').textContent = t; };
+window.__listenReady = () => {};
+window.__contactsDone = (id, json) => settle(id, json);
+window.__posDone = (id, json) => settle(id, json);
+window.__githubDone = (id, status, text) => settle(id, {status, text});
+window.__httpDone = (id, status, text) => settle(id, {status, text});
+window.__telechargeDone = (id, res) => settle(id, res);
+window.__installDone = (id, result) => settle(id, result);
+window.__sharedAvailable = () => loadShared();
+const hasFiles = () => !!(P && typeof P.saveFile === 'function');
+const hasPhone = () => !!(P && typeof P.dial === 'function');
+const NEED_APK = "Cette action demande une version plus récente de l\u2019application Poupous. Demande-la à Claude.";
+const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
+window.__onBack = () => { if (S.confirmReject) { S.confirmReject(false); } else if (!$('#sheet').hidden) { $('#sheet').hidden = true; } else if (S.speaking) { stopSpeaking(); } else if (P) { P.quit(); } };
+const store = {
+  get(k, d){ try { const v = P ? P.get(k) : ''; return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v){ try { if (P) P.set(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/* ---------- Interface ---------- */
+$('#app').innerHTML =
+  '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div></div>' +
+  '<div style="display:flex;gap:10px"><button class="icon-btn" id="open-courses" aria-label="Courses">' + CART + '</button>' +
+  '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
+  '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
+  '<div class="log" id="log" aria-live="polite"></div>' +
+  '<div class="attach" id="attach"></div>' +
+  '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden>' +
+  '<input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
+  '<button class="mic" id="mic" aria-label="Parler à Poupous">' + MIC + '</button></div>' +
+  '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
+
+function setState(s){ S.state = s; $('#status').textContent = STATES[s][1]; }
+function idle(){ setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
+function scrollLog(){ const l = $('#log'); l.scrollTop = l.scrollHeight; }
+function addMsg(who, text){
+  const d = document.createElement('div');
+  d.className = 'msg ' + who;
+  if (who !== 'sys') { const w = document.createElement('div'); w.className = 'who'; w.textContent = who === 'toi' ? 'Toi' : 'Poupous'; d.appendChild(w); }
+  const p = document.createElement('p'); p.textContent = text; d.appendChild(p);
+  $('#log').appendChild(d); scrollLog();
+  return p;
+}
+const sys = t => addMsg('sys', t);
+
+/* ---------- Orbe animée ---------- */
+const cv = $('#orb'), g2 = cv.getContext('2d');
+let t = 0;
+function rgba(h, a){ const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
+function draw(){
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  g2.setTransform(dpr, 0, 0, dpr, 0, 0); g2.clearRect(0, 0, w, h);
+  const col = STATES[S.state][0];
+  const sp = {parole:3.2, ecoute:2, reflexion:1.4, amelioration:1.6, mainslibres:.7, veille:.6, chargement:1, erreur:.4}[S.state] || 1;
+  t += 0.016 * sp;
+  const X = w / 2, Y = h / 2 - 10, R = Math.min(w, h) * .2, p = (Math.sin(t * 3) + 1) / 2, TAU = Math.PI * 2;
+  const glow = g2.createRadialGradient(X, Y, R * .2, X, Y, R * 2.6); glow.addColorStop(0, rgba(col, .32)); glow.addColorStop(1, rgba(col, 0));
+  g2.fillStyle = glow; g2.beginPath(); g2.arc(X, Y, R * 2.6, 0, TAU); g2.fill();
+  for (let i = 1; i <= 3; i++) { g2.strokeStyle = rgba(col, .38 / i); g2.lineWidth = 1.5; g2.beginPath(); g2.arc(X, Y, R * (1.25 + i * .3) + p * 3 * i, 0, TAU); g2.stroke(); }
+  if (S.state === 'reflexion' || S.state === 'amelioration' || S.state === 'chargement') {
+    g2.strokeStyle = col; g2.lineWidth = 3; g2.lineCap = 'round';
+    for (let k = 0; k < 3; k++) { const a = t * 2.2 + k * TAU / 3; g2.beginPath(); g2.arc(X, Y, R * 1.6, a, a + .8); g2.stroke(); }
+  }
+  g2.beginPath();
+  for (let i = 0; i <= 72; i++) {
+    const a = i / 72 * TAU;
+    const amp = S.state === 'parole' ? R * .09 * Math.sin(a * 6 + t * 9) * (.6 + .4 * Math.sin(t * 5)) : S.state === 'ecoute' ? R * .05 * Math.sin(a * 4 + t * 6) : 0;
+    const r = R + p * 3 + amp, px = X + Math.cos(a) * r, py = Y + Math.sin(a) * r;
+    if (i) g2.lineTo(px, py); else g2.moveTo(px, py);
+  }
+  g2.closePath();
+  const core = g2.createRadialGradient(X - R * .3, Y - R * .35, R * .08, X, Y, R * 1.05);
+  core.addColorStop(0, '#ffffff'); core.addColorStop(.28, col); core.addColorStop(1, rgba(col, .2));
+  g2.fillStyle = core; g2.fill();
+  requestAnimationFrame(draw);
+}
+
+/* ---------- Voix ---------- */
+function voicesFr(){ try { return P ? JSON.parse(P.voices()) : []; } catch (e) { return []; } }
+function applyVoice(){ if (P) P.setVoice(+S.reglages.vitesse || 1, +S.reglages.hauteur || 1, S.reglages.voix || ''); }
+async function speak(text){
+  const c = clean(text);
+  if (!c || !P) return;
+  S.speaking = true; setState('parole');
+  await waitFor('t', id => P.speak(id, c));
+  S.speaking = false;
+}
+function stopSpeaking(){ if (P) P.stopSpeaking(); }
+
+/* ---------- Écoute ---------- */
+async function listenOnce(){
+  if (!P) return {text:'', err:'unsupported'};
+  S.listening = true; $('#live').textContent = '';
+  const r = await waitFor('l', id => P.listen(id));
+  S.listening = false; $('#live').textContent = '';
+  return {text: (r.text || '').trim(), err: r.err || ''};
+}
+function micError(err){
+  if (err === 'not-allowed') sys("Je n'ai pas accès au micro. Autorise le micro pour Poupous dans les paramètres Android, puis réessaie.");
+  else if (err === 'unsupported') sys("La reconnaissance vocale n'est pas disponible sur ce téléphone. Installe ou active l'appli Google, puis réessaie.");
+  else if (err && err !== 'no-speech' && err !== 'aborted') sys("Je n'ai pas bien capté (" + err + "). Réessaie.");
+}
+function lev(a, b){
+  const m = Array.from({length: b.length + 1}, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = m[0]; m[0] = i;
+    for (let j = 1; j <= b.length; j++) { const tmp = m[j]; m[j] = Math.min(m[j] + 1, m[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = tmp; }
+  }
+  return m[b.length];
+}
+function findWake(text){
+  const tok = text.trim().split(/\s+/), n = tok.map(x => norm(x).replace(/[^a-z]/g, ''));
+  for (let i = n.length - 1; i >= 0; i--) {
+    for (const span of [2, 1]) {
+      if (i + span > n.length) continue;
+      const c = n.slice(i, i + span).join('');
+      if (c.length < 4 || c.length > 10) continue;
+      if (1 - lev(c, 'poupous') / Math.max(c.length, 7) >= 0.7) return {rest: tok.slice(i + span).join(' ').replace(/^[,.!?;:\s]+/, '')};
+    }
+  }
+  return null;
+}
+async function followUps(){
+  while (S.lastOk && !S.pendingUpgrade && !S.pendingRollback) {
+    setState('ecoute'); $('#mic').classList.add('on');
+    const r = await listenOnce(); $('#mic').classList.remove('on');
+    if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { micError(r.err); break; }
+    if (!r.text) break;
+    await ask(r.text);
+  }
+}
+async function micTap(){
+  if (S.speaking) { stopSpeaking(); return; }
+  if (S.listening) { if (P) P.stopListening(); return; }
+  if (S.busy) return;
+  if (S.reglages.mainsLibres && S.hfRunning) return;
+  setState('ecoute'); $('#mic').classList.add('on');
+  const r = await listenOnce(); $('#mic').classList.remove('on');
+  if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { micError(r.err); idle(); return; }
+  if (!r.text) { idle(); return; }
+  await ask(r.text);
+  await followUps();
+  if (!S.busy) idle();
+}
+async function handsFree(){
+  if (S.hfRunning) return; S.hfRunning = true;
+  while (S.reglages.mainsLibres) {
+    if (S.busy || S.speaking || S.listening || !$('#sheet').hidden) { await sleep(400); continue; }
+    setState('mainslibres');
+    const r = await listenOnce();
+    if (!S.reglages.mainsLibres) break;
+    if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
+    if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { await sleep(1500); continue; }
+    if (!r.text) continue;
+    const w = findWake(r.text); if (!w) continue;
+    if (/\p{L}{2,}/u.test(w.rest)) await ask(w.rest);
+    else { await speak('Oui ?'); setState('ecoute'); const q = await listenOnce(); if (q.text) await ask(q.text); }
+    await followUps();
+  }
+  S.hfRunning = false;
+  if (!S.busy) idle();
+}
+
+/* ---------- Cerveau (Claude) ---------- */
+function systemPrompt(){
+  const d = new Date();
+  const date = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const heure = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  return "Tu es Poupous, l'assistant vocal personnel de l'utilisateur, dans une appli Android sur son téléphone. Personnalité : " + S.reglages.personnalite + "\n" +
+    "Nous sommes le " + date + ", il est " + heure + ".\n" +
+    "Tes réponses sont lues à voix haute : français oral et naturel, sans markdown, sans listes, sans emojis. Une à trois phrases, sauf si on te demande des détails.\n" +
+    "Outils : retenir (retiens de toi-même les informations durables que l'utilisateur partage, et tout ce qu'il demande de retenir) ; oublier ; changer_reglage ; " +
+    "ameliorer_mon_code : tu peux VRAIMENT modifier ton propre programme (interface, fonctionnalités, comportement) quand l'utilisateur le demande. Ne dis jamais que c'est impossible. Si la demande est floue, pose d'abord une courte question, puis donne à l'outil une demande détaillée. " +
+    "annuler_derniere_amelioration : revenir à la version précédente.\n" +
+    "Actions sur le téléphone : chercher_contact (toujours avant d'appeler ou d'écrire à quelqu'un par son nom ; si plusieurs contacts correspondent, demande lequel), appeler (ouvre le téléphone avec le numéro, l'utilisateur appuie sur Appeler), envoyer_sms (ouvre la messagerie avec le texte prêt, l'utilisateur appuie sur Envoyer), mettre_reveil, minuteur, ouvrir_appli, itineraire (Google Maps), preparer_mail (ouvre l'appli mail avec le mail prêt, l'utilisateur appuie sur Envoyer). Pour un SMS ou un mail, rédige un texte naturel à partir de ce que l'utilisateur veut dire. Dis simplement ce que tu as préparé.\n" +
+    "Sur la route : surveiller_route prévient l'utilisateur quand un supermarché est sur son chemin pendant qu'il conduit, à condition que sa liste de courses ne soit pas vide. Ça consomme de la batterie : dis-le une fois, sans insister.\n" +
+    "Notifications : notifier envoie une notification tout de suite ; rappel en programme une pour plus tard, même appli fermée. Pour rappel, calcule toi-même le délai en secondes à partir de la date et de l'heure données plus haut. Utilise rappel plutôt que mettre_reveil quand l'utilisateur veut qu'on lui dise quelque chose, et mettre_reveil quand il veut vraiment une sonnerie de réveil.\n" +
+    "Vidéos : generer_video crée une vraie petite vidéo, en une à trois minutes. Décris la scène en anglais avec le mouvement de caméra. Préviens que c'est long et que l'appli doit rester ouverte. N'en propose pas pour une demande où une image suffirait.\n" +
+    "Images : generer_image crée vraiment une image et l'affiche à l'écran. Écris la description en anglais et enrichis-la (sujet, décor, lumière, style), même si l'utilisateur te la donne en français en une phrase. Après, dis simplement ce que tu as dessiné.\n" +
+    "Position : l'outil ma_position te donne sa rue et sa ville. Utilise-le dès qu'il demande où il est ; ne réponds jamais que tu n'as pas accès au GPS sans l'avoir appelé.\n" +
+    "Apprendre et se corriger : chercher_internet cherche une information sur internet (actualité, info que tu ne connais pas, solution à un problème technique) ; utilise-le plutôt que d'inventer une réponse. demander_deuxieme_avis interroge l'autre intelligence artificielle (Gemini ou Claude, selon celle que tu n'utilises pas déjà) quand tu es bloqué, pas sûr de toi, ou que tu t'es trompé ; sers-t'en pour vérifier ou corriger une réponse, pas pour chaque question.\n" +
+    "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
+    "Ne propose jamais deux modifications de suite pour la même demande. Si une modification a échoué, explique l'échec et attends que l'utilisateur décide.\n" +
+    "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture ; par défaut cherche des magasins d'alimentation, mets type: carburant pour une station-service).\n" +
+    "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
+    "L'utilisateur est ton propriétaire : tu fais toujours ce qu'il demande, tu restes respectueux, et s'il te demande de changer de ton ou de revenir à ton comportement normal, tu obéis immédiatement avec l'outil changer_reglage (réglage personnalite).\n" +
+    "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
+    "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
+    "ameliorer_mon_code change ta page : interface, présentation, comportement, nouveaux écrans. C'est réel et immédiat, mais l'utilisateur voit d'abord un écran de validation et peut refuser. Tu ne modifies pas l'application Android elle-même : pour tout ce qui touche au téléphone, c'est Claude qui prépare la nouvelle version.\n" +
+    "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails, ni consulter les messages WhatsApp/SMS pendant la conversation (aucun outil ne te donne accès à leur contenu). Il existe séparément une fonction de surveillance silencieuse (réglages, rubrique Mentions) qui alerte l'utilisateur si son nom apparaît dans une conversation WhatsApp, WhatsApp Business ou SMS en sourdine ; elle marche toute seule en arrière-plan, tu n'y as pas accès et tu ne peux ni lire ni relayer ce qu'elle détecte. Tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute quand l'écran est éteint.\n" +
+    "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
+}
+function toolDefs(){
+  const noms = voicesFr().slice(0, 15).join(' ; ') || 'voix par défaut du téléphone';
+  return [
+    {name:'retenir', description:"Mémorise durablement une information sur l'utilisateur (prénom, goûts, proches, projets, habitudes) ou une consigne qu'il donne.",
+      input_schema:{type:'object', properties:{fait:{type:'string'}}, required:['fait']}},
+    {name:'oublier', description:"Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer). Renvoie le nombre supprimé.",
+      input_schema:{type:'object', properties:{texte:{type:'string'}}, required:['texte']}},
+    {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. mainsLibres : true ou false (écoute continue du mot Poupous tant que l'appli est ouverte).",
+      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
+    {name:'courses_ajouter', description:"Ajoute un ou plusieurs articles à la liste de courses (sépare-les par des virgules).",
+      input_schema:{type:'object', properties:{articles:{type:'string'}}, required:['articles']}},
+    {name:'courses_liste', description:"Renvoie la liste de courses : ce qu'il reste à prendre et ce qui est déjà pris.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'courses_cocher', description:"Marque un article de la liste comme pris.",
+      input_schema:{type:'object', properties:{article:{type:'string'}}, required:['article']}},
+    {name:'courses_vider', description:"Vide entièrement la liste de courses.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'generer_image', description:"Crée une image à partir d'une description et l'affiche dans la conversation. Décris la scène en anglais, avec des détails visuels (sujet, décor, lumière, style).",
+      input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
+    {name:'surveiller_route', description:"Active ou désactive l'alerte des magasins pendant que l'utilisateur conduit. Ne marche que si sa liste de courses n'est pas vide.",
+      input_schema:{type:'object', properties:{actif:{type:'boolean'}}, required:['actif']}},
+    {name:'notifier', description:"Envoie tout de suite une notification sur le téléphone, visible même si l'appli est fermée. Sers-t'en quand l'utilisateur veut être prévenu de quelque chose maintenant.",
+      input_schema:{type:'object', properties:{titre:{type:'string'}, message:{type:'string'}}, required:['titre','message']}},
+    {name:'rappel', description:"Programme une notification pour plus tard. Donne le délai en secondes à partir de maintenant : calcule-le toi-même à partir de ce que dit l'utilisateur (dans 10 minutes = 600, demain 9h = le nombre de secondes jusqu'à demain 9h en te servant de la date et de l'heure actuelles). Fonctionne appli fermée.",
+      input_schema:{type:'object', properties:{dans_secondes:{type:'integer'}, titre:{type:'string'}, message:{type:'string'}}, required:['dans_secondes','titre','message']}},
+    {name:'generer_video', description:"Crée une courte vidéo à partir d'une description. Décris la scène en anglais avec le mouvement de caméra. Prévient l'utilisateur que ça prend une à trois minutes.",
+      input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
+    {name:'ma_position', description:"Donne la position actuelle de l'utilisateur : rue, ville et pays.",
+      input_schema:{type:'object', properties:{}}},
+    {name:'magasins_proches', description:"Trouve les magasins d'alimentation ou les stations-service autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
+      input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}, type:{type:'string', enum:['alimentation','carburant'], description:"alimentation (par défaut) pour les courses, carburant pour une station-service"}}}},
+    {name:'chercher_internet', description:"Cherche une information sur internet : actualité, fait que tu ne connais pas ou qui a pu changer, solution à un problème technique. Renvoie un court résumé.",
+      input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
+    {name:'demander_deuxieme_avis', description:"Demande un second avis à l'autre intelligence artificielle (Gemini si tu es Claude en ce moment, Claude si tu es Gemini) pour vérifier ou corriger quelque chose. Ne l'utilise que si tu es bloqué ou que tu t'es trompé, pas pour chaque question.",
+      input_schema:{type:'object', properties:{question:{type:'string'}}, required:['question']}},
+    {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre juste après ta réponse, prend une à trois minutes, puis l'appli se recharge. Une sauvegarde permet d'annuler.",
+      input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
+    {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
+      input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
+    {name:'appeler', description:"Ouvre l'appli Téléphone avec ce numéro composé ; l'utilisateur appuie sur Appeler.",
+      input_schema:{type:'object', properties:{numero:{type:'string'}}, required:['numero']}},
+    {name:'envoyer_sms', description:"Ouvre la messagerie avec le SMS prêt pour ce numéro ; l'utilisateur appuie sur Envoyer.",
+      input_schema:{type:'object', properties:{numero:{type:'string'}, message:{type:'string'}}, required:['numero','message']}},
+    {name:'mettre_reveil', description:"Crée un réveil à l'heure donnée (format 24 h).",
+      input_schema:{type:'object', properties:{heure:{type:'integer'}, minute:{type:'integer'}, libelle:{type:'string'}}, required:['heure','minute']}},
+    {name:'minuteur', description:"Lance un minuteur de la durée donnée en secondes.",
+      input_schema:{type:'object', properties:{secondes:{type:'integer'}, libelle:{type:'string'}}, required:['secondes']}},
+    {name:'ouvrir_appli', description:"Ouvre une appli installée par son nom (WhatsApp, YouTube, Gmail, Appareil photo…).",
+      input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
+    {name:'itineraire', description:"Ouvre Google Maps avec l'itinéraire vers une destination (adresse, lieu, ville).",
+      input_schema:{type:'object', properties:{destination:{type:'string'}}, required:['destination']}},
+    {name:'preparer_mail', description:"Ouvre l'appli mail avec un mail prêt (destinataire facultatif, objet, texte) ; l'utilisateur appuie sur Envoyer.",
+      input_schema:{type:'object', properties:{destinataire:{type:'string'}, objet:{type:'string'}, texte:{type:'string'}}, required:['objet','texte']}},
+    {name:'creer_fichier', description:"Crée un fichier texte (txt, md, csv, html, json…) avec ce contenu, l'enregistre dans Téléchargements/Poupous et, si partager est vrai, ouvre le menu de partage pour l'envoyer.",
+      input_schema:{type:'object', properties:{nom:{type:'string', description:'nom avec extension, par exemple liste-courses.txt'}, contenu:{type:'string'}, partager:{type:'boolean'}}, required:['nom','contenu']}},
+    {name:'annuler_derniere_amelioration', description:"Revient à la version précédente de l'appli Poupous juste après ta réponse, puis recharge.",
+      input_schema:{type:'object', properties:{}}}
+  ];
+}
+async function runTool(name, input){
+  try {
+    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé'; }
+    if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' supprimé(s)'; }
+    if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
+    if (name === 'courses_ajouter') { const l = coursesAjouter(input.articles || ''); if (!$('#sheet').hidden) renderCourses(); return 'liste : ' + (l.filter(i => !i.ok).map(i => i.t).join(', ') || 'vide'); }
+    if (name === 'courses_liste') { const l = liste(); if (!l.length) return 'la liste est vide'; return 'à prendre : ' + (l.filter(i => !i.ok).map(i => i.t).join(', ') || 'rien') + ' ; déjà pris : ' + (l.filter(i => i.ok).map(i => i.t).join(', ') || 'rien'); }
+    if (name === 'courses_cocher') { const n = coursesCocher(String(input.article || '')); if (!$('#sheet').hidden) renderCourses(); return n ? n + ' article(s) marqué(s) comme pris' : 'aucun article ne correspond'; }
+    if (name === 'courses_vider') { setListe([]); if (!$('#sheet').hidden) renderCourses(); return 'liste vidée'; }
+    if (name === 'generer_image') {
+      const sujet = String(input.description || '').trim();
+      if (sujet.length < 3) return 'décris ce que je dois dessiner';
+      sys('Je dessine…');
+      try { const b64 = await genererImage(sujet); afficherImage(b64, sujet); return 'image affichée dans la conversation'; }
+      catch (e) { return "je n'ai pas pu créer l'image : " + e.message; }
+    }
+    if (name === 'surveiller_route') {
+      if (!routeDispo()) return "cette version de l'application ne sait pas encore surveiller la route";
+      store.set('route', input.actif !== false);
+      majRoute();
+      if (input.actif !== false && resteAPrendre() === 0) return "c'est activé, mais ta liste de courses est vide : la surveillance ne démarrera que quand tu y mettras quelque chose";
+      return input.actif !== false ? 'surveillance activée' : 'surveillance arrêtée';
+    }
+    if (name === 'notifier') {
+      if (!P || typeof P.notifier !== 'function') return "cette version de l'application ne sait pas encore envoyer de notification";
+      const r = String(P.notifier(String(input.titre || 'Poupous'), String(input.message || '')));
+      return r === 'ok' ? 'notification envoyée' : r;
+    }
+    if (name === 'rappel') {
+      if (!P || typeof P.rappel !== 'function') return "cette version de l'application ne sait pas encore programmer de rappel";
+      const sec = Math.max(5, parseInt(input.dans_secondes, 10) || 0);
+      if (sec > 60 * 60 * 24 * 60) return 'je ne peux pas programmer un rappel aussi loin';
+      const r = String(P.rappel(sec, String(input.titre || 'Poupous'), String(input.message || '')));
+      if (r !== 'ok') return r;
+      const q = new Date(Date.now() + sec * 1000);
+      return 'rappel programmé pour le ' + q.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) + ' à ' + q.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }
+    if (name === 'generer_video') {
+      const sujet = String(input.description || '').trim();
+      if (sujet.length < 3) return 'décris la vidéo que je dois créer';
+      if (!P || typeof P.http !== 'function') return "cette version de l'application ne sait pas encore appeler ce service";
+      if (!pxJeton()) return "il manque la clé Pixazo : réglages, rubrique Vidéos";
+      const prog = sys('Vidéo en cours de création…');
+      try {
+        const poll = await pixazo('text-to-video', {prompt:sujet});
+        const url = await attendreVideo(poll, prog);
+        prog.textContent = 'Vidéo prête.';
+        afficherVideo(url, sujet);
+        return 'vidéo affichée dans la conversation';
+      } catch (e) { prog.textContent = "Vidéo impossible : " + e.message; return "je n'ai pas pu créer la vidéo : " + e.message; }
+    }
+    if (name === 'ma_position') {
+      let pos; try { pos = await position(); } catch (e) { return 'position indisponible : ' + e.message; }
+      try {
+        const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=' + pos.lat + '&lon=' + pos.lon);
+        const j = await r.json();
+        if (j && j.display_name) return j.display_name + (pos.vit ? ' (environ ' + Math.round(pos.vit * 3.6) + ' km/h)' : '');
+      } catch (e) {}
+      return 'latitude ' + pos.lat.toFixed(5) + ', longitude ' + pos.lon.toFixed(5);
+    }
+    if (name === 'magasins_proches') {
+      const rayon = parseInt(input.rayon_m || store.get('rayon', 3000), 10);
+      const type = input.type === 'carburant' ? 'carburant' : 'alimentation';
+      let pos;
+      try { pos = input.adresse ? await geocode(String(input.adresse)) : await position(); }
+      catch (e) { return 'position impossible : ' + e.message + ". Demande à l'utilisateur une ville ou une adresse."; }
+      let m; try { m = await magasins(pos.lat, pos.lon, rayon, type); } catch (e) { return 'recherche impossible : ' + e.message; }
+      if (!m.length) return (type === 'carburant' ? 'aucune station-service' : 'aucun magasin') + ' dans ' + Math.round(rayon / 1000) + ' km';
+      return m.slice(0, 8).map(x => x.nom + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + fmtKm(x.km)).join(' ; ');
+    }
+    if (name === 'chercher_internet') {
+      const q = String(input.requete || '').trim();
+      if (!q) return "dis-moi ce que je dois chercher";
+      try { return await chercherInternet(q); } catch (e) { return "recherche impossible : " + e.message; }
+    }
+    if (name === 'demander_deuxieme_avis') {
+      const q = String(input.question || '').trim();
+      if (!q) return "dis-moi la question à poser à l'autre IA";
+      try { return await deuxiemeAvis(q); } catch (e) { return "second avis impossible : " + e.message; }
+    }
+    if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Accepté. L'amélioration démarre juste après ta réponse : préviens que ça prend une à trois minutes et que l'appli va se recharger."; }
+    if (name === 'creer_fichier') {
+      if (!hasFiles()) return NEED_APK;
+      const nom = String(input.nom || 'poupous.txt');
+      const ext = (nom.split('.').pop() || '').toLowerCase();
+      const mime = ({txt:'text/plain', md:'text/markdown', csv:'text/csv', html:'text/html', htm:'text/html', json:'application/json', xml:'text/xml'})[ext] || 'text/plain';
+      return P.saveFile(nom, mime, b64utf8(String(input.contenu || '')), input.partager !== false);
+    }
+    const PHONE_TOOLS = ['chercher_contact','appeler','envoyer_sms','mettre_reveil','minuteur','ouvrir_appli','itineraire','preparer_mail'];
+    if (PHONE_TOOLS.includes(name) && !hasPhone()) return OLD_APK;
+    if (name === 'chercher_contact') return await waitFor('k', id => P.findContact(id, String(input.nom || '')));
+    if (name === 'appeler') return P.dial(String(input.numero || ''));
+    if (name === 'envoyer_sms') return P.sms(String(input.numero || ''), String(input.message || ''));
+    if (name === 'mettre_reveil') return P.alarm(Math.max(0, Math.min(23, parseInt(input.heure, 10) || 0)), Math.max(0, Math.min(59, parseInt(input.minute, 10) || 0)), String(input.libelle || ''));
+    if (name === 'minuteur') return P.timer(Math.max(1, parseInt(input.secondes, 10) || 60), String(input.libelle || ''));
+    if (name === 'ouvrir_appli') return P.openApp(String(input.nom || ''));
+    if (name === 'itineraire') return P.navigate(String(input.destination || ''));
+    if (name === 'preparer_mail') return P.email(String(input.destinataire || ''), String(input.objet || ''), String(input.texte || ''));
+    if (name === 'annuler_derniere_amelioration') { S.pendingRollback = true; return 'Accepté : retour à la version précédente juste après ta réponse.'; }
+    return 'outil inconnu';
+  } catch (e) { return 'Erreur : ' + (e.message || e); }
+}
+function setReglage(nom, valeur){
+  const r = S.reglages;
+  if (nom === 'vitesse' || nom === 'hauteur') { const v = parseFloat(valeur.replace(',', '.')); if (!isFinite(v)) return 'nombre attendu'; r[nom] = Math.min(2, Math.max(.5, v)); applyVoice(); }
+  else if (nom === 'voix') { const vs = voicesFr(); const v = vs.find(x => norm(x) === norm(valeur)) || vs.find(x => norm(x).includes(norm(valeur))); if (!v) return 'voix introuvable'; r.voix = v; applyVoice(); }
+  else if (nom === 'personnalite') r.personnalite = valeur.slice(0, 600);
+  else if (nom === 'mainsLibres') { r.mainsLibres = /^(true|oui|1|on|vrai)$/i.test(valeur.trim()); if (r.mainsLibres) setTimeout(handsFree, 0); else if (P && S.listening) P.cancelListening(); }
+  else return 'réglage inconnu';
+  store.set('reglages', r);
+  return nom + ' = ' + r[nom];
+}
+async function callClaude(body){
+  const r = await waitFor('c', id => P.claude(id, JSON.stringify(body)));
+  let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+  if (r.status === 200 && data) return data;
+  const err = new Error(data && data.error ? data.error.message : r.text);
+  err.status = r.status; err.type = data && data.error ? data.error.type : 'network';
+  throw err;
+}
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+function provider(){ return S.reglages.cerveau === 'claude' ? 'claude' : 'gemini'; }
+function geminiKey(){ return store.get('geminiKey', ''); }
+function brainReady(){ return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
+function openBrainKey(){ if (provider() === 'gemini') openGeminiKey(); else openKey(); }
+function toGeminiSchema(s){
+  if (!s || typeof s !== 'object') return s;
+  const o = {};
+  for (const k in s) {
+    if (k === 'type') o.type = String(s.type).toUpperCase();
+    else if (k === 'properties') { o.properties = {}; for (const q in s.properties) o.properties[q] = toGeminiSchema(s.properties[q]); }
+    else if (k === 'items') o.items = toGeminiSchema(s.items);
+    else o[k] = s[k];
+  }
+  return o;
+}
+function geminiTools(){
+  return [{functionDeclarations: toolDefs().map(t => {
+    const d = {name:t.name, description:t.description};
+    if (t.input_schema && t.input_schema.properties && Object.keys(t.input_schema.properties).length) d.parameters = toGeminiSchema(t.input_schema);
+    return d;
+  })}];
+}
+async function geminiCall(body){
+  if (!P || typeof P.github !== 'function') { const e = new Error("L'APK 1.2 est nécessaire pour Gemini."); e.status = 0; throw e; }
+  const saved = store.get('geminiModel', '');
+  const models = (saved ? [saved] : []).concat(GEMINI_MODELS.filter(m => m !== saved));
+  let lastErr = null;
+  for (const m of models) {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(geminiKey());
+    const r = await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
+    let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+    if (r.status === 200 && data) { if (m !== saved) store.set('geminiModel', m); return data; }
+    const msg = data && data.error ? String(data.error.message || '') : String(r.text || '');
+    const err = new Error(msg); err.status = r.status; err.gemini = true; lastErr = err;
+    if (r.status === 400 && /api key|API_KEY/i.test(msg)) throw err;
+    if (r.status === 404 || r.status === 429 || r.status === 403 || r.status >= 500) { await sleep(700); continue; }
+    throw err;
+  }
+  throw lastErr;
+}
+function geminiParts(content){
+  const parts = [];
+  if (typeof content === 'string') parts.push({text:content});
+  else for (const b of content) {
+    if (b.type === 'text') parts.push({text:b.text});
+    else if ((b.type === 'image' || b.type === 'document') && b.source) parts.push({inlineData:{mimeType:b.source.media_type, data:b.source.data}});
+  }
+  return parts;
+}
+async function askGemini(messages, onText){
+  const contents = [];
+  for (const m of messages) {
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    const parts = geminiParts(m.content);
+    if (!parts.length) continue;
+    if (contents.length && contents[contents.length - 1].role === role) contents[contents.length - 1].parts.push(...parts);
+    else contents.push({role, parts});
+  }
+  while (contents.length && contents[0].role !== 'user') contents.shift();
+  let answer = '';
+  for (let round = 0; round < 6; round++) {
+    const data = await geminiCall({systemInstruction:{parts:[{text:systemPrompt()}]}, contents, tools:geminiTools(), generationConfig:{maxOutputTokens:8192}});
+    const cand = (data.candidates || [])[0];
+    if (!cand || !cand.content) break;
+    const parts = cand.content.parts || [];
+    const texts = parts.filter(x => x.text && !x.thought).map(x => x.text).join(' ').trim();
+    if (texts) { answer = clean(texts); onText(answer); }
+    const calls = parts.filter(x => x.functionCall);
+    if (!calls.length) break;
+    contents.push({role:'model', parts});
+    const responses = [];
+    for (const c of calls) responses.push({functionResponse:{name:c.functionCall.name, response:{resultat:String(await runTool(c.functionCall.name, c.functionCall.args || {}))}}});
+    contents.push({role:'user', parts:responses});
+  }
+  return answer;
+}
+async function complete(system, user, maxTokens){
+  if (provider() === 'gemini') {
+    const data = await geminiCall({systemInstruction:{parts:[{text:system}]}, contents:[{role:'user', parts:[{text:user}]}], generationConfig:{maxOutputTokens:65536}});
+    const c = (data.candidates || [])[0] || {};
+    const text = ((c.content && c.content.parts) || []).filter(x => x.text && !x.thought).map(x => x.text).join('');
+    return {text, truncated: c.finishReason === 'MAX_TOKENS'};
+  }
+  const data = await callClaude({model:UPGRADE_MODEL, max_tokens:maxTokens, system, messages:[{role:'user', content:user}]});
+  return {text:(data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), truncated: data.stop_reason === 'max_tokens'};
+}
+async function chercherInternet(q){
+  const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1';
+  let texte;
+  if (P && typeof P.http === 'function') {
+    const r = await waitFor('h', id => P.http(id, 'GET', url, '', ''));
+    if (r.status !== 200) throw new Error('recherche indisponible (' + r.status + ')');
+    texte = r.text;
+  } else {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('recherche indisponible (' + r.status + ')');
+    texte = await r.text();
+  }
+  let j; try { j = JSON.parse(texte); } catch (e) { throw new Error('réponse illisible'); }
+  const morceaux = [];
+  if (j.AbstractText) morceaux.push(j.AbstractText);
+  else if (j.Answer) morceaux.push(String(j.Answer));
+  else if (j.Definition) morceaux.push(j.Definition);
+  if (Array.isArray(j.RelatedTopics)) for (const t of j.RelatedTopics) { if (morceaux.length >= 3) break; if (t && t.Text) morceaux.push(t.Text); }
+  if (!morceaux.length) return "aucun résultat clair trouvé pour « " + q + " » (cet outil ne donne que des réponses courtes de type encyclopédique, pas une vraie recherche web)";
+  return morceaux.slice(0, 3).join(' ; ');
+}
+async function deuxiemeAvis(question){
+  const autre = provider() === 'claude' ? 'gemini' : 'claude';
+  if (autre === 'gemini') {
+    if (!geminiKey()) return "pas de clé Gemini enregistrée pour demander un second avis";
+    const data = await geminiCall({contents:[{role:'user', parts:[{text:question}]}], generationConfig:{maxOutputTokens:2048}});
+    const c = (data.candidates || [])[0] || {};
+    const t = ((c.content && c.content.parts) || []).filter(x => x.text).map(x => x.text).join('');
+    return t || "Gemini n'a pas répondu";
+  }
+  if (!(P && P.hasKey())) return "pas de clé Claude enregistrée pour demander un second avis";
+  const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, messages:[{role:'user', content:question}]});
+  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('') || "Claude n'a pas répondu";
+}
+function mentionActuelle(){ try { return (P && P.getMention) ? (P.getMention() || '') : ''; } catch (e) { return ''; } }
+function accesNotifOk(){ try { return !!(P && P.accesNotificationsActif && P.accesNotificationsActif()); } catch (e) { return false; } }
+function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
+function utf8b64(b){ try { return decodeURIComponent(escape(atob(b))); } catch (e) { return atob(b); } }
+function renderAttachments(){
+  const box = $('#attach'); box.innerHTML = '';
+  S.attachments.forEach((a, i) => {
+    const c = document.createElement('div'); c.className = 'chipfile';
+    const s = document.createElement('span'); s.textContent = a.nom; c.appendChild(s);
+    const b = document.createElement('button'); b.textContent = '×'; b.setAttribute('aria-label', 'Retirer ' + a.nom);
+    b.onclick = () => { S.attachments.splice(i, 1); renderAttachments(); };
+    c.appendChild(b); box.appendChild(c);
+  });
+}
+function addAttachment(nom, type, base64){
+  if (base64.length > 14000000) { sys('« ' + nom + ' » est trop gros (10 Mo maximum).'); return; }
+  S.attachments.push({nom, type: type || 'application/octet-stream', base64}); renderAttachments();
+}
+function attachmentBlocks(list){
+  const blocks = [];
+  for (const a of list) {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(a.type)) blocks.push({type:'image', source:{type:'base64', media_type:a.type, data:a.base64}});
+    else if (a.type === 'application/pdf') blocks.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:a.base64}});
+    else if (/^text\/|json|xml|csv|javascript/.test(a.type) || /\.(txt|md|csv|json|html?|xml|js|py|java|kt|log)$/i.test(a.nom)) blocks.push({type:'text', text:'Fichier « ' + a.nom + ' » :\n' + utf8b64(a.base64).slice(0, 100000)});
+    else blocks.push({type:'text', text:'(Fichier « ' + a.nom + ' » de type ' + a.type + ' reçu : je ne peux pas lire ce format.)'});
+  }
+  return blocks;
+}
+function loadShared(){
+  if (!P || typeof P.takeShared !== 'function') return;
+  let d = null; try { const s = P.takeShared(); d = s ? JSON.parse(s) : null; } catch (e) {}
+  if (!d) return;
+  if (d.base64) { addAttachment(d.nom || 'fichier', d.type, d.base64); sys('Fichier reçu : ' + (d.nom || 'fichier') + '. Dis-moi ce que je dois en faire.'); }
+  if (d.texte) { $('#texte').value = d.texte; if (!d.base64) sys('Texte reçu. Complète ta demande puis envoie.'); }
+}
+function errCopy(e){
+  if (e.gemini) {
+    if (e.status === 400 && /api key|API_KEY/i.test(e.message || '')) return "Ma clé Gemini est refusée. Vérifie-la dans les réglages.";
+    if (e.status === 403) return "Ma clé Gemini n'a pas accès à ce modèle. Vérifie-la dans les réglages.";
+    if (e.status === 429) return "J'ai atteint la limite gratuite de Gemini. Réessaie dans une minute, ou demain si c'est la limite du jour.";
+    if (e.status >= 500) return "Gemini est surchargé, redemande-moi dans un instant.";
+    if (!e.status) return "Pas de connexion internet, je ne peux pas réfléchir.";
+    return "J'ai eu un souci avec Gemini (" + e.status + ").";
+  }
+  if (e.status === 401) return "Ma clé API est refusée. Vérifie-la dans les réglages.";
+  if (e.status === 402 || /credit|billing/i.test(e.message || '')) return "Il n'y a plus de crédit sur ta clé API. Recharge-la sur console.anthropic.com.";
+  if (e.status === 429) return "Trop de demandes d'un coup. Attends un peu et redemande-moi.";
+  if (e.status === 529 || e.status >= 500) return "Mon cerveau est surchargé, redemande-moi dans un instant.";
+  if (!e.status) return "Pas de connexion internet, je ne peux pas réfléchir.";
+  return "J'ai eu un souci en réfléchissant (" + e.status + ").";
+}
+async function ask(text){
+  if (S.busy) return;
+  const cmd = text.match(/^\s*(apk|page)\s*[:：]\s*([\s\S]{3,})$/i);
+  if (cmd) {
+    addMsg('toi', text);
+    if (cmd[1].toLowerCase() === 'apk') {
+      sys("L'application Android n'est plus modifiée par Poupous. Pour une fonction du téléphone, demande le fichier à Claude.");
+    } else {
+      await runUpgrade(cmd[2].trim());
+    }
+    return;
+  }
+  S.busy = true; S.lastOk = false;
+  addMsg('toi', text);
+  if (!brainReady()) { const m = provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."; addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
+  const joints = S.attachments.splice(0); renderAttachments();
+  if (joints.length) sys('Fichiers joints : ' + joints.map(a => a.nom).join(', '));
+  S.turns.push({role:'user', content: text + (joints.length ? '\n[Fichiers joints : ' + joints.map(a => a.nom).join(', ') + ']' : '')});
+  setState('reflexion');
+  const p = addMsg('poupous', '…');
+  const messages = S.turns.slice(-20).map(x => ({role:x.role, content:x.content}));
+  while (messages.length && messages[0].role !== 'user') messages.shift();
+  if (joints.length) messages[messages.length - 1] = {role:'user', content: attachmentBlocks(joints).concat([{type:'text', text}])};
+  let answer = '';
+  try {
+    if (provider() === 'gemini') {
+      answer = await askGemini(messages, t => { p.textContent = t; scrollLog(); });
+    } else for (let round = 0; round < 6; round++) {
+      const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, system:systemPrompt(), tools:toolDefs(), messages});
+      const texts = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
+      if (texts) { answer = clean(texts); p.textContent = answer; scrollLog(); }
+      if (data.stop_reason !== 'tool_use') break;
+      messages.push({role:'assistant', content:data.content});
+      const results = [];
+      for (const b of data.content) if (b.type === 'tool_use') results.push({type:'tool_result', tool_use_id:b.id, content:String(await runTool(b.name, b.input || {}))});
+      messages.push({role:'user', content:results});
+    }
+    if (!answer) answer = "C'est fait.";
+    p.textContent = answer; S.lastOk = true;
+  } catch (e) {
+    answer = errCopy(e); p.textContent = answer; S.turns.pop();
+    if (e.gemini && e.message) sys('Détail Gemini (' + e.status + ') : ' + String(e.message).slice(0, 200));
+  }
+  if (S.lastOk && !S.pendingUpgrade && /(je (la |te la )?lance|je démarre|je m'en occupe|je (vais )?modifi|lance (vraiment )?la modif|patiente quelques minutes|c'est parti)/i.test(answer) && /(amélior|modifi|ajout|apk|mise à jour|code)/i.test(text + ' ' + answer)) {
+    sys("Attention : en réalité rien n'a été lancé. Pour une modification de son interface, passe par les réglages, rubrique Améliorer Poupous. Pour une fonction du téléphone, c'est Claude qui prépare la nouvelle version.");
+  }
+  if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
+  await speak(answer);
+  S.busy = false;
+  if (S.pendingUpgrade) { const d = S.pendingUpgrade; S.pendingUpgrade = null; await runUpgrade(d); }
+  else if (S.pendingRollback) { S.pendingRollback = false; rollback(); }
+  else idle();
+}
+
+/* ---------- Génération d'images (Cloudflare Workers AI, gratuit) ---------- */
+const IMG_MODELE = '@cf/black-forest-labs/flux-1-schnell';
+const cfCompte = () => store.get('cfCompte', '');
+const cfJeton = () => store.get('cfJeton', '');
+const imagesPretes = () => !!(cfCompte() && cfJeton() && P && typeof P.http === 'function');
+async function genererImage(sujet){
+  if (!P || typeof P.http !== 'function') throw new Error("cette version de l'application ne sait pas encore appeler ce service");
+  if (!imagesPretes()) throw new Error("il manque la clé Cloudflare : réglages, rubrique Images");
+  const url = 'https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(cfCompte()) + '/ai/run/' + IMG_MODELE;
+  const entetes = JSON.stringify({Authorization:'Bearer ' + cfJeton(), 'Content-Type':'application/json'});
+  const corps = JSON.stringify({prompt:String(sujet).slice(0, 2000), steps:6});
+  const r = await waitFor('h', id => P.http(id, 'POST', url, entetes, corps));
+  if (r.text === 'trop-gros') throw new Error("l'image reçue était trop lourde");
+  let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+  if (r.status === 401 || r.status === 403) throw new Error('la clé Cloudflare est refusée : vérifie le jeton et l identifiant de compte');
+  if (r.status === 429) throw new Error('quota Cloudflare atteint pour aujourd hui, réessaie demain');
+  if (!data || !data.result || !data.result.image) {
+    const m = data && data.errors && data.errors[0] ? data.errors[0].message : (r.text || '').slice(0, 160);
+    throw new Error('Cloudflare a répondu ' + r.status + ' : ' + m);
+  }
+  return data.result.image;
+}
+function afficherImage(b64, sujet){
+  const d = document.createElement('div');
+  d.className = 'msg poupous';
+  const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Poupous'; d.appendChild(w);
+  const img = document.createElement('img');
+  img.className = 'imggen';
+  img.src = 'data:image/jpeg;base64,' + b64;
+  img.alt = sujet;
+  d.appendChild(img);
+  const row = document.createElement('div'); row.className = 'row'; row.style.border = '0';
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Enregistrer et partager';
+  b.onclick = () => {
+    const nom = 'poupous-' + Date.now() + '.jpg';
+    const res = P && P.saveFile ? String(P.saveFile(nom, 'image/jpeg', b64, true)) : 'indisponible';
+    sys(res === 'ok' ? 'Image enregistrée dans Téléchargements/Poupous.' : 'Enregistrement impossible : ' + res);
+  };
+  row.appendChild(b); d.appendChild(row);
+  $('#log').appendChild(d); scrollLog();
+}
+function openCloudflare(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">IMAGES (CLOUDFLARE, GRATUIT)</span>' +
+    '<p class="hint">1. Crée un compte sur dash.cloudflare.com (sans carte bancaire).<br>2. Menu Workers AI → Use REST API → Create a Workers AI API Token.<br>3. Copie le jeton et l identifiant de compte affichés, puis colle-les ici. Ils restent sur ce téléphone.</p>' +
+    '<input id="cfc" type="text" autocomplete="off" placeholder="Identifiant de compte" aria-label="Identifiant de compte Cloudflare" value="' + esc(cfCompte()) + '">' +
+    '<input id="cfj" type="password" autocomplete="off" placeholder="Jeton" aria-label="Jeton Cloudflare">' +
+    '<div class="row" style="border:0"><button class="btn" id="cf-cancel">Plus tard</button><button class="btn primary" id="cf-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#cf-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#cf-save').onclick = () => {
+    const c = $('#cfc').value.replace(/\s+/g, ''), j = $('#cfj').value.replace(/\s+/g, '');
+    if (c.length < 8) { $('#cfc').style.borderColor = '#ff6b6b'; return; }
+    if (j.length < 20) { $('#cfj').style.borderColor = '#ff6b6b'; return; }
+    store.set('cfCompte', c); store.set('cfJeton', j);
+    $('#sheet').hidden = true;
+    sys('Clé Cloudflare enregistrée. Demande-moi une image quand tu veux.');
+  };
+}
+
+/* ---------- Génération de vidéos (Pixazo / LTX, gratuit en préversion) ---------- */
+const VID_BASE = 'https://gateway.pixazo.ai/ltx-video/v1/';
+const pxJeton = () => store.get('pxJeton', '');
+async function pixazo(chemin, corps){
+  const r = await waitFor('h', id => P.http(id, 'POST', VID_BASE + chemin,
+    JSON.stringify({'Ocp-Apim-Subscription-Key': pxJeton(), 'Content-Type':'application/json'}), JSON.stringify(corps)));
+  let d = null; try { d = JSON.parse(r.text); } catch (e) {}
+  if (r.status === 401 || r.status === 403) throw new Error('la clé Pixazo est refusée');
+  if (r.status === 429) throw new Error('trop de demandes, laisse passer une minute');
+  if (!d || !d.polling_url) throw new Error('réponse inattendue (' + r.status + ') : ' + (r.text || '').slice(0, 140));
+  return d.polling_url;
+}
+async function attendreVideo(pollingUrl, prog){
+  for (let i = 0; i < 60; i++) {
+    await sleep(5000);
+    const r = await waitFor('h', id => P.http(id, 'GET', pollingUrl,
+      JSON.stringify({'Ocp-Apim-Subscription-Key': pxJeton()}), ''));
+    let d = null; try { d = JSON.parse(r.text); } catch (e) {}
+    if (!d) continue;
+    const etat = String(d.status || '').toUpperCase();
+    if (prog) prog.textContent = 'Vidéo en cours de création… (' + ((i + 1) * 5) + ' s)';
+    if (etat === 'COMPLETED') {
+      const u = d.output && (d.output.media_url || d.output.url || d.output.video_url);
+      if (!u) throw new Error('la vidéo est prête mais je ne trouve pas son adresse');
+      return u;
+    }
+    if (etat === 'FAILED' || etat === 'ERROR') throw new Error(String((d.error && d.error.message) || 'la création a échoué'));
+  }
+  throw new Error('la vidéo met trop de temps, réessaie plus tard');
+}
+function afficherVideo(url, sujet){
+  const d = document.createElement('div');
+  d.className = 'msg poupous';
+  const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Poupous'; d.appendChild(w);
+  const v = document.createElement('video');
+  v.className = 'vidgen'; v.src = url; v.controls = true; v.playsInline = true; v.loop = true;
+  d.appendChild(v);
+  const row = document.createElement('div'); row.className = 'row'; row.style.border = '0';
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Enregistrer et partager';
+  b.onclick = async () => {
+    if (!P || typeof P.telecharger !== 'function') { sys("Cette version de l'application ne sait pas encore enregistrer les vidéos."); return; }
+    b.disabled = true; b.textContent = 'Enregistrement…';
+    const res = String(await waitFor('t', id => P.telecharger(id, url, 'poupous-' + Date.now() + '.mp4', 'video/mp4', true)));
+    b.disabled = false; b.textContent = 'Enregistrer et partager';
+    sys(res);
+  };
+  row.appendChild(b); d.appendChild(row);
+  $('#log').appendChild(d); scrollLog();
+}
+function openPixazo(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">VIDÉOS (PIXAZO, GRATUIT)</span>' +
+    '<p class="hint">1. Crée un compte sur pixazo.ai (sans carte bancaire).<br>2. Récupère ta clé API dans ton tableau de bord.<br>3. Colle-la ici. Elle reste sur ce téléphone.<br>Gratuit pendant la préversion du modèle LTX : ça peut changer un jour.</p>' +
+    '<input id="pxj" type="password" autocomplete="off" placeholder="Clé Pixazo" aria-label="Clé Pixazo">' +
+    '<div class="row" style="border:0"><button class="btn" id="px-cancel">Plus tard</button><button class="btn primary" id="px-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#px-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#px-save').onclick = () => {
+    const j = $('#pxj').value.replace(/\s+/g, '');
+    if (j.length < 16) { $('#pxj').style.borderColor = '#ff6b6b'; return; }
+    store.set('pxJeton', j); $('#sheet').hidden = true;
+    sys('Clé Pixazo enregistrée. Demande-moi une vidéo quand tu veux.');
+  };
+}
+
+/* ---------- Mode Courses : liste + magasins autour ---------- */
+const RAYONS = [[1000,'1 km'],[3000,'3 km'],[10000,'10 km'],[25000,'25 km']];
+const MAG = {shop:['supermarket','convenience','grocery','greengrocer','butcher','bakery']};
+const CARBURANT_TAG = '"amenity"~"^(fuel)$"';
+function liste(){ return store.get('courses', []); }
+function setListe(l){ store.set('courses', l); setTimeout(majRoute, 0); return l; }
+function coursesAjouter(txt){
+  const l = liste();
+  String(txt).split(/[,;\n]|\bet\b/i).map(x => x.trim().replace(/^[-•\s]+/, '')).filter(x => x && x.length < 60)
+    .forEach(a => { if (!l.some(i => norm(i.t) === norm(a))) l.push({t:a, ok:false}); });
+  return setListe(l);
+}
+function coursesCocher(txt){
+  const l = liste(); let n = 0;
+  l.forEach(i => { if (!i.ok && norm(i.t).includes(norm(txt))) { i.ok = true; n++; } });
+  setListe(l); return n;
+}
+function distKm(a, b, c, d){
+  const R = 6371, r = x => x * Math.PI / 180;
+  const dl = r(c - a), dn = r(d - b);
+  const h = Math.sin(dl/2)*Math.sin(dl/2) + Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)*Math.sin(dn/2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function fmtKm(k){ return k < 1 ? Math.round(k * 1000) + ' m' : k.toFixed(k < 10 ? 1 : 0) + ' km'; }
+function position(){
+  if (P && typeof P.position === 'function') {
+    return waitFor('p', id => P.position(id)).then(r => {
+      let o = null; try { o = JSON.parse(r); } catch (e) {}
+      if (!o || o.erreur || typeof o.lat !== 'number') throw new Error(o && o.erreur ? o.erreur : 'position introuvable');
+      const v = {lat:o.lat, lon:o.lon, vit:o.vitesse};
+      store.set('dernierePos', v);
+      return v;
+    });
+  }
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error("ce téléphone ne me donne pas la position"));
+    navigator.geolocation.getCurrentPosition(
+      p => { const o = {lat:p.coords.latitude, lon:p.coords.longitude, vit:p.coords.speed}; store.set('dernierePos', o); res(o); },
+      e => rej(new Error(e && e.code === 1 ? "l'application ne me donne pas encore la position GPS" : "position introuvable")),
+      {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+  });
+}
+async function geocode(q){
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+  if (!r.ok) throw new Error('recherche d adresse indisponible');
+  const j = await r.json();
+  if (!j.length) throw new Error('adresse introuvable');
+  return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
+}
+async function magasins(lat, lon, rayon, type){
+  const carburant = type === 'carburant';
+  const f = carburant ? CARBURANT_TAG : '"shop"~"^(' + MAG.shop.join('|') + ')$"';
+  const q = '[out:json][timeout:25];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 60;';
+  const body = 'data=' + encodeURIComponent(q);
+  let status, texte;
+  if (P && typeof P.http === 'function') {
+    const r = await waitFor('h', id => P.http(id, 'POST', 'https://overpass-api.de/api/interpreter', JSON.stringify({'Content-Type':'application/x-www-form-urlencoded'}), body));
+    status = r.status; texte = r.text;
+  } else {
+    const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
+    status = r.status; texte = await r.text();
+  }
+  if (status !== 200) throw new Error((carburant ? 'service des stations-service' : 'service des magasins') + ' indisponible (' + status + ')');
+  let j; try { j = JSON.parse(texte); } catch (e) { throw new Error('réponse illisible du service des magasins'); }
+  return (j.elements || []).map(e => {
+    const la = e.lat != null ? e.lat : (e.center && e.center.lat);
+    const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
+    if (la == null || lo == null) return null;
+    const t = e.tags || {};
+    return {nom:t.name || t.brand || (carburant ? 'Station-service' : 'Magasin'), type:t.shop || t.amenity || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
+            adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
+  }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 15);
+}
+function carteHTML(lat, lon, pts){
+  const z = 14, n = Math.pow(2, z), W = 256;
+  const xy = (la, lo) => {
+    const r = la * Math.PI / 180;
+    return {x:(lo + 180) / 360 * n, y:(1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n};
+  };
+  const c = xy(lat, lon), x0 = Math.floor(c.x), y0 = Math.floor(c.y);
+  let h = '';
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+    h += '<img src="https://tile.openstreetmap.org/' + z + '/' + (x0 + dx) + '/' + (y0 + dy) + '.png" width="256" height="256" style="position:absolute;left:' + ((dx + 1) * W) + 'px;top:' + ((dy + 1) * W) + 'px" alt="">';
+  const px = (la, lo) => { const q = xy(la, lo); return {l:(q.x - x0 + 1) * W, t:(q.y - y0 + 1) * W}; };
+  const me = px(lat, lon);
+  h += '<div class="pin moi" style="left:' + me.l.toFixed(0) + 'px;top:' + me.t.toFixed(0) + 'px"></div>';
+  pts.slice(0, 12).forEach(p => { const q = px(p.lat, p.lon); h += '<div class="pin" style="left:' + q.l.toFixed(0) + 'px;top:' + q.t.toFixed(0) + 'px"></div>'; });
+  return '<div class="carte"><div class="carte-in" style="left:calc(50% - ' + me.l.toFixed(0) + 'px);top:calc(50% - ' + me.t.toFixed(0) + 'px)">' + h + '</div></div>' +
+    '<p class="hint">Carte © OpenStreetMap</p>';
+}
+const routeDispo = () => !!(P && typeof P.surveillerRoute === 'function');
+function resteAPrendre(){ return liste().filter(i => !i.ok).length; }
+function majRoute(){
+  if (!routeDispo()) return;
+  const veut = store.get('route', false) && resteAPrendre() > 0;
+  if (veut === store.get('routeActive', false)) return;
+  const r = String(P.surveillerRoute(veut));
+  if (veut && r !== 'ok') { store.set('route', false); sys(r); store.set('routeActive', false); return; }
+  store.set('routeActive', veut);
+  if (veut) sys('Surveillance de la route activée : je te préviendrai si un magasin est sur ton chemin.');
+}
+function renderCourses(){
+  const l = liste(), reste = l.filter(i => !i.ok).length;
+  $('#sheet-inner').innerHTML =
+    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">COURSES</span><button class="btn" id="close-courses">Fermer</button></div>' +
+    '<h2>Ma liste' + (l.length ? ' · ' + reste + ' à prendre' : '') + '</h2>' +
+    '<div class="row" style="border:0"><input id="c-item" placeholder="Ajouter un article…" autocomplete="off" enterkeyhint="done" style="flex:1;min-width:0;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit"><button class="btn primary" id="c-add">Ajouter</button></div>' +
+    (l.length ? l.map((i, k) => '<div class="item' + (i.ok ? ' ok' : '') + '"><input type="checkbox" data-ok="' + k + '"' + (i.ok ? ' checked' : '') + '><span class="txt">' + esc(i.t) + '</span><button class="btn" data-rm="' + k + '">Retirer</button></div>').join('')
+      : '<p class="hint">Vide. Tu peux aussi dire « Poupous, ajoute du lait et des œufs à mes courses ».</p>') +
+    (l.some(i => i.ok) ? '<div class="row"><span class="hint">Articles déjà pris</span><button class="btn" id="c-clean">Retirer les cochés</button></div>' : '') +
+    (routeDispo() ? '<h2>Sur la route</h2>' +
+      '<div class="row"><label for="hr">Me prévenir en voiture<br><span class="hint">Quand un magasin est sur mon chemin et que ma liste n\'est pas vide</span></label><input type="checkbox" id="hr"' + (store.get('route', false) ? ' checked' : '') + '></div>' : '') +
+    '<h2>Magasins autour</h2>' +
+    '<div class="row"><label for="c-rayon">Distance</label><select id="c-rayon">' +
+      RAYONS.map(r => '<option value="' + r[0] + '"' + (String(store.get('rayon', 3000)) === String(r[0]) ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select></div>' +
+    '<div class="row" style="border:0"><span class="hint">Utilise ta position GPS</span><button class="btn primary" id="c-find">Chercher autour de moi</button></div>' +
+    '<div class="row" style="border:0"><input id="c-adr" placeholder="ou une ville / une adresse…" autocomplete="off" style="flex:1;min-width:0;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit"><button class="btn" id="c-adr-go">Chercher</button></div>' +
+    '<div id="c-res"></div>';
+  const add = () => { const v = $('#c-item').value.trim(); if (!v) return; coursesAjouter(v); renderCourses(); $('#c-item').focus(); };
+  $('#close-courses').onclick = () => { $('#sheet').hidden = true; };
+  $('#c-add').onclick = add;
+  $('#c-item').addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  $('#sheet-inner').querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const l2 = liste(); l2[+b.dataset.ok].ok = b.checked; setListe(l2); renderCourses(); });
+  $('#sheet-inner').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const l2 = liste(); l2.splice(+b.dataset.rm, 1); setListe(l2); renderCourses(); });
+  if ($('#c-clean')) $('#c-clean').onclick = () => { setListe(liste().filter(i => !i.ok)); renderCourses(); };
+  $('#c-rayon').onchange = e => store.set('rayon', parseInt(e.target.value, 10));
+  if ($('#hr')) $('#hr').onchange = e => { store.set('route', e.target.checked); majRoute(); };
+  $('#c-find').onclick = () => chercherMagasins(null);
+  $('#c-adr-go').onclick = () => { const v = $('#c-adr').value.trim(); if (v) chercherMagasins(v); };
+}
+async function chercherMagasins(adresse){
+  const box = $('#c-res'); if (!box) return;
+  box.innerHTML = '<p class="hint">Recherche en cours…</p>';
+  const rayon = parseInt(($('#c-rayon') || {}).value || store.get('rayon', 3000), 10);
+  let pos;
+  try { pos = adresse ? await geocode(adresse) : await position(); }
+  catch (e) {
+    box.innerHTML = '<p class="hint">' + esc(e.message) + '. Tape une ville ou une adresse juste au-dessus, ça marche aussi.</p>';
+    return;
+  }
+  let m;
+  try { m = await magasins(pos.lat, pos.lon, rayon); }
+  catch (e) { box.innerHTML = '<p class="hint">' + esc(e.message) + '</p>'; return; }
+  if (!m.length) { box.innerHTML = carteHTML(pos.lat, pos.lon, []) + '<p class="hint">Aucun magasin trouvé dans ce rayon. Essaie une distance plus grande.</p>'; return; }
+  box.innerHTML = carteHTML(pos.lat, pos.lon, m) +
+    m.map((x, i) => '<div class="mag"><div><div>' + esc(x.nom) + '</div>' + (x.adr ? '<div class="hint">' + esc(x.adr) + '</div>' : '') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px"><span class="km">' + fmtKm(x.km) + '</span><button class="btn" data-go="' + i + '">Y aller</button></div></div>').join('');
+  box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { const x = m[+b.dataset.go]; if (P && P.navigate) P.navigate(x.lat + ',' + x.lon); });
+}
+
+/* ---------- Validation obligatoire avant toute modification du code ---------- */
+function confirmChange(titre, resume, liste){
+  return new Promise(resolve => {
+    $('#sheet-inner').innerHTML =
+      '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">' + esc(titre) + '</span></div>' +
+      '<p class="hint">Poupous veut modifier son propre code. Rien n\'est appliqué sans ton accord.</p>' +
+      '<h2>Ce qu\'il va changer</h2><p>' + esc(resume) + '</p>' +
+      (liste ? '<h2>Fichiers concernés</h2><p class="hint">' + esc(liste) + '</p>' : '') +
+      '<div class="row"><button class="btn" id="chg-no">Refuser</button><button class="btn primary" id="chg-yes">Appliquer</button></div>';
+    $('#sheet').hidden = false;
+    let done = false;
+    const fin = v => { if (done) return; done = true; S.confirmReject = null; $('#sheet').hidden = true; resolve(v); };
+    S.confirmReject = fin;
+    $('#chg-yes').onclick = () => fin(true);
+    $('#chg-no').onclick = () => fin(false);
+  });
+}
+
+/* ---------- Auto-amélioration ---------- */
+const MK = n => '=' + '==' + n + '===';
+async function upgradeFail(msg){
+  const n = (store.get('echecs', 0) || 0) + 1;
+  store.set('echecs', n);
+  if (n >= 2) sys("Deux tentatives de suite ont échoué. J'arrête d'essayer tout seul : demande à Claude de préparer le changement, ce sera plus sûr.");
+  sys(msg); await speak(msg); S.busy = false; idle();
+}
+const MOTS_NATIFS = /\b(gps|g[ée]olocalisation|localisation|position|coordonn[ée]es|capteur|bluetooth|nfc|appareil photo|cam[ée]ra|notification|arri[èe]re[- ]plan|[ée]cran [ée]teint|autorisation android|permission android|service android)\b/i;
+async function runUpgrade(demande){
+  S.busy = true; setState('amelioration');
+  if (MOTS_NATIFS.test(demande)) {
+    return upgradeFail("Ça, c'est une fonction du téléphone : ma page ne peut pas y toucher, seule mon application Android le peut. Utilise « Modifier l'APK » plutôt que « Modifier la page ». Je n'ai rien changé.");
+  }
+  sys('Amélioration en cours : ' + demande);
+  const source = P.getApp();
+  if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
+  const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
+  const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
+    "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)), telecharger(id, url, nom, mime, partager) (résultat via window.__telechargeDone(id, texte)), notifier(titre, texte), rappel(dansSecondes, titre, texte), surveillerRoute(actif). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
+    "Contraintes impératives :\n" +
+    "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
+    "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
+    "- Garde les outils ameliorer_mon_code et annuler_derniere_amelioration, la fonction runUpgrade, et la ligne window.__poupousOK = true.\n" +
+    "- Tu ne peux pas ajouter de capacité du téléphone (GPS, capteurs, arrière-plan, autorisations Android) : ça se passe dans l'application Android, pas dans cette page.\n" +
+    "- SÉCURITÉ INTOUCHABLE : garde la fonction confirmChange et son appel dans runUpgrade, la fonction renderSettings et l'objet DEFAUT, ainsi que dans les réglages le bouton #open-settings, la section Personnalité avec #perso-reset, la liste des souvenirs avec data-del, et le bouton #hard-reset. L'utilisateur doit toujours pouvoir valider ou refuser une modification et tout remettre à zéro.\n" +
+    "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
+    "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
+    "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
+  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
+  function verifier(html){
+    for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
+    const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+    for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return "le nouveau code contient une erreur : " + e.message; } }
+    return null;
+  }
+  function extraire(out){
+    const iR = out.indexOf(MK('RESUME')), iH = out.indexOf(MK('HTML')), iF = out.lastIndexOf(MK('FIN'));
+    if (iH < 0 || iF < iH) throw new Error("je n'ai pas reçu un code complet");
+    const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
+    const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
+    return {resume, html};
+  }
+  let resume = '', html = '', probleme = null;
+  try {
+    const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source, 32000);
+    if (res.truncated) throw new Error("le nouveau code était trop long et a été coupé");
+    const t = extraire(res.text);
+    resume = t.resume; html = t.html;
+    probleme = verifier(html);
+  } catch (e) { probleme = e.message; }
+  if (probleme) {
+    sys("Premier essai raté (" + probleme + "). Je cherche à me corriger avant d'abandonner…");
+    try {
+      const res2 = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source + "\n\nTON PREMIER ESSAI A ÉCHOUÉ POUR CETTE RAISON : " + probleme + "\nCorrige précisément ce problème, sans rien casser d'autre, et renvoie de nouveau le fichier complet.", 32000);
+      if (res2.truncated) throw new Error("le nouveau code était encore trop long");
+      const t2 = extraire(res2.text);
+      const probleme2 = verifier(t2.html);
+      if (probleme2) return upgradeFail("Ma tentative de correction a aussi échoué (" + probleme2 + "). Je n'ai rien changé. Demande à Claude si tu veux que ce soit préparé autrement.");
+      resume = t2.resume; html = t2.html;
+    } catch (e) { return upgradeFail("Ma tentative de correction a échoué (" + e.message + "). Je n'ai rien changé."); }
+  }
+  setState('attente');
+  if (!await confirmChange('MODIFICATION DE LA PAGE', resume, '')) return upgradeFail("Modification refusée. Je n'ai rien changé.");
+  setState('amelioration');
+  store.set('echecs', 0);
+  store.set('maj', {resume, vu:false});
+  await speak("C'est prêt, je me recharge.");
+  const r = P.saveApp(html);
+  if (r !== 'ok') { store.set('maj', null); upgradeFail("L'enregistrement a échoué (" + r + ")."); }
+}
+async function rollback(){
+  S.busy = true; setState('amelioration');
+  await speak('Je reviens à ma version précédente.');
+  store.set('maj', {resume:'Je suis revenu à ma version précédente.', vu:false});
+  const r = P.restoreBackup();
+  if (r !== 'ok') { store.set('maj', null); upgradeFail(r === 'none' ? "Je n'ai pas de version précédente." : "Le retour en arrière a échoué."); }
+}
+function announce(){
+  if (P && P.wasRolledBack()) { const m = "Ma dernière amélioration m'empêchait de démarrer, alors je suis revenu à ma version précédente."; addMsg('poupous', m); store.set('maj', null); speak(m).then(() => { if (!S.busy) idle(); }); return; }
+  const maj = store.get('maj', null);
+  if (maj && !maj.vu && maj.resume) {
+    store.set('maj', {resume:maj.resume, vu:true});
+    const m = maj.resume.startsWith('Je suis revenu') ? maj.resume : 'Mise à jour installée. ' + maj.resume;
+    addMsg('poupous', m); speak(m).then(() => { if (!S.busy) idle(); });
+  }
+}
+
+/* ---------- Clé API et réglages ---------- */
+function openKey(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">CLÉ API ANTHROPIC</span>' +
+    '<p class="hint">Colle ta clé (elle commence par sk-ant-). Elle reste enregistrée uniquement sur ce téléphone.</p>' +
+    '<input id="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" aria-label="Clé API">' +
+    '<div class="row" style="border:0"><button class="btn" id="key-cancel">Plus tard</button><button class="btn primary" id="key-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#key-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#key-save').onclick = () => {
+    const k = $('#apikey').value.replace(/\s+/g, '');
+    if (!/^sk-ant-/.test(k) && k.length >= 20) { store.set('geminiKey', k); store.set('geminiModel', ''); S.reglages.cerveau = 'gemini'; store.set('reglages', S.reglages); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !'); return; }
+    if (!/^sk-ant-/.test(k)) { $('#apikey').style.borderColor = '#ff6b6b'; return; }
+    P.setKey(k); $('#sheet').hidden = true; sys('Clé enregistrée. Je suis prêt !');
+  };
+}
+function openGeminiKey(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">CLÉ GEMINI (GRATUITE)</span>' +
+    '<p class="hint">1. Ouvre aistudio.google.com/apikey dans Chrome, connecté à ton compte Google.<br>2. Touche « Create API key » et copie la clé (elle commence par AIza).<br>3. Colle-la ici. Elle reste enregistrée uniquement sur ce téléphone.</p>' +
+    '<input id="gemkey" type="password" autocomplete="off" placeholder="AIza…" aria-label="Clé Gemini">' +
+    '<div class="row" style="border:0"><button class="btn" id="gem-cancel">Plus tard</button><button class="btn primary" id="gem-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#gem-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#gem-save').onclick = () => {
+    const k = $('#gemkey').value.replace(/\s+/g, '');
+    if (k.length < 20) { $('#gemkey').style.borderColor = '#ff6b6b'; return; }
+    store.set('geminiKey', k); store.set('geminiModel', ''); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !');
+  };
+}
+function renderSettings(){
+  const r = S.reglages, vs = voicesFr();
+  $('#sheet-inner').innerHTML =
+    '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">RÉGLAGES</span><button class="btn" id="close-settings">Fermer</button></div>' +
+    '<h2>Écoute</h2>' +
+    '<div class="row"><label for="hf">Mains libres<br><span class="hint">Écoute « Poupous » en continu tant que l\'appli est ouverte</span></label><input type="checkbox" id="hf"' + (r.mainsLibres ? ' checked' : '') + '></div>' +
+    '<h2>Voix</h2>' +
+    '<div class="row"><label for="voix">Voix</label><select id="voix"><option value="">Automatique</option>' + vs.map(v => '<option value="' + esc(v) + '"' + (v === r.voix ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></div>' +
+    '<div class="row"><label for="vitesse">Vitesse</label><input type="range" id="vitesse" min="0.5" max="2" step="0.05" value="' + r.vitesse + '"></div>' +
+    '<div class="row"><label for="hauteur">Hauteur</label><input type="range" id="hauteur" min="0.5" max="2" step="0.05" value="' + r.hauteur + '"></div>' +
+    '<div class="row"><span class="hint">Écoute le résultat</span><button class="btn" id="test-voix">Tester la voix</button></div>' +
+    '<h2>Ce que Poupous retient</h2>' +
+    (S.faits.length ? S.faits.map((f, i) => '<div class="chip"><span>' + esc(f) + '</span><button class="btn" data-del="' + i + '">Oublier</button></div>').join('')
+      : '<p class="hint">Rien pour l\'instant. Dis par exemple « retiens que je bois mon café noir ».</p>') +
+    '<h2>Mentions (WhatsApp, WhatsApp Business, SMS)</h2>' +
+    '<p class="hint">Poupous te prévient dès que ce nom apparaît dans un message reçu, même si la conversation est en sourdine.</p>' +
+    '<div class="row"><label for="mention">Nom ou pseudo à surveiller</label><input id="mention" style="width:45%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 10px;font:inherit" value="' + esc(mentionActuelle()) + '" placeholder="ex. Hamed"></div>' +
+    '<div class="row"><span>' + (accesNotifOk() ? 'Accès aux notifications : activé' : 'Accès aux notifications : à activer') + '</span><button class="btn" id="mention-acces">' + (accesNotifOk() ? 'Vérifier' : 'Activer') + '</button></div>' +
+    '<div class="row"><button class="btn primary" id="mention-save">Enregistrer</button></div>' +
+    '<h2>Cerveau</h2>' +
+    '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option></select></div>' +
+    '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<h2>Images</h2>' +
+    '<div class="row"><span>' + (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré') + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>' + (pxJeton() ? 'Vidéos configurées' : 'Vidéos non configurées') + '<br><span class="hint">Pixazo, gratuit en préversion</span></span><button class="btn" id="change-px">' + (pxJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<h2>Personnalité</h2>' +
+    '<textarea id="perso" rows="3" style="width:100%;box-sizing:border-box;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:10px 14px;font:inherit">' + esc(r.personnalite) + '</textarea>' +
+    '<div class="row"><button class="btn" id="perso-reset">Remettre par défaut</button><button class="btn primary" id="perso-save">Enregistrer</button></div>' +
+    '<h2>Améliorer Poupous</h2>' +
+    '<p class="hint">Décris le changement voulu. Poupous te montrera ce qu\'il compte faire avant d\'appliquer.</p>' +
+    '<input id="amelio" class="bar-input" style="width:100%;box-sizing:border-box;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit" placeholder="Ex. : écouter « Poupous » même appli fermée">' +
+    '<div class="row"><button class="btn primary" id="go-page">Demander ce changement</button></div>' +
+    '<h2>Versions</h2>' +
+    '<p class="hint">Page : version ' + (P ? P.appVersion() : '?') + ' · Application Android : ' + (P && typeof P.nativeVersion === 'function' ? '1.' + (P.nativeVersion() - 1) : '1.0') + '</p>' +
+    '<div class="row"><span>Version précédente</span><button class="btn" id="undo">Restaurer</button></div>' +
+    '<div class="row"><span>Historique de conversation</span><button class="btn" id="clear-conv">Effacer</button></div>' +
+    '<div class="row"><span>Tout remettre à zéro<br><span class="hint">Personnalité, souvenirs et historique</span></span><button class="btn" id="hard-reset">Réinitialiser</button></div>';
+  $('#close-settings').onclick = () => { $('#sheet').hidden = true; };
+  $('#hf').onchange = e => { setReglage('mainsLibres', String(e.target.checked)); if (!S.busy) idle(); };
+  $('#voix').onchange = e => { S.reglages.voix = e.target.value; applyVoice(); store.set('reglages', S.reglages); };
+  $('#vitesse').onchange = e => setReglage('vitesse', e.target.value);
+  $('#hauteur').onchange = e => setReglage('hauteur', e.target.value);
+  $('#test-voix').onclick = () => speak("Salut, c'est Poupous. Voilà ma voix.").then(() => { if (!S.busy) idle(); });
+  $('#change-key').onclick = openKey;
+  $('#perso-save').onclick = () => { S.reglages.personnalite = $('#perso').value.trim().slice(0, 600) || DEFAUT.personnalite; store.set('reglages', S.reglages); sys('Personnalité mise à jour.'); };
+  $('#perso-reset').onclick = () => { S.reglages.personnalite = DEFAUT.personnalite; store.set('reglages', S.reglages); renderSettings(); sys('Personnalité remise par défaut.'); };
+  $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
+  $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
+  $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
+  $('#change-gem').onclick = openGeminiKey;
+  $('#change-cf').onclick = openCloudflare;
+  $('#change-px').onclick = openPixazo;
+  $('#cerveau').onchange = e => { S.reglages.cerveau = e.target.value; store.set('reglages', S.reglages); renderSettings(); if (!brainReady()) openBrainKey(); };
+  $('#sheet-inner').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { S.faits.splice(+b.dataset.del, 1); store.set('memoire', S.faits); renderSettings(); });
+  $('#undo').onclick = () => { $('#sheet').hidden = true; if (!S.busy) rollback(); };
+  $('#clear-conv').onclick = () => { S.turns = []; store.set('conversation', []); $('#log').innerHTML = ''; sys('Historique effacé.'); };
+  $('#hard-reset').onclick = () => {
+    S.reglages.personnalite = DEFAUT.personnalite; store.set('reglages', S.reglages);
+    S.faits = []; store.set('memoire', []);
+    S.turns = []; store.set('conversation', []); $('#log').innerHTML = '';
+    $('#sheet').hidden = true;
+    sys('Poupous remis à zéro : personnalité par défaut, souvenirs et historique effacés.');
+  };
+}
+
+/* ---------- Démarrage ---------- */
+$('#mic').onclick = micTap;
+$('#clip').onclick = () => $('#fichier').click();
+$('#fichier').onchange = e => {
+  for (const f of Array.from(e.target.files || [])) {
+    if (f.size > 10 * 1024 * 1024) { sys('« ' + f.name + ' » est trop gros (10 Mo maximum).'); continue; }
+    const rd = new FileReader();
+    rd.onload = () => { const s = String(rd.result); addAttachment(f.name, f.type, s.slice(s.indexOf(',') + 1)); };
+    rd.readAsDataURL(f);
+  }
+  e.target.value = '';
+};
+$('#texte').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value.trim() || (S.attachments.length ? 'Voici un fichier.' : ''); if (v && !S.busy) { e.target.value = ''; e.target.blur(); stopSpeaking(); ask(v).then(() => { if (!S.busy) idle(); }); } } });
+$('#open-settings').onclick = () => { renderSettings(); $('#sheet').hidden = false; };
+$('#open-courses').onclick = () => { renderCourses(); $('#sheet').hidden = false; };
+$('#sheet').onclick = e => { if (e.target.id !== 'sheet') return; if (S.confirmReject) { S.confirmReject(false); return; } $('#sheet').hidden = true; };
+setState('chargement');
+requestAnimationFrame(draw);
+window.__poupousOK = true;
+
+S.faits = store.get('memoire', []);
+store.set('routeActive', false);
+setTimeout(majRoute, 1500);
+Object.assign(S.reglages, store.get('reglages', {}));
+S.turns = store.get('conversation', []);
+setTimeout(applyVoice, 800);
+if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
+if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forEach(x => addMsg(x.role === 'user' ? 'toi' : 'poupous', x.content)); }
+else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou \u00e9cris en bas. Tu peux aussi me demander de m'am\u00e9liorer.");
+idle();
+if (P && !brainReady()) openBrainKey(); else announce();
+if (S.reglages.mainsLibres) handsFree();
+loadShared();
+})();
+</script>
+</body>
+</html>
