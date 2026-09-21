@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=107 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=109 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -294,7 +294,7 @@ function systemPrompt(){
     "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
     "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
     "ameliorer_mon_code change ta page : interface, présentation, comportement, nouveaux écrans. C'est réel et immédiat, mais l'utilisateur voit d'abord un écran de validation et peut refuser. Tu ne modifies pas l'application Android elle-même : pour tout ce qui touche au téléphone, c'est Claude qui prépare la nouvelle version.\n" +
-    "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails ni les SMS reçus, tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute quand l'écran est éteint.\n" +
+    "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails, ni consulter les messages WhatsApp/SMS pendant la conversation (aucun outil ne te donne accès à leur contenu). Il existe séparément une fonction de surveillance silencieuse (réglages, rubrique Mentions) qui alerte l'utilisateur si son nom apparaît dans une conversation WhatsApp, WhatsApp Business ou SMS en sourdine ; elle marche toute seule en arrière-plan, tu n'y as pas accès et tu ne peux ni lire ni relayer ce qu'elle détecte. Tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute quand l'écran est éteint.\n" +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
@@ -586,6 +586,8 @@ async function deuxiemeAvis(question){
   const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, messages:[{role:'user', content:question}]});
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('') || "Claude n'a pas répondu";
 }
+function mentionActuelle(){ try { return (P && P.getMention) ? (P.getMention() || '') : ''; } catch (e) { return ''; } }
+function accesNotifOk(){ try { return !!(P && P.accesNotificationsActif && P.accesNotificationsActif()); } catch (e) { return false; } }
 function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
 function utf8b64(b){ try { return decodeURIComponent(escape(atob(b))); } catch (e) { return atob(b); } }
 function renderAttachments(){
@@ -1001,7 +1003,7 @@ async function runUpgrade(demande){
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
-  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis'];
+  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
   function verifier(html){
     for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
     const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -1104,6 +1106,11 @@ function renderSettings(){
     '<h2>Ce que Poupous retient</h2>' +
     (S.faits.length ? S.faits.map((f, i) => '<div class="chip"><span>' + esc(f) + '</span><button class="btn" data-del="' + i + '">Oublier</button></div>').join('')
       : '<p class="hint">Rien pour l\'instant. Dis par exemple « retiens que je bois mon café noir ».</p>') +
+    '<h2>Mentions (WhatsApp, WhatsApp Business, SMS)</h2>' +
+    '<p class="hint">Poupous te prévient dès que ce nom apparaît dans un message reçu, même si la conversation est en sourdine.</p>' +
+    '<div class="row"><label for="mention">Nom ou pseudo à surveiller</label><input id="mention" style="width:45%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 10px;font:inherit" value="' + esc(mentionActuelle()) + '" placeholder="ex. Hamed"></div>' +
+    '<div class="row"><span>' + (accesNotifOk() ? 'Accès aux notifications : activé' : 'Accès aux notifications : à activer') + '</span><button class="btn" id="mention-acces">' + (accesNotifOk() ? 'Vérifier' : 'Activer') + '</button></div>' +
+    '<div class="row"><button class="btn primary" id="mention-save">Enregistrer</button></div>' +
     '<h2>Cerveau</h2>' +
     '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option></select></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
@@ -1133,6 +1140,8 @@ function renderSettings(){
   $('#perso-save').onclick = () => { S.reglages.personnalite = $('#perso').value.trim().slice(0, 600) || DEFAUT.personnalite; store.set('reglages', S.reglages); sys('Personnalité mise à jour.'); };
   $('#perso-reset').onclick = () => { S.reglages.personnalite = DEFAUT.personnalite; store.set('reglages', S.reglages); renderSettings(); sys('Personnalité remise par défaut.'); };
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
+  $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
+  $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
   $('#change-gem').onclick = openGeminiKey;
   $('#change-cf').onclick = openCloudflare;
   $('#change-px').onclick = openPixazo;
