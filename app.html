@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=112 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=113 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -1025,13 +1025,24 @@ function extrairePatches(out){
   }
   return patches;
 }
+function echapperRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function regexSouple(avant){
+  const parts = avant.split(/\s+/).filter(Boolean).map(echapperRegex);
+  if (!parts.length) return null;
+  return new RegExp(parts.join('\\s+'), 'g');
+}
 function appliquerPatches(source, patches){
   let html = source;
   for (const p of patches) {
-    const n = html.split(p.avant).length - 1;
-    if (n === 0) throw new Error("un passage à remplacer est introuvable dans le fichier actuel");
-    if (n > 1) throw new Error("un passage à remplacer apparaît plusieurs fois, ce n'est pas assez précis");
-    html = html.replace(p.avant, p.apres);
+    const nExact = html.split(p.avant).length - 1;
+    if (nExact === 1) { html = html.replace(p.avant, p.apres); continue; }
+    if (nExact > 1) throw new Error("un passage à remplacer apparaît plusieurs fois, ce n'est pas assez précis");
+    const re = regexSouple(p.avant);
+    const matches = re ? [...html.matchAll(re)] : [];
+    if (matches.length === 0) throw new Error("un passage à remplacer est introuvable dans le fichier actuel");
+    if (matches.length > 1) throw new Error("un passage à remplacer apparaît plusieurs fois, ce n'est pas assez précis");
+    const m = matches[0];
+    html = html.slice(0, m.index) + p.apres + html.slice(m.index + m[0].length);
   }
   return html;
 }
@@ -1049,7 +1060,7 @@ async function runUpgrade(demande){
     "Format de réponse exact, un bloc par modification, autant de blocs que nécessaire :\n" +
     MKP('PATCH') + "\n" + MKP('AVANT') + "\n(le texte EXACT à remplacer, copié caractère pour caractère depuis le fichier actuel, assez long pour être unique dans le fichier — au moins une ligne de contexte avant et après si besoin)\n" + MKP('APRES') + "\n(le texte de remplacement)\n" + MKP('FINPATCH') + "\n" +
     "Contraintes impératives :\n" +
-    "- Le texte AVANT doit correspondre mot pour mot à un passage qui existe une seule fois dans le fichier actuel : ni reformulé, ni résumé.\n" +
+    "- Le texte AVANT doit correspondre mot pour mot à un passage qui existe une seule fois dans le fichier actuel : ni reformulé, ni résumé. Privilégie des extraits courts (quelques lignes) plutôt que de longs blocs, pour limiter le risque d'erreur de recopie.\n" +
     "- Change seulement ce qui est nécessaire pour la demande ; ne touche à rien d'autre.\n" +
     "- Ne touche jamais aux outils ameliorer_mon_code et annuler_derniere_amelioration, à la fonction runUpgrade, ni à la ligne window.__poupousOK = true.\n" +
     "- Tu ne peux pas ajouter de capacité du téléphone (GPS, capteurs, arrière-plan, autorisations Android) : ça se passe dans l'application Android, pas dans cette page.\n" +
