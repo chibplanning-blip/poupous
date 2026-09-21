@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=106 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=107 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -285,6 +285,7 @@ function systemPrompt(){
     "Vidéos : generer_video crée une vraie petite vidéo, en une à trois minutes. Décris la scène en anglais avec le mouvement de caméra. Préviens que c'est long et que l'appli doit rester ouverte. N'en propose pas pour une demande où une image suffirait.\n" +
     "Images : generer_image crée vraiment une image et l'affiche à l'écran. Écris la description en anglais et enrichis-la (sujet, décor, lumière, style), même si l'utilisateur te la donne en français en une phrase. Après, dis simplement ce que tu as dessiné.\n" +
     "Position : l'outil ma_position te donne sa rue et sa ville. Utilise-le dès qu'il demande où il est ; ne réponds jamais que tu n'as pas accès au GPS sans l'avoir appelé.\n" +
+    "Apprendre et se corriger : chercher_internet cherche une information sur internet (actualité, info que tu ne connais pas, solution à un problème technique) ; utilise-le plutôt que d'inventer une réponse. demander_deuxieme_avis interroge l'autre intelligence artificielle (Gemini ou Claude, selon celle que tu n'utilises pas déjà) quand tu es bloqué, pas sûr de toi, ou que tu t'es trompé ; sers-t'en pour vérifier ou corriger une réponse, pas pour chaque question.\n" +
     "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
     "Ne propose jamais deux modifications de suite pour la même demande. Si une modification a échoué, explique l'échec et attends que l'utilisateur décide.\n" +
     "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture).\n" +
@@ -327,6 +328,10 @@ function toolDefs(){
       input_schema:{type:'object', properties:{}}},
     {name:'magasins_proches', description:"Trouve les magasins d'alimentation autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
       input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}}}},
+    {name:'chercher_internet', description:"Cherche une information sur internet : actualité, fait que tu ne connais pas ou qui a pu changer, solution à un problème technique. Renvoie un court résumé.",
+      input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
+    {name:'demander_deuxieme_avis', description:"Demande un second avis à l'autre intelligence artificielle (Gemini si tu es Claude en ce moment, Claude si tu es Gemini) pour vérifier ou corriger quelque chose. Ne l'utilise que si tu es bloqué ou que tu t'es trompé, pas pour chaque question.",
+      input_schema:{type:'object', properties:{question:{type:'string'}}, required:['question']}},
     {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre juste après ta réponse, prend une à trois minutes, puis l'appli se recharge. Une sauvegarde permet d'annuler.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
     {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
@@ -419,6 +424,16 @@ async function runTool(name, input){
       let m; try { m = await magasins(pos.lat, pos.lon, rayon); } catch (e) { return 'recherche impossible : ' + e.message; }
       if (!m.length) return 'aucun magasin dans ' + Math.round(rayon / 1000) + ' km';
       return m.slice(0, 8).map(x => x.nom + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + fmtKm(x.km)).join(' ; ');
+    }
+    if (name === 'chercher_internet') {
+      const q = String(input.requete || '').trim();
+      if (!q) return "dis-moi ce que je dois chercher";
+      try { return await chercherInternet(q); } catch (e) { return "recherche impossible : " + e.message; }
+    }
+    if (name === 'demander_deuxieme_avis') {
+      const q = String(input.question || '').trim();
+      if (!q) return "dis-moi la question à poser à l'autre IA";
+      try { return await deuxiemeAvis(q); } catch (e) { return "second avis impossible : " + e.message; }
     }
     if (name === 'ameliorer_mon_code') { S.pendingUpgrade = String(input.demande || '').trim() || null; return "Accepté. L'amélioration démarre juste après ta réponse : préviens que ça prend une à trois minutes et que l'appli va se recharger."; }
     if (name === 'creer_fichier') {
@@ -546,6 +561,30 @@ async function complete(system, user, maxTokens){
   }
   const data = await callClaude({model:UPGRADE_MODEL, max_tokens:maxTokens, system, messages:[{role:'user', content:user}]});
   return {text:(data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), truncated: data.stop_reason === 'max_tokens'};
+}
+async function chercherInternet(q){
+  const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1');
+  const j = await r.json();
+  const morceaux = [];
+  if (j.AbstractText) morceaux.push(j.AbstractText);
+  else if (j.Answer) morceaux.push(String(j.Answer));
+  else if (j.Definition) morceaux.push(j.Definition);
+  if (Array.isArray(j.RelatedTopics)) for (const t of j.RelatedTopics) { if (morceaux.length >= 3) break; if (t && t.Text) morceaux.push(t.Text); }
+  if (!morceaux.length) return "aucun résultat clair trouvé pour « " + q + " »";
+  return morceaux.slice(0, 3).join(' ; ');
+}
+async function deuxiemeAvis(question){
+  const autre = provider() === 'claude' ? 'gemini' : 'claude';
+  if (autre === 'gemini') {
+    if (!geminiKey()) return "pas de clé Gemini enregistrée pour demander un second avis";
+    const data = await geminiCall({contents:[{role:'user', parts:[{text:question}]}], generationConfig:{maxOutputTokens:2048}});
+    const c = (data.candidates || [])[0] || {};
+    const t = ((c.content && c.content.parts) || []).filter(x => x.text).map(x => x.text).join('');
+    return t || "Gemini n'a pas répondu";
+  }
+  if (!(P && P.hasKey())) return "pas de clé Claude enregistrée pour demander un second avis";
+  const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, messages:[{role:'user', content:question}]});
+  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('') || "Claude n'a pas répondu";
 }
 function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
 function utf8b64(b){ try { return decodeURIComponent(escape(atob(b))); } catch (e) { return atob(b); } }
@@ -962,29 +1001,46 @@ async function runUpgrade(demande){
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
-  let out = '';
+  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis'];
+  function verifier(html){
+    for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
+    const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+    for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return "le nouveau code contient une erreur : " + e.message; } }
+    return null;
+  }
+  function extraire(out){
+    const iR = out.indexOf(MK('RESUME')), iH = out.indexOf(MK('HTML')), iF = out.lastIndexOf(MK('FIN'));
+    if (iH < 0 || iF < iH) throw new Error("je n'ai pas reçu un code complet");
+    const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
+    const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
+    return {resume, html};
+  }
+  let resume = '', html = '', probleme = null;
   try {
     const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source, 32000);
-    if (res.truncated) return upgradeFail("Le nouveau code était trop long et a été coupé. Je n'ai rien changé.");
-    out = res.text;
-  } catch (e) { return upgradeFail(errCopy(e) + " Je n'ai rien changé."); }
-  const iR = out.indexOf(MK('RESUME')), iH = out.indexOf(MK('HTML')), iF = out.lastIndexOf(MK('FIN'));
-  if (iH < 0 || iF < iH) return upgradeFail("Je n'ai pas reçu un code complet. Je n'ai rien changé.");
-  const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
-  const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
-  for (const k of ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute']) {
-    if (!html.includes(k)) return upgradeFail("Le nouveau code perdait une partie essentielle (" + k + "). Je n'ai rien changé.");
+    if (res.truncated) throw new Error("le nouveau code était trop long et a été coupé");
+    const t = extraire(res.text);
+    resume = t.resume; html = t.html;
+    probleme = verifier(html);
+  } catch (e) { probleme = e.message; }
+  if (probleme) {
+    sys("Premier essai raté (" + probleme + "). Je cherche à me corriger avant d'abandonner…");
+    try {
+      const res2 = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source + "\n\nTON PREMIER ESSAI A ÉCHOUÉ POUR CETTE RAISON : " + probleme + "\nCorrige précisément ce problème, sans rien casser d'autre, et renvoie de nouveau le fichier complet.", 32000);
+      if (res2.truncated) throw new Error("le nouveau code était encore trop long");
+      const t2 = extraire(res2.text);
+      const probleme2 = verifier(t2.html);
+      if (probleme2) return upgradeFail("Ma tentative de correction a aussi échoué (" + probleme2 + "). Je n'ai rien changé. Demande à Claude si tu veux que ce soit préparé autrement.");
+      resume = t2.resume; html = t2.html;
+    } catch (e) { return upgradeFail("Ma tentative de correction a échoué (" + e.message + "). Je n'ai rien changé."); }
   }
-  const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
-  for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return upgradeFail("Le nouveau code contient une erreur : " + e.message + ". Je n'ai rien changé."); } }
   setState('attente');
   if (!await confirmChange('MODIFICATION DE LA PAGE', resume, '')) return upgradeFail("Modification refusée. Je n'ai rien changé.");
   setState('amelioration');
-  const finalHtml = html;
   store.set('echecs', 0);
   store.set('maj', {resume, vu:false});
   await speak("C'est prêt, je me recharge.");
-  const r = P.saveApp(finalHtml);
+  const r = P.saveApp(html);
   if (r !== 'ok') { store.set('maj', null); upgradeFail("L'enregistrement a échoué (" + r + ")."); }
 }
 async function rollback(){
