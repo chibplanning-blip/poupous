@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=111 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=112 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -1004,6 +1004,37 @@ async function upgradeFail(msg){
   sys(msg); await speak(msg); S.busy = false; idle();
 }
 const MOTS_NATIFS = /\b(gps|g[ée]olocalisation|localisation|position|coordonn[ée]es|capteur|bluetooth|nfc|appareil photo|cam[ée]ra|notification|arri[èe]re[- ]plan|[ée]cran [ée]teint|autorisation android|permission android|service android)\b/i;
+const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
+function verifierHtml(html){
+  for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
+  const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+  for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return "le nouveau code contient une erreur : " + e.message; } }
+  return null;
+}
+const MKP = n => '=' + '==' + n + '===';
+function extrairePatches(out){
+  const blocs = out.split(MKP('PATCH')).slice(1);
+  if (!blocs.length) throw new Error("je n'ai reçu aucune modification");
+  const patches = [];
+  for (const b of blocs) {
+    const iA = b.indexOf(MKP('AVANT')), iP = b.indexOf(MKP('APRES')), iF = b.indexOf(MKP('FINPATCH'));
+    if (iA < 0 || iP < iA || iF < iP) throw new Error("une modification était mal formée");
+    const avant = b.slice(iA + MKP('AVANT').length, iP).replace(/^\n/, '').replace(/\n$/, '');
+    const apres = b.slice(iP + MKP('APRES').length, iF).replace(/^\n/, '').replace(/\n$/, '');
+    patches.push({avant, apres});
+  }
+  return patches;
+}
+function appliquerPatches(source, patches){
+  let html = source;
+  for (const p of patches) {
+    const n = html.split(p.avant).length - 1;
+    if (n === 0) throw new Error("un passage à remplacer est introuvable dans le fichier actuel");
+    if (n > 1) throw new Error("un passage à remplacer apparaît plusieurs fois, ce n'est pas assez précis");
+    html = html.replace(p.avant, p.apres);
+  }
+  return html;
+}
 async function runUpgrade(demande){
   S.busy = true; setState('amelioration');
   if (MOTS_NATIFS.test(demande)) {
@@ -1012,51 +1043,45 @@ async function runUpgrade(demande){
   sys('Amélioration en cours : ' + demande);
   const source = P.getApp();
   if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
-  const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
   const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
     "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)), telecharger(id, url, nom, mime, partager) (résultat via window.__telechargeDone(id, texte)), notifier(titre, texte), rappel(dansSecondes, titre, texte), surveillerRoute(actif). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
+    "MÉTHODE OBLIGATOIRE : tu ne renvoies JAMAIS le fichier complet. Tu proposes une série de PETITES modifications ciblées, chacune un remplacement exact d'un passage précis du fichier actuel par sa nouvelle version. Regroupe-les par blocs cohérents (une fonction, une section) plutôt qu'un patch géant.\n" +
+    "Format de réponse exact, un bloc par modification, autant de blocs que nécessaire :\n" +
+    MKP('PATCH') + "\n" + MKP('AVANT') + "\n(le texte EXACT à remplacer, copié caractère pour caractère depuis le fichier actuel, assez long pour être unique dans le fichier — au moins une ligne de contexte avant et après si besoin)\n" + MKP('APRES') + "\n(le texte de remplacement)\n" + MKP('FINPATCH') + "\n" +
     "Contraintes impératives :\n" +
-    "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
-    "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
-    "- Garde les outils ameliorer_mon_code et annuler_derniere_amelioration, la fonction runUpgrade, et la ligne window.__poupousOK = true.\n" +
+    "- Le texte AVANT doit correspondre mot pour mot à un passage qui existe une seule fois dans le fichier actuel : ni reformulé, ni résumé.\n" +
+    "- Change seulement ce qui est nécessaire pour la demande ; ne touche à rien d'autre.\n" +
+    "- Ne touche jamais aux outils ameliorer_mon_code et annuler_derniere_amelioration, à la fonction runUpgrade, ni à la ligne window.__poupousOK = true.\n" +
     "- Tu ne peux pas ajouter de capacité du téléphone (GPS, capteurs, arrière-plan, autorisations Android) : ça se passe dans l'application Android, pas dans cette page.\n" +
-    "- SÉCURITÉ INTOUCHABLE : garde la fonction confirmChange et son appel dans runUpgrade, la fonction renderSettings et l'objet DEFAUT, ainsi que dans les réglages le bouton #open-settings, la section Personnalité avec #perso-reset, la liste des souvenirs avec data-del, et le bouton #hard-reset. L'utilisateur doit toujours pouvoir valider ou refuser une modification et tout remettre à zéro.\n" +
+    "- SÉCURITÉ INTOUCHABLE : ne touche jamais à la fonction confirmChange et son appel dans runUpgrade, à la fonction renderSettings ni à l'objet DEFAUT, ni dans les réglages au bouton #open-settings, à la section Personnalité avec #perso-reset, à la liste des souvenirs avec data-del, ni au bouton #hard-reset. L'utilisateur doit toujours pouvoir valider ou refuser une modification et tout remettre à zéro.\n" +
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
-    "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
-    "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
-  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
-  function verifier(html){
-    for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
-    const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
-    for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return "le nouveau code contient une erreur : " + e.message; } }
-    return null;
-  }
-  function extraire(out){
-    const iR = out.indexOf(MK('RESUME')), iH = out.indexOf(MK('HTML')), iF = out.lastIndexOf(MK('FIN'));
-    if (iH < 0 || iF < iH) throw new Error("je n'ai pas reçu un code complet");
-    const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
-    const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
+    "- Avant le premier bloc " + MKP('PATCH') + ", écris une ligne " + MKP('RESUME') + " suivie d'une phrase en français résumant le changement. Pas de markdown.";
+  async function tenter(instructionsSupplementaires, base){
+    const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + instructionsSupplementaires + "\n\nFICHIER ACTUEL :\n" + base, 16000);
+    if (res.truncated) throw new Error("la réponse était trop longue et a été coupée");
+    const out = res.text;
+    const iR = out.indexOf(MKP('RESUME')), iP = out.indexOf(MKP('PATCH'));
+    if (iP < 0) throw new Error("je n'ai reçu aucune modification");
+    const resume = (iR >= 0 && iR < iP ? out.slice(iR + MKP('RESUME').length, iP) : demande).trim().slice(0, 300);
+    const patches = extrairePatches(out);
+    const html = appliquerPatches(base, patches);
+    const probleme = verifierHtml(html);
+    if (probleme) throw new Error(probleme);
     return {resume, html};
   }
-  let resume = '', html = '', probleme = null;
+  let resultat = null, derniereErreur = null;
   try {
-    const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source, 32000);
-    if (res.truncated) throw new Error("le nouveau code était trop long et a été coupé");
-    const t = extraire(res.text);
-    resume = t.resume; html = t.html;
-    probleme = verifier(html);
-  } catch (e) { probleme = e.message; }
-  if (probleme) {
-    sys("Premier essai raté (" + probleme + "). Je cherche à me corriger avant d'abandonner…");
+    resultat = await tenter('', source);
+  } catch (e) { derniereErreur = e.message; }
+  if (!resultat) {
+    sys("Premier essai raté (" + derniereErreur + "). Je cherche à me corriger avant d'abandonner…");
     try {
-      const res2 = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source + "\n\nTON PREMIER ESSAI A ÉCHOUÉ POUR CETTE RAISON : " + probleme + "\nCorrige précisément ce problème, sans rien casser d'autre, et renvoie de nouveau le fichier complet.", 32000);
-      if (res2.truncated) throw new Error("le nouveau code était encore trop long");
-      const t2 = extraire(res2.text);
-      const probleme2 = verifier(t2.html);
-      if (probleme2) return upgradeFail("Ma tentative de correction a aussi échoué (" + probleme2 + "). Je n'ai rien changé. Demande à Claude si tu veux que ce soit préparé autrement.");
-      resume = t2.resume; html = t2.html;
-    } catch (e) { return upgradeFail("Ma tentative de correction a échoué (" + e.message + "). Je n'ai rien changé."); }
+      resultat = await tenter("\n\nTON PREMIER ESSAI A ÉCHOUÉ POUR CETTE RAISON : " + derniereErreur + "\nRefais des modifications plus précises et plus petites, en copiant le texte AVANT bien exactement depuis le fichier actuel.", source);
+    } catch (e) {
+      return upgradeFail("Ma tentative de correction a aussi échoué (" + e.message + "). Je n'ai rien changé. Demande à Claude si tu veux que ce soit préparé autrement.");
+    }
   }
+  const {resume, html} = resultat;
   setState('attente');
   if (!await confirmChange('MODIFICATION DE LA PAGE', resume, '')) return upgradeFail("Modification refusée. Je n'ai rien changé.");
   setState('amelioration');
