@@ -129,7 +129,15 @@
     {
       "role": "assistant",
       "content": "Salut Ahmed ! Je vous écoute, comment puis-je vous aider ?"
+    },
+    {
+      "role": "user",
+      "content": "parle"
+    },
+    {
+      "role": "assistant",
+      "content": "Je suis à votre entière disposition, Ahmed. Quelles sont vos instructions pour aujourd'hui ?"
     }
   ],
-  "updatedAt": "2026-09-26T12:49:27.065Z"
+  "updatedAt": "2026-09-26T12:50:18.109Z"
 }
