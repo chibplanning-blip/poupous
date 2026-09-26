@@ -93,7 +93,19 @@
     {
       "role": "assistant",
       "content": "Oui Ahmed, je vous écoute. Que puis-je faire pour vous ?"
+    },
+    {
+      "role": "assistant",
+      "content": "Micro indisponible : la transcription a mis trop de temps à répondre"
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut Ahmed ! Comment puis-je vous aider aujourd'hui ?"
     }
   ],
-  "updatedAt": "2026-09-26T12:44:52.466Z"
+  "updatedAt": "2026-09-26T12:46:21.454Z"
 }
