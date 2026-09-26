@@ -113,7 +113,15 @@
     {
       "role": "assistant",
       "content": "Je vous entends parfaitement Ahmed, et je suis prêt à agir, Poupous à votre service. Que souhaitez-vous faire ?"
+    },
+    {
+      "role": "user",
+      "content": "Pourquoi je t'entends pas ?"
+    },
+    {
+      "role": "assistant",
+      "content": "Le volume a été augmenté. Si vous ne m'entendez toujours pas, vérifiez également les paramètres de sortie audio de votre ordinateur."
     }
   ],
-  "updatedAt": "2026-09-26T12:47:49.260Z"
+  "updatedAt": "2026-09-26T12:48:53.506Z"
 }
