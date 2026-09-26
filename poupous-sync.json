@@ -121,7 +121,15 @@
     {
       "role": "assistant",
       "content": "Le volume a été augmenté. Si vous ne m'entendez toujours pas, vérifiez également les paramètres de sortie audio de votre ordinateur."
+    },
+    {
+      "role": "user",
+      "content": "salut"
+    },
+    {
+      "role": "assistant",
+      "content": "Salut Ahmed ! Je vous écoute, comment puis-je vous aider ?"
     }
   ],
-  "updatedAt": "2026-09-26T12:48:53.506Z"
+  "updatedAt": "2026-09-26T12:49:27.065Z"
 }
