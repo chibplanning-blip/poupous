@@ -137,7 +137,15 @@
     {
       "role": "assistant",
       "content": "Je suis à votre entière disposition, Ahmed. Quelles sont vos instructions pour aujourd'hui ?"
+    },
+    {
+      "role": "user",
+      "content": "je t endend pas"
+    },
+    {
+      "role": "assistant",
+      "content": "J'ai augmenté le volume de votre PC, Ahmed. Assurez-vous également que vos haut-parleurs sont bien allumés et que le bon périphérique de sortie est sélectionné dans Windows."
     }
   ],
-  "updatedAt": "2026-09-26T12:50:18.109Z"
+  "updatedAt": "2026-09-26T12:50:41.809Z"
 }
