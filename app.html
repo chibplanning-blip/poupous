@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=114 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=115 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -196,6 +196,72 @@ async function speak(text){
 }
 function stopSpeaking(){ if (P) P.stopSpeaking(); }
 
+/* ---------- Famille : ordinateur de la maison (cerveau + mémoire commune) ---------- */
+const famille = () => store.get('famille', null);
+const hasFamille = () => !!(P && typeof P.http === 'function' && famille() && famille().u && famille().t);
+function decoderCode(code){
+  try {
+    let b = String(code).trim().replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    const j = JSON.parse(utf8b64(b));
+    if (j && /^https:\/\//.test(j.u) && j.t && j.t.length >= 16) return {u:String(j.u).replace(/\/+$/, ''), t:String(j.t)};
+  } catch (e) {}
+  return null;
+}
+async function serveur(methode, chemin, corps){
+  const f = famille();
+  const r = await waitFor('h', id => P.http(id, methode, f.u + chemin, JSON.stringify({'X-Poupous-Token': f.t, 'Content-Type':'application/json'}), corps ? JSON.stringify(corps) : ''));
+  let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+  return {status:r.status, data, text:r.text};
+}
+let syncPause = 0;
+async function syncFaits(force){
+  if (!hasFamille() || (!force && Date.now() < syncPause)) return;
+  try {
+    const r = await serveur('GET', '/memoire');
+    if (r.status !== 200 || !r.data || !Array.isArray(r.data.faits)) { syncPause = Date.now() + 120000; return; }
+    const moi = famille().nom || '';
+    S.faits = r.data.faits.map(x => (!x.par || x.par === moi) ? x.t : x.t + ' (noté par ' + x.par + ')');
+    store.set('memoire', S.faits);
+    syncPause = Date.now() + 60000;
+  } catch (e) { syncPause = Date.now() + 120000; }
+}
+function poussee(corps){ if (hasFamille()) serveur('POST', '/memoire', corps).then(() => { syncPause = 0; }).catch(() => {}); }
+function famillePrompt(){
+  if (!hasFamille()) return '';
+  const nom = famille().nom;
+  return "Poupous est partagé par la famille : les souvenirs sont communs à tous, et chaque souvenir indique qui l'a noté. " + (nom ? "Ce téléphone appartient à " + nom + ". " : "") + "\n";
+}
+function openFamille(){
+  const f = famille();
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">FAMILLE</span>' +
+    '<p class="hint">' + (f ? 'Connecté à l\'ordinateur de la maison' + (f.nom ? ' en tant que ' + esc(f.nom) : '') + '.' : 'Colle ici le code famille donné par la personne qui gère l\'ordinateur de la maison. Le cerveau et les souvenirs viendront de cet ordinateur.') + '</p>' +
+    '<input id="fam-code" type="text" autocomplete="off" placeholder="Code famille" aria-label="Code famille">' +
+    '<p class="hint" id="fam-etat"></p>' +
+    '<div class="row" style="border:0"><button class="btn" id="fam-cancel">Fermer</button>' + (f ? '<button class="btn" id="fam-off">Se déconnecter</button>' : '') + '<button class="btn primary" id="fam-ok">Connecter</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#fam-cancel').onclick = () => { $('#sheet').hidden = true; };
+  if (f) $('#fam-off').onclick = () => { store.set('famille', null); $('#sheet').hidden = true; sys('Déconnecté de l\'ordinateur de la maison.'); };
+  $('#fam-ok').onclick = async () => {
+    const c = decoderCode($('#fam-code').value);
+    if (!c) { $('#fam-etat').textContent = "Ce code n'est pas valable. Colle-le en entier."; return; }
+    if (!P || typeof P.http !== 'function') { $('#fam-etat').textContent = "Il faut la nouvelle version de l'application."; return; }
+    $('#fam-etat').textContent = 'Connexion en cours…';
+    store.set('famille', c);
+    const r = await serveur('GET', '/ping').catch(() => ({status:0}));
+    if (r.status !== 200 || !r.data || !r.data.ok) {
+      store.set('famille', f);
+      $('#fam-etat').textContent = r.status === 401 ? "Le serveur refuse ce code." : "Je n'arrive pas à joindre l'ordinateur de la maison. Est-il allumé ?";
+      return;
+    }
+    store.set('famille', {u:c.u, t:c.t, nom:r.data.nom});
+    S.reglages.cerveau = r.data.gemini ? 'gemini' : 'claude'; store.set('reglages', S.reglages);
+    await syncFaits(true);
+    $('#sheet').hidden = true; sys('Connecté à l\'ordinateur de la maison en tant que ' + r.data.nom + '. Je suis prêt !');
+  };
+}
+
 /* ---------- Empreintes vocales (qui parle ?) ---------- */
 const SEUIL_VOIX = 9, MARGE_VOIX = 1.5;
 const hasVoix = () => !!(P && typeof P.voixVecteur === 'function' && typeof P.capture === 'function');
@@ -265,7 +331,7 @@ function openVoix(){
 function supprimerVoix(nom){ store.set('voix', profilsVoix().filter(p => p.nom !== nom)); }
 
 /* ---------- Écoute ---------- */
-const hasCapture = () => !!(P && typeof P.capture === 'function' && typeof P.github === 'function' && geminiKey() && S.reglages.moteurVocal !== 'android');
+const hasCapture = () => !!(P && typeof P.capture === 'function' && typeof P.github === 'function' && (geminiKey() || hasFamille()) && S.reglages.moteurVocal !== 'android');
 async function transcribe(b64){
   const data = await geminiCall({
     contents:[{role:'user', parts:[{inlineData:{mimeType:'audio/wav', data:b64}}, {text:"Transcris fidèlement cet enregistrement audio en français. Réponds uniquement par le texte prononcé, sans commentaire. S'il n'y a aucune parole humaine claire (bruit, silence, musique, télévision lointaine), réponds exactement : [rien]"}]}],
@@ -389,7 +455,7 @@ function systemPrompt(){
     "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
     "ameliorer_mon_code change ta page : interface, présentation, comportement, nouveaux écrans. C'est réel et immédiat, mais l'utilisateur voit d'abord un écran de validation et peut refuser. Tu ne modifies pas l'application Android elle-même : pour tout ce qui touche au téléphone, c'est Claude qui prépare la nouvelle version.\n" +
     "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails, ni consulter les messages WhatsApp/SMS pendant la conversation (aucun outil ne te donne accès à leur contenu). Il existe séparément une fonction de surveillance silencieuse (réglages, rubrique Mentions) qui alerte l'utilisateur si son nom apparaît dans une conversation WhatsApp, WhatsApp Business ou SMS en sourdine ; elle marche toute seule en arrière-plan, tu n'y as pas accès et tu ne peux ni lire ni relayer ce qu'elle détecte. Tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute quand l'écran est éteint.\n" +
-    locuteurPrompt() +
+    famillePrompt() + locuteurPrompt() +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
@@ -456,8 +522,8 @@ function toolDefs(){
 }
 async function runTool(name, input){
   try {
-    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); return 'mémorisé'; }
-    if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); return (avant - S.faits.length) + ' supprimé(s)'; }
+    if (name === 'retenir') { const f = String(input.fait || '').trim(); if (!f) return 'rien à retenir'; S.faits.push(f); store.set('memoire', S.faits); poussee({op:'add', t:f}); return 'mémorisé'; }
+    if (name === 'oublier') { const x = String(input.texte || '').trim(); const avant = S.faits.length; S.faits = (x === '*' || !x) ? [] : S.faits.filter(f => !norm(f).includes(norm(x))); store.set('memoire', S.faits); poussee({op:'del', q: x || '*'}); return (avant - S.faits.length) + ' supprimé(s)'; }
     if (name === 'changer_reglage') return setReglage(String(input.nom || ''), String(input.valeur || ''));
     if (name === 'courses_ajouter') { const l = coursesAjouter(input.articles || ''); if (!$('#sheet').hidden) renderCourses(); return 'liste : ' + (l.filter(i => !i.ok).map(i => i.t).join(', ') || 'vide'); }
     if (name === 'courses_liste') { const l = liste(); if (!l.length) return 'la liste est vide'; return 'à prendre : ' + (l.filter(i => !i.ok).map(i => i.t).join(', ') || 'rien') + ' ; déjà pris : ' + (l.filter(i => i.ok).map(i => i.t).join(', ') || 'rien'); }
@@ -583,7 +649,7 @@ function setReglage(nom, valeur){
   return nom + ' = ' + r[nom];
 }
 async function callClaude(body){
-  const r = await waitFor('c', id => P.claude(id, JSON.stringify(body)));
+  const r = hasFamille() ? await serveur('POST', '/claude', body) : await waitFor('c', id => P.claude(id, JSON.stringify(body)));
   let data = null; try { data = JSON.parse(r.text); } catch (e) {}
   if (r.status === 200 && data) return data;
   const err = new Error(data && data.error ? data.error.message : r.text);
@@ -593,7 +659,7 @@ async function callClaude(body){
 const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 function provider(){ const c = S.reglages.cerveau; return c === 'claude' ? 'claude' : (c === 'autre' ? 'autre' : 'gemini'); }
 function geminiKey(){ return store.get('geminiKey', ''); }
-function brainReady(){ if (provider() === 'autre') return oaReady(); return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
+function brainReady(){ if (provider() === 'autre') return oaReady(); if (hasFamille()) return true; return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
 function openBrainKey(){ if (provider() === 'autre') openAutreIA(); else if (provider() === 'gemini') openGeminiKey(); else openKey(); }
 function toGeminiSchema(s){
   if (!s || typeof s !== 'object') return s;
@@ -620,11 +686,11 @@ async function geminiCall(body){
   let lastErr = null;
   for (const m of models) {
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(geminiKey());
-    const r = await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
+    const r = hasFamille() ? await serveur('POST', '/gemini?model=' + encodeURIComponent(m), body) : await waitFor('g', id => P.github(id, 'POST', url, JSON.stringify(body)));
     let data = null; try { data = JSON.parse(r.text); } catch (e) {}
     if (r.status === 200 && data) { if (m !== saved) store.set('geminiModel', m); return data; }
     const msg = data && data.error ? String(data.error.message || '') : String(r.text || '');
-    const err = new Error(msg); err.status = r.status; err.gemini = true; lastErr = err;
+    const err = new Error(msg); err.status = r.status; err.gemini = true; err.famille = hasFamille(); lastErr = err;
     if (r.status === 400 && /api key|API_KEY/i.test(msg)) throw err;
     if (r.status === 404 || r.status === 429 || r.status === 403 || r.status >= 500) { await sleep(700); continue; }
     throw err;
@@ -877,6 +943,11 @@ function loadShared(){
   if (d.texte) { $('#texte').value = d.texte; if (!d.base64) sys('Texte reçu. Complète ta demande puis envoie.'); }
 }
 function errCopy(e){
+  if (e.famille) {
+    if (e.status === 401) return "L'ordinateur de la maison refuse mon code famille. Redemande un code.";
+    if (e.status === 0 || e.status === 502) return "Je n'arrive pas à joindre l'ordinateur de la maison. Est-il allumé et connecté à internet ?";
+    if (e.status === 429) return "Trop de demandes d'un coup ou limite gratuite atteinte. Réessaie dans une minute.";
+  }
   if (e.gemini) {
     if (e.status === 400 && /api key|API_KEY/i.test(e.message || '')) return "Ma clé Gemini est refusée. Vérifie-la dans les réglages.";
     if (e.status === 403) return "Ma clé Gemini n'a pas accès à ce modèle. Vérifie-la dans les réglages.";
@@ -906,6 +977,7 @@ async function ask(text){
   }
   S.busy = true; S.lastOk = false;
   addMsg('toi', text);
+  if (hasFamille()) await syncFaits();
   if (!brainReady()) { const m = provider() === 'autre' ? "Il me faut la configuration de l'autre IA pour réfléchir." : (provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."); addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
   const joints = S.attachments.splice(0); renderAttachments();
   if (joints.length) sys('Fichiers joints : ' + joints.map(a => a.nom).join(', '));
@@ -1375,10 +1447,12 @@ function renderSettings(){
     '<div class="row"><span>Autre IA : ' + (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée') + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<h2>Famille</h2>' +
+    '<div class="row"><span>' + (hasFamille() ? 'Connecté à l\'ordinateur de la maison' + (famille().nom ? ' (' + esc(famille().nom) + ')' : '') : 'Pas connecté à l\'ordinateur de la maison') + '<br><span class="hint">Cerveau et souvenirs partagés en famille</span></span><button class="btn" id="fam-btn">' + (hasFamille() ? 'Gérer' : 'Connecter') + '</button></div>' +
     '<h2>Connexion</h2>' +
     '<div class="row"><span>' + (hasVeille() ? (P.veilleActive() ? 'Reste connecté écran éteint : activé' : 'Reste connecté écran éteint : désactivé') : 'Connexion permanente : demande la nouvelle APK') + '</span>' + (hasVeille() ? '<button class="btn" id="veille-btn">' + (P.veilleActive() ? 'Arrêter' : 'Activer') + '</button>' : '') + '</div>' +
     (hasVeille() ? '<div class="row"><span>' + (P.batterieLibre() ? 'Batterie : Poupous est autorisé' : 'Batterie : à autoriser') + '<br><span class="hint">Sans ça, le téléphone peut couper Poupous en veille</span></span><button class="btn" id="batt-btn">' + (P.batterieLibre() ? 'Vérifier' : 'Régler') + '</button></div>' : '') +
-    '<h2>Voix</h2>' +
+    '<h2>Reconnaître qui parle</h2>' +
     (hasVoix() ? (profilsVoix().map((p, i) => '<div class="row"><span>' + esc(p.nom) + '</span><button class="btn" data-vx="' + i + '">Supprimer</button></div>').join('') + '<div class="row"><span>' + (profilsVoix().length ? 'Ajouter une autre personne' : 'Aucune voix enregistrée') + '<br><span class="hint">Poupous reconnaît qui parle (approximatif)</span></span><button class="btn" id="voix-add">Ajouter</button></div>') : '<div class="row"><span>Empreintes vocales : demande la nouvelle APK</span></div>') +
     '<h2>Images</h2>' +
     '<div class="row"><span>' + (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré') + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
@@ -1408,6 +1482,7 @@ function renderSettings(){
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
   $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
   $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
+  $('#fam-btn').onclick = openFamille;
   if (hasVeille()) {
     $('#veille-btn').onclick = () => { P.veille(!P.veilleActive()); renderSettings(); };
     $('#batt-btn').onclick = () => P.reglerBatterie();
@@ -1466,6 +1541,7 @@ idle();
 if (P && !brainReady()) openBrainKey(); else announce();
 if (S.reglages.mainsLibres) handsFree();
 loadShared();
+if (hasFamille()) syncFaits(true);
 })();
 </script>
 </body>
