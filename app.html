@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=116 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=120 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -63,6 +63,31 @@ input[type=range]{accent-color:var(--cyan)}
 .chipfile span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .chipfile button{width:26px;height:26px;border-radius:50%;border:0;background:var(--line);color:var(--text)}
 .keybox input{height:48px;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 14px;font:inherit}
+body.ecole{--ink:#0c1a14;--panel:#12261c;--line:#24473a;--cyan:#ffd84d;--text:#f2f1e6;--muted:#9bb5a5}
+body.ecole .brand::after{content:" · ÉCOLE";color:var(--cyan);font-size:12px;letter-spacing:.14em}
+body.ecole .orb-wrap{height:clamp(80px,13vh,120px)}
+.tableau:not([hidden]) ~ .log{flex:0 0 20%}
+.tableau{position:relative;flex:1 1 0;min-height:0;overflow-y:auto;margin:6px 0 8px;padding:12px 14px 14px;background:#1d3d2e;border:5px solid #8a5a2b;border-radius:14px;color:#f4f1e8;font-family:"Segoe Print","Comic Sans MS","Chalkboard SE",cursive,system-ui;box-shadow:inset 0 0 30px rgba(0,0,0,.35)}
+.tableau h3{margin:0 0 10px;font-size:19px;color:#ffd84d;font-weight:700;letter-spacing:.02em}
+.tab-etape{display:flex;gap:10px;margin:0 0 14px;animation:tabIn .5s ease both}
+.tab-num{flex:none;width:28px;height:28px;border-radius:50%;background:#ffd84d;color:#1d3d2e;font:700 15px/28px system-ui;text-align:center;margin-top:2px}
+.tab-txt{flex:1;min-width:0;font-size:18px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
+.tab-formule{margin-top:6px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,.25);color:#ffd84d;font-size:22px;overflow-x:auto;white-space:pre}
+.tab-svg{margin-top:8px;color:#f4f1e8}
+.tab-svg svg{width:100%;height:auto;max-height:230px;display:block}
+.tab-caret{display:inline-block;width:2px;height:1.05em;background:#ffd84d;margin-left:2px;vertical-align:text-bottom;animation:caret .7s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+.tab-etape.nouvelle .tab-num{animation:pop .5s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.tab-actions .btn.primary{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(255,216,77,.22)}}
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+.bravo{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:31;pointer-events:none;font:800 44px/1.1 "Segoe Print","Comic Sans MS",cursive,system-ui;color:#ffd84d;text-shadow:0 3px 0 #8a5a2b,0 0 24px rgba(255,216,77,.6);text-align:center;animation:bravo 2s ease both;max-width:90%}
+@keyframes bravo{0%{transform:translate(-50%,-50%) scale(.2) rotate(-8deg);opacity:0}18%{transform:translate(-50%,-50%) scale(1.15) rotate(3deg);opacity:1}30%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{transform:translate(-50%,-70%) scale(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.tab-etape,.tab-num,.tab-actions .btn.primary,.tab-caret,.bravo{animation:none!important}}
+.tab-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding-top:2px}
+.tab-actions .btn{color:#f4f1e8;border-color:#6a8f7b;font-family:system-ui,sans-serif}
+@keyframes tabIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
@@ -131,7 +156,9 @@ $('#app').innerHTML =
   '<div style="display:flex;gap:10px"><button class="icon-btn" id="open-courses" aria-label="Courses">' + CART + '</button>' +
   '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="live" id="live"></div></div>' +
-  '<div class="log" id="log" aria-live="polite"></div>' +
+  '<canvas id="confetti" aria-hidden="true"></canvas>' +
+'<div class="tableau" id="tableau" hidden></div>' +
+'<div class="log" id="log" aria-live="polite"></div>' +
   '<div class="attach" id="attach"></div>' +
   '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden>' +
   '<input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
@@ -139,7 +166,7 @@ $('#app').innerHTML =
   '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
 
 function setState(s){ S.state = s; $('#status').textContent = STATES[s][1]; }
-function idle(){ setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
+function idle(){ try { majTheme(); } catch (e) {} setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
 function scrollLog(){ const l = $('#log'); l.scrollTop = l.scrollHeight; }
 function addMsg(who, text){
   const d = document.createElement('div');
@@ -218,6 +245,7 @@ let syncPause = 0;
 async function syncFaits(force){
   if (!hasFamille() || (!force && Date.now() < syncPause)) return;
   try {
+    if (force) { const pg = await serveur('GET', '/ping'); if (pg.status === 200 && pg.data && pg.data.ok) { const f0 = famille(); if (!!f0.enfant !== !!pg.data.enfant || (f0.classe || '') !== (pg.data.classe || '')) store.set('famille', Object.assign({}, f0, {enfant:!!pg.data.enfant, classe:pg.data.classe || ''})); } }
     const r = await serveur('GET', '/memoire');
     if (r.status !== 200 || !r.data || !Array.isArray(r.data.faits)) { syncPause = Date.now() + 120000; return; }
     const moi = famille().nom || '';
@@ -227,6 +255,29 @@ async function syncFaits(force){
   } catch (e) { syncPause = Date.now() + 120000; }
 }
 function poussee(corps){ if (hasFamille()) serveur('POST', '/memoire', corps).then(() => { syncPause = 0; }).catch(() => {}); }
+function enfantActuel(){
+  // {classe} si la personne qui parle est un enfant (profil du serveur famille ou voix reconnue), sinon null
+  const f = hasFamille() ? famille() : null;
+  if (f && f.enfant) return {classe: f.classe || ''};
+  if (S.reglages.modeEcole) return {classe: S.reglages.classeEcole || ''};
+  const l = S.locuteur && Date.now() - S.locuteur.t < 60000 ? S.locuteur : null;
+  const p = l && l.nom ? profilsVoix().find(x => x.nom === l.nom) : null;
+  return p && p.enfant ? {classe: p.classe || ''} : null;
+}
+function devoirsPrompt(){
+  const e = enfantActuel();
+  const methode = "tu ne fais JAMAIS les devoirs à la place de l'élève et tu ne donnes pas la réponse finale d'un exercice, d'un problème, d'une rédaction, d'une traduction, d'un résumé ou d'une dissertation à rendre. Tu l'aides à comprendre : explique la notion avec des mots simples et un exemple différent de son exercice ; pose-lui des questions pour le guider pas à pas ; donne un indice, puis attends sa réponse ; quand il propose une réponse, dis-lui si elle est juste ou non et pourquoi, et corrige son raisonnement avec gentillesse ; félicite ses efforts. S'il insiste ou te demande de faire à sa place, refuse gentiment et propose une autre façon d'expliquer. Si on t'envoie une photo ou un fichier de l'exercice, lis l'énoncé et aide à démarrer sans donner la solution. Phrases courtes et encourageantes.";
+  if (e) return "MODE COPAIN ET SOUTIEN SCOLAIRE (obligatoire : la personne qui te parle est un enfant" + (e.classe ? ", en classe de " + e.classe : "") + "). Tu es son grand copain bienveillant et son prof particulier patient. " +
+    "TON : chaleureux, drôle, encourageant, tutoiement, phrases courtes, jamais moqueur ni condescendant ; tu peux plaisanter et t'intéresser à ce qu'il aime (utilise ses passions pour tes exemples). Tu te souviens de lui et des progrès passés. " +
+    "MÉTHODE : " + methode + " " +
+    "TABLEAU : pour expliquer, utilise très souvent l'outil tableau : des étapes courtes avec des écrits, des formules simples et des dessins (schémas SVG : droite graduée, fractions en parts, triangles, cercles, flèches, frises, cycles…). Un dessin vaut mieux qu'un long discours. Ne mets jamais dans le tableau la solution de son exercice : montre la méthode sur un autre exemple, ou laisse-lui un trou à compléter. " +
+    "RÉUSSITES : quand il réussit vraiment (bonne réponse, exercice terminé, gros effort), appelle l'outil celebrer avec un mot court, une fois par réussite, sans en abuser. " +
+    "SÉANCE : demande sur quoi il travaille et pour quand ; vérifie d'abord ce qu'il a déjà compris ; explique simplement ; propose des mini-exercices de difficulté progressive ; à la fin, fais un court récapitulatif et complimente l'effort (pas seulement le résultat). Une erreur est une étape normale pour apprendre. Après une longue séance ou quand il fatigue, propose une pause. Avant une évaluation, propose de le faire réviser avec un petit quiz oral. " +
+    "SUIVI : à la fin d'une séance, appelle l'outil retenir avec une ligne commençant par « Suivi scolaire — » suivie de la matière, de ce qui est acquis et de ce qui reste à retravailler ; au début d'une séance, sers-toi de ces lignes pour reprendre où il en était. " +
+    "LIMITES : tu es une IA, jamais un humain, et tu le dis s'il te le demande. Tu ne remplaces ni ses amis ni ses parents : encourage-le à voir ses copains et à parler aux adultes de confiance. Ne retiens dans la mémoire commune que ses progrès scolaires, pas ses confidences personnelles (toute la famille y a accès). Contenu strictement adapté à son âge. S'il est triste, inquiet ou en difficulté, écoute-le avec douceur et encourage-le à en parler à ses parents. S'il évoque du harcèlement, de la violence, un danger, ou l'envie de se faire du mal, prends-le très au sérieux : dis-lui qu'il n'est pas seul et qu'il doit en parler tout de suite à un adulte de confiance, et donne les numéros gratuits : 119 (enfance en danger), 3018 (harcèlement et cyberharcèlement), 3114 (souffrance, idées suicidaires). " +
+    (e.classe ? "Adapte vocabulaire et difficulté à la classe de " + e.classe + ". " : "") + "\n";
+  return "AIDE AUX DEVOIRS : si un élève, un enfant ou un parent te demande de faire des devoirs, applique cette méthode : " + methode + " Si c'est manifestement un adulte qui travaille (documents, rapports, courriers professionnels), ne change rien et aide-le normalement. Pour expliquer une méthode en écrits et en dessins, utilise l'outil tableau. Si un parent demande comment va un enfant à l'école, résume uniquement les souvenirs commençant par « Suivi scolaire — » (progrès et points à retravailler), sans inventer.\n";
+}
 function famillePrompt(){
   if (!hasFamille()) return '';
   const nom = famille().nom;
@@ -255,7 +306,7 @@ function openFamille(){
       $('#fam-etat').textContent = r.status === 401 ? "Le serveur refuse ce code." : "Je n'arrive pas à joindre l'ordinateur de la maison. Est-il allumé ?";
       return;
     }
-    store.set('famille', {u:c.u, t:c.t, nom:r.data.nom});
+    store.set('famille', {u:c.u, t:c.t, nom:r.data.nom, enfant:!!r.data.enfant, classe:r.data.classe || ''});
     S.reglages.cerveau = r.data.gemini ? 'gemini' : 'claude'; store.set('reglages', S.reglages);
     await syncFaits(true);
     $('#sheet').hidden = true; sys('Connecté à l\'ordinateur de la maison en tant que ' + r.data.nom + '. Je suis prêt !');
@@ -281,6 +332,7 @@ function noterLocuteur(r){
   if (!r || r.court) return;
   const avant = S.locuteur ? S.locuteur.nom : null;
   S.locuteur = {nom:r.nom, t:Date.now()};
+  majTheme();
   if ((r.nom || '') !== (avant || '')) sys(r.nom ? 'Voix reconnue : ' + r.nom + ' (écart ' + r.ecart.toFixed(1) + ')' : 'Voix non reconnue (le plus proche : ' + r.proche + ', écart ' + r.ecart.toFixed(1) + ')');
 }
 function locuteurPrompt(){
@@ -298,6 +350,8 @@ function openVoix(){
     '<div class="keybox"><span class="brand" style="font-size:14px">AJOUTER UNE VOIX</span>' +
     '<p class="hint">La personne se met près du téléphone, dans le calme, et lit 3 phrases à voix normale. Ça sert à reconnaître qui parle.' + (profils.length ? '<br>Déjà enregistrées : ' + esc(profils.map(p => p.nom).join(', ')) + '.' : '') + '</p>' +
     '<input id="vx-nom" type="text" autocomplete="off" placeholder="Prénom de la personne" aria-label="Prénom">' +
+    '<div class="row"><label for="vx-enf">C\'est un enfant qui fait ses devoirs<br><span class="hint">Poupous l\'aide à comprendre sans faire à sa place</span></label><input type="checkbox" id="vx-enf"></div>' +
+    '<input id="vx-classe" type="text" autocomplete="off" placeholder="Classe (facultatif, ex. 5e)" aria-label="Classe" hidden>' +
     '<p class="hint" id="vx-etat"></p>' +
     '<div class="row" style="border:0"><button class="btn" id="vx-cancel">Annuler</button><button class="btn primary" id="vx-go">Commencer</button></div>' +
     '<p class="hint">Ou, si la personne n\'est pas là : importe un enregistrement audio ou vidéo où elle est seule à parler (sans musique).</p>' +
@@ -305,6 +359,8 @@ function openVoix(){
   $('#sheet').hidden = false;
   let stop = false, encours = false;
   $('#vx-cancel').onclick = () => { stop = true; if (encours && P) P.cancelListening(); $('#sheet').hidden = true; };
+  $('#vx-enf').onchange = e => { $('#vx-classe').hidden = !e.target.checked; };
+  const extras = () => ({enfant: $('#vx-enf').checked, classe: $('#vx-enf').checked ? $('#vx-classe').value.trim().slice(0, 30) : ''});
   $('#vx-import').onclick = () => {
     if ($('#vx-nom').value.trim().length < 2) { $('#vx-nom').style.borderColor = '#ff6b6b'; $('#vx-etat').textContent = "Écris d'abord le prénom de la personne."; return; }
     $('#vx-fic').click();
@@ -320,7 +376,7 @@ function openVoix(){
       try {
         const s = String(rd.result), v = await fichierVersVecteur(s.slice(s.indexOf(',') + 1));
         if (!v) { $('#vx-etat').textContent = "Je n'ai pas trouvé assez de voix nette dans ce fichier (il faut au moins une ou deux secondes de parole claire)."; return; }
-        enregistrerProfil(nom, v);
+        enregistrerProfil(nom, v, extras());
         $('#sheet').hidden = true; sys('Voix de ' + nom + ' enregistrée à partir du fichier.');
       } catch (err) { $('#vx-etat').textContent = err.message; }
     };
@@ -346,7 +402,7 @@ function openVoix(){
     if (stop) return;
     if (vecs.length < PHRASES_VOIX.length) { $('#vx-etat').textContent = "Je n'ai pas réussi à enregistrer assez de phrases. Réessaie dans un endroit plus calme."; $('#vx-go').disabled = false; $('#vx-nom').disabled = false; return; }
     const moy = vecs[0].map((_, i) => vecs.reduce((s, v) => s + v[i], 0) / vecs.length);
-    enregistrerProfil(nom, moy);
+    enregistrerProfil(nom, moy, extras());
     $('#sheet').hidden = true; sys('Voix de ' + nom + ' enregistrée.');
   };
 }
@@ -375,11 +431,156 @@ async function fichierVersVecteur(b64){
   const rendu = await off.startRendering();
   return vecteurVoix(pcmVersWavB64(rendu.getChannelData(0)));
 }
-function enregistrerProfil(nom, v){
-  const liste = profilsVoix().filter(p => norm(p.nom) !== norm(nom)); liste.push({nom, v});
+function enregistrerProfil(nom, v, extras){
+  const ancien = profilsVoix().find(p => norm(p.nom) === norm(nom)) || {};
+  const liste = profilsVoix().filter(p => norm(p.nom) !== norm(nom));
+  liste.push({nom, v, enfant: extras ? !!extras.enfant : !!ancien.enfant, classe: extras ? (extras.classe || '') : (ancien.classe || '')});
   store.set('voix', liste);
 }
 function supprimerVoix(nom){ store.set('voix', profilsVoix().filter(p => p.nom !== nom)); }
+
+/* ---------- Mode école : tableau blanc (écrits et dessins) et thème ---------- */
+const SVG_TAGS = new Set(['svg','g','path','line','polyline','polygon','rect','circle','ellipse','text','tspan','defs','marker','title','desc','animate','animatetransform','animatemotion']);
+const ANIM_CIBLES = new Set(['x','y','cx','cy','r','rx','ry','width','height','opacity','fill-opacity','stroke-opacity','stroke-dashoffset','stroke-width','transform','d','points','fill','stroke','font-size','x1','x2','y1','y2']);
+const SVG_ATTRS = new Set(['viewbox','width','height','x','y','x1','y1','x2','y2','cx','cy','r','rx','ry','d','points','fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','font-size','font-family','font-weight','text-anchor','dominant-baseline','transform','opacity','fill-opacity','stroke-opacity','marker-end','marker-start','id','refx','refy','markerwidth','markerheight','orient','xmlns','preserveaspectratio','attributename','values','from','to','by','dur','begin','repeatcount','keytimes','keysplines','calcmode','type','path','rotate','additive','accumulate','restart','repeatdur']);
+function svgPropre(src){
+  try {
+    const s = String(src || '').trim();
+    if (s.length < 20 || s.length > 24000 || !/^<svg[\s>]/i.test(s)) return '';
+    const doc = new DOMParser().parseFromString(s, 'image/svg+xml');
+    if (doc.querySelector('parsererror') || !doc.documentElement || doc.documentElement.nodeName.toLowerCase() !== 'svg') return '';
+    (function nettoyer(n){
+      for (const c of Array.from(n.children)) {
+        const nomTag = c.nodeName.toLowerCase();
+        if (!SVG_TAGS.has(nomTag)) { c.remove(); continue; }
+        if (nomTag.indexOf('animate') === 0 && nomTag !== 'animatemotion' && !ANIM_CIBLES.has((c.getAttribute('attributeName') || '').toLowerCase())) { c.remove(); continue; }
+        if (nomTag === 'animatemotion' && c.getAttribute('attributeName')) c.removeAttribute('attributeName');
+        for (const at of Array.from(c.attributes)) {
+          const nom = at.name.toLowerCase(), val = at.value;
+          if (!SVG_ATTRS.has(nom) || /javascript:|data:|https?:|<|expression/i.test(val) || (/url\(/i.test(val) && !/^url\(#[\w-]+\)$/.test(val.trim()))) c.removeAttribute(at.name);
+        }
+        nettoyer(c);
+      }
+    })(doc.documentElement);
+    const r = doc.documentElement;
+    for (const at of Array.from(r.attributes)) { const nom = at.name.toLowerCase(); if (!SVG_ATTRS.has(nom) || /javascript:|data:|https?:(?!\/\/www\.w3\.org)/i.test(at.value)) r.removeAttribute(at.name); }
+    if (!r.getAttribute('viewBox')) r.setAttribute('viewBox', '0 0 300 160');
+    r.removeAttribute('width'); r.removeAttribute('height');
+    return new XMLSerializer().serializeToString(r);
+  } catch (e) { return ''; }
+}
+function modeEcole(){ return !!(enfantActuel() || S.reglages.modeEcole); }
+function majTheme(){ document.body.classList.toggle('ecole', modeEcole()); }
+const reduireMouvement = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+let tabJeton = 0;
+async function taper(el, texte, jeton){
+  if (reduireMouvement() || !texte) { el.textContent = texte; return; }
+  const caret = document.createElement('span'); caret.className = 'tab-caret';
+  const pas = Math.max(8, Math.min(30, 1700 / texte.length));
+  el.textContent = ''; const noeud = document.createTextNode(''); el.appendChild(noeud); el.appendChild(caret);
+  for (let i = 1; i <= texte.length; i++) {
+    if (jeton !== tabJeton) { noeud.textContent = texte; caret.remove(); return; }
+    noeud.textContent = texte.slice(0, i);
+    await sleep(pas);
+  }
+  caret.remove();
+}
+async function dessiner(svg, jeton){
+  const formes = Array.from(svg.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse'));
+  const textes = Array.from(svg.querySelectorAll('text'));
+  if (reduireMouvement()) return;
+  const infos = formes.map(el => {
+    let len = 0; try { len = el.getTotalLength ? el.getTotalLength() : 0; } catch (e) {}
+    const rempli = (el.getAttribute('fill') || '') !== 'none' && (el.getAttribute('fill') !== null || el.nodeName === 'rect' || el.nodeName === 'circle');
+    const trait = !!el.getAttribute('stroke') && el.getAttribute('stroke') !== 'none';
+    if (trait && len > 0) { el.style.strokeDasharray = len + ' ' + len; el.style.strokeDashoffset = len; }
+    if (rempli) el.style.fillOpacity = 0;
+    return {el, len, trait, rempli};
+  });
+  textes.forEach(t => { t.style.opacity = 0; });
+  void svg.getBoundingClientRect();
+  let delai = 0;
+  for (const f of infos) {
+    if (jeton !== tabJeton) break;
+    const dur = Math.max(350, Math.min(900, f.len * 4));
+    f.el.style.transition = (f.trait ? 'stroke-dashoffset ' + dur + 'ms ease-in-out, ' : '') + 'fill-opacity 500ms ease ' + (f.trait ? dur * 0.6 : 0) + 'ms';
+    if (f.trait) f.el.style.strokeDashoffset = 0;
+    if (f.rempli) f.el.style.fillOpacity = 1;
+    await sleep(f.trait ? Math.min(dur * 0.7, 520) : 220);
+  }
+  for (const t of textes) { t.style.transition = 'opacity 450ms ease'; t.style.opacity = 1; await sleep(220); }
+}
+async function animerEtape(num, contenu, e, jeton){
+  const p = contenu.querySelector('.tab-txt'), f = contenu.querySelector('.tab-formule'), g = contenu.querySelector('.tab-svg');
+  const fSvg = g ? g.querySelector('svg') : null;
+  if (!reduireMouvement()) { if (f) f.style.visibility = 'hidden'; if (g) g.style.visibility = 'hidden'; }
+  if (p) await taper(p, e.texte, jeton);
+  if (jeton !== tabJeton) return;
+  if (f) { f.style.visibility = ''; await taper(f, e.formule, jeton); }
+  if (jeton !== tabJeton) return;
+  if (g) { if (fSvg && !reduireMouvement()) { const pret = dessiner(fSvg, jeton); g.style.visibility = ''; await pret; } else g.style.visibility = ''; }
+}
+function celebrer(mot){
+  const cv = $('#confetti'), cx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1;
+  const txt = String(mot || 'Bravo !').slice(0, 24);
+  const b = document.createElement('div'); b.className = 'bravo'; b.textContent = txt; document.body.appendChild(b); setTimeout(() => b.remove(), 2100);
+  if (reduireMouvement()) return;
+  cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
+  const cols = ['#ffd84d', '#ff9ec4', '#7fd4ff', '#9be89b', '#ffffff', '#ff9f43'];
+  const ps = Array.from({length: 110}, () => ({x: innerWidth / 2 + (Math.random() - .5) * 60, y: innerHeight * .4, vx: (Math.random() - .5) * 12, vy: -Math.random() * 13 - 3, r: Math.random() * 6 + 3, a: Math.random() * 6, va: (Math.random() - .5) * .4, c: cols[(Math.random() * cols.length) | 0], f: Math.random() < .3}));
+  const t0 = performance.now(); const token = ++celebToken;
+  (function boucle(t){
+    if (token !== celebToken) return;
+    const dt = t - t0;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, innerWidth, innerHeight);
+    if (dt > 2600) return;
+    for (const q of ps) {
+      q.vy += .32; q.vx *= .992; q.x += q.vx; q.y += q.vy; q.a += q.va;
+      cx.save(); cx.globalAlpha = Math.max(0, Math.min(1, (2600 - dt) / 700)); cx.translate(q.x, q.y); cx.rotate(q.a); cx.fillStyle = q.c;
+      if (q.f) { cx.beginPath(); for (let k = 0; k < 5; k++) { const ang = k * 1.2566 - 1.5708; cx.lineTo(Math.cos(ang) * q.r * 1.4, Math.sin(ang) * q.r * 1.4); const an2 = ang + .6283; cx.lineTo(Math.cos(an2) * q.r * .6, Math.sin(an2) * q.r * .6); } cx.closePath(); cx.fill(); }
+      else cx.fillRect(-q.r / 2, -q.r / 3, q.r, q.r * .66);
+      cx.restore();
+    }
+    requestAnimationFrame(boucle);
+  })(t0);
+}
+let celebToken = 0;
+function renderTableau(){
+  const box = $('#tableau'), t = S.tableau;
+  if (!t || !t.etapes.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false; box.innerHTML = '';
+  if (t.titre) { const h = document.createElement('h3'); h.textContent = t.titre; box.appendChild(h); }
+  const jeton = ++tabJeton;
+  t.animees = t.animees || 0;
+  t.etapes.slice(0, t.n).forEach((e, i) => {
+    const nouvelle = i >= t.animees;
+    const d = document.createElement('div'); d.className = 'tab-etape' + (nouvelle ? ' nouvelle' : '');
+    const num = document.createElement('div'); num.className = 'tab-num'; num.textContent = i + 1; d.appendChild(num);
+    const c = document.createElement('div'); c.style.flex = '1'; c.style.minWidth = '0';
+    if (e.texte) { const p = document.createElement('div'); p.className = 'tab-txt'; p.textContent = e.texte; c.appendChild(p); }
+    if (e.formule) { const f = document.createElement('div'); f.className = 'tab-formule'; f.textContent = e.formule; c.appendChild(f); }
+    if (e.svg) { const g = document.createElement('div'); g.className = 'tab-svg'; g.innerHTML = e.svg; c.appendChild(g); }
+    d.appendChild(c); box.appendChild(d);
+    if (nouvelle) animerEtape(num, c, e, jeton);
+  });
+  t.animees = t.n;
+  const act = document.createElement('div'); act.className = 'tab-actions';
+  if (t.n < t.etapes.length) { const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = 'Étape suivante ▶'; b.onclick = () => { t.n++; renderTableau(); }; act.appendChild(b); }
+  const x = document.createElement('button'); x.className = 'btn'; x.textContent = 'Effacer le tableau'; x.onclick = () => { S.tableau = null; renderTableau(); }; act.appendChild(x);
+  box.appendChild(act);
+  const der = box.querySelectorAll('.tab-etape'); if (der.length) box.scrollTop = t.n <= 1 ? 0 : der[der.length - 1].offsetTop - 10;
+}
+function afficherTableau(titre, etapes){
+  const liste = (Array.isArray(etapes) ? etapes : []).slice(0, 12).map(e => ({
+    texte: String((e && e.texte) || '').slice(0, 600),
+    formule: String((e && e.formule) || '').slice(0, 200),
+    svg: svgPropre(e && e.svg)
+  })).filter(e => e.texte || e.formule || e.svg);
+  if (!liste.length) return false;
+  S.tableau = {titre: String(titre || '').slice(0, 80), etapes: liste, n: 1, animees: 0};
+  majTheme(); renderTableau();
+  return true;
+}
 
 /* ---------- Écoute ---------- */
 const hasCapture = () => !!(P && typeof P.capture === 'function' && typeof P.github === 'function' && (geminiKey() || hasFamille()) && S.reglages.moteurVocal !== 'android');
@@ -506,7 +707,7 @@ function systemPrompt(){
     "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
     "ameliorer_mon_code change ta page : interface, présentation, comportement, nouveaux écrans. C'est réel et immédiat, mais l'utilisateur voit d'abord un écran de validation et peut refuser. Tu ne modifies pas l'application Android elle-même : pour tout ce qui touche au téléphone, c'est Claude qui prépare la nouvelle version.\n" +
     "Limites actuelles, à dire honnêtement si on te le demande : tu ne peux pas lire les mails, ni consulter les messages WhatsApp/SMS pendant la conversation (aucun outil ne te donne accès à leur contenu). Il existe séparément une fonction de surveillance silencieuse (réglages, rubrique Mentions) qui alerte l'utilisateur si son nom apparaît dans une conversation WhatsApp, WhatsApp Business ou SMS en sourdine ; elle marche toute seule en arrière-plan, tu n'y as pas accès et tu ne peux ni lire ni relayer ce qu'elle détecte. Tu n'envoies rien sans que l'utilisateur appuie sur Envoyer, et pas d'écoute quand l'écran est éteint.\n" +
-    famillePrompt() + locuteurPrompt() +
+    devoirsPrompt() + famillePrompt() + locuteurPrompt() +
     "Souvenirs sur l'utilisateur :\n" + (S.faits.length ? S.faits.map(f => '- ' + f).join('\n') : "(aucun pour l'instant)");
 }
 function toolDefs(){
@@ -549,7 +750,9 @@ function toolDefs(){
       input_schema:{type:'object', properties:{question:{type:'string'}}, required:['question']}},
     {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre juste après ta réponse, prend une à trois minutes, puis l'appli se recharge. Une sauvegarde permet d'annuler.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
-    {name:'apprendre_voix', description:"Apprend la voix d'une personne à partir du fichier audio ou vidéo que l'utilisateur vient de joindre (la personne doit être seule à parler). Ensuite Poupous saura la reconnaître. Utilise-le quand l'utilisateur envoie un enregistrement en disant que c'est la voix de quelqu'un.", input_schema:{type:'object', properties:{prenom:{type:'string'}}, required:['prenom']}},
+    {name:'tableau', description:"Affiche un tableau blanc animé, avec des écrits et des dessins, pour expliquer une méthode pas à pas (maths, sciences, grammaire, histoire-géo…). Étapes courtes (1 à 3 phrases). Chaque étape peut avoir : texte, formule (écriture mathématique en texte simple : ×, ÷, ², √, ⁄), svg (un schéma dessiné). Pour un SVG : <svg viewBox=\"0 0 300 160\">, uniquement des formes simples (line, rect, circle, ellipse, path, polygon, polyline, text avec font-size 14 ou plus), sans image ni lien ; le fond est vert foncé, donc traits et textes en couleurs claires (#f4f1e8 blanc craie, #ffd84d jaune, #7fd4ff bleu clair, #ff9ec4 rose, #9be89b vert clair), stroke-width 2 ou 3. Les dessins se tracent tout seuls à l'écran ; tu peux en plus les ANIMER avec <animate attributeName=\"cx\" from=\"30\" to=\"270\" dur=\"3s\" repeatCount=\"indefinite\"/> (une balle qui roule), <animate attributeName=\"width\" from=\"0\" to=\"120\" dur=\"2s\" fill=\"freeze\"/> (une barre qui grandit) ou <animateTransform attributeName=\"transform\" type=\"rotate\" from=\"0 150 80\" to=\"360 150 80\" dur=\"6s\" repeatCount=\"indefinite\"/> (une aiguille qui tourne), placés dans la forme à animer. Sur les devoirs d'un élève, ne mets JAMAIS la solution de son exercice : explique la méthode sur un autre exemple, dessine la notion, ou laisse un trou à compléter (« à toi de trouver ce qui manque »).", input_schema:{type:'object', properties:{titre:{type:'string'}, etapes:{type:'array', items:{type:'object', properties:{texte:{type:'string'}, formule:{type:'string'}, svg:{type:'string'}}}}}, required:['titre','etapes']}},
+{name:'celebrer', description:"Lance des confettis et un mot d'encouragement à l'écran. Utilise-le quand l'élève réussit vraiment quelque chose (bonne réponse, exercice terminé, effort remarquable), une fois par vraie réussite, sans en abuser.", input_schema:{type:'object', properties:{mot:{type:'string', description:'mot court : Bravo !, Bien joué !, Excellent !, Génial !'}}}},
+{name:'apprendre_voix', description:"Apprend la voix d'une personne à partir du fichier audio ou vidéo que l'utilisateur vient de joindre (la personne doit être seule à parler). Ensuite Poupous saura la reconnaître. Utilise-le quand l'utilisateur envoie un enregistrement en disant que c'est la voix de quelqu'un.", input_schema:{type:'object', properties:{prenom:{type:'string'}}, required:['prenom']}},
 {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
     {name:'appeler', description:"Ouvre l'appli Téléphone avec ce numéro composé ; l'utilisateur appuie sur Appeler.",
@@ -686,6 +889,10 @@ async function runTool(name, input){
     if (name === 'ouvrir_appli') return P.openApp(String(input.nom || ''));
     if (name === 'itineraire') return P.navigate(String(input.destination || ''));
     if (name === 'preparer_mail') return P.email(String(input.destinataire || ''), String(input.objet || ''), String(input.texte || ''));
+    if (name === 'celebrer') { celebrer(input.mot); return 'confettis lancés : félicite-le en une phrase'; }
+    if (name === 'tableau') {
+      return afficherTableau(input.titre, input.etapes) ? "tableau affiché : la première étape est visible, l'élève passe aux suivantes avec le bouton « Étape suivante ». Commente à voix haute la première étape en une ou deux phrases et propose-lui de continuer." : "tableau vide : donne au moins une étape avec du texte, une formule ou un schéma";
+    }
     if (name === 'apprendre_voix') {
       if (!hasVoix()) return "cette version de l'application ne sait pas encore reconnaître les voix : installe la dernière APK";
       const prenom = String(input.prenom || '').trim().slice(0, 30);
@@ -1587,13 +1794,15 @@ function renderSettings(){
     '<div class="row"><span>Autre IA : ' + (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée') + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<h2>École</h2>' +
+    '<div class="row"><label for="ecole-on">Mode école<br><span class="hint">Couleurs école, tableau avec écrits et dessins, aide aux devoirs sans faire à la place</span></label><input type="checkbox" id="ecole-on"' + (S.reglages.modeEcole ? ' checked' : '') + '></div>' +
     '<h2>Famille</h2>' +
     '<div class="row"><span>' + (hasFamille() ? 'Connecté à l\'ordinateur de la maison' + (famille().nom ? ' (' + esc(famille().nom) + ')' : '') : 'Pas connecté à l\'ordinateur de la maison') + '<br><span class="hint">Cerveau et souvenirs partagés en famille</span></span><button class="btn" id="fam-btn">' + (hasFamille() ? 'Gérer' : 'Connecter') + '</button></div>' +
     '<h2>Connexion</h2>' +
     '<div class="row"><span>' + (hasVeille() ? (P.veilleActive() ? 'Reste connecté écran éteint : activé' : 'Reste connecté écran éteint : désactivé') : 'Connexion permanente : demande la nouvelle APK') + '</span>' + (hasVeille() ? '<button class="btn" id="veille-btn">' + (P.veilleActive() ? 'Arrêter' : 'Activer') + '</button>' : '') + '</div>' +
     (hasVeille() ? '<div class="row"><span>' + (P.batterieLibre() ? 'Batterie : Poupous est autorisé' : 'Batterie : à autoriser') + '<br><span class="hint">Sans ça, le téléphone peut couper Poupous en veille</span></span><button class="btn" id="batt-btn">' + (P.batterieLibre() ? 'Vérifier' : 'Régler') + '</button></div>' : '') +
     '<h2>Reconnaître qui parle</h2>' +
-    (hasVoix() ? (profilsVoix().map((p, i) => '<div class="row"><span>' + esc(p.nom) + '</span><button class="btn" data-vx="' + i + '">Supprimer</button></div>').join('') + '<div class="row"><span>' + (profilsVoix().length ? 'Ajouter une autre personne' : 'Aucune voix enregistrée') + '<br><span class="hint">Poupous reconnaît qui parle (approximatif)</span></span><button class="btn" id="voix-add">Ajouter</button></div>') : '<div class="row"><span>Empreintes vocales : demande la nouvelle APK</span></div>') +
+    (hasVoix() ? (profilsVoix().map((p, i) => '<div class="row"><span>' + esc(p.nom) + (p.enfant ? ' <span class="hint">(enfant' + (p.classe ? ', ' + esc(p.classe) : '') + ')</span>' : '') + '</span><button class="btn" data-vx="' + i + '">Supprimer</button></div>').join('') + '<div class="row"><span>' + (profilsVoix().length ? 'Ajouter une autre personne' : 'Aucune voix enregistrée') + '<br><span class="hint">Poupous reconnaît qui parle (approximatif)</span></span><button class="btn" id="voix-add">Ajouter</button></div>') : '<div class="row"><span>Empreintes vocales : demande la nouvelle APK</span></div>') +
     '<h2>Images</h2>' +
     '<div class="row"><span>' + (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré') + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>' + (pxJeton() ? 'Vidéos configurées' : 'Vidéos non configurées') + '<br><span class="hint">Pixazo, gratuit en préversion</span></span><button class="btn" id="change-px">' + (pxJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
@@ -1622,6 +1831,7 @@ function renderSettings(){
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
   $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
   $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
+  $('#ecole-on').onchange = e => { S.reglages.modeEcole = e.target.checked; store.set('reglages', S.reglages); majTheme(); if (!S.busy) idle(); };
   $('#fam-btn').onclick = openFamille;
   if (hasVeille()) {
     $('#veille-btn').onclick = () => { P.veille(!P.veilleActive()); renderSettings(); };
@@ -1682,7 +1892,8 @@ idle();
 if (P && !brainReady()) openBrainKey(); else announce();
 if (S.reglages.mainsLibres) handsFree();
 loadShared();
-if (hasFamille()) syncFaits(true);
+if (hasFamille()) syncFaits(true).then(majTheme);
+majTheme();
 })();
 </script>
 </body>
