@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=115 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=116 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -299,10 +299,33 @@ function openVoix(){
     '<p class="hint">La personne se met près du téléphone, dans le calme, et lit 3 phrases à voix normale. Ça sert à reconnaître qui parle.' + (profils.length ? '<br>Déjà enregistrées : ' + esc(profils.map(p => p.nom).join(', ')) + '.' : '') + '</p>' +
     '<input id="vx-nom" type="text" autocomplete="off" placeholder="Prénom de la personne" aria-label="Prénom">' +
     '<p class="hint" id="vx-etat"></p>' +
-    '<div class="row" style="border:0"><button class="btn" id="vx-cancel">Annuler</button><button class="btn primary" id="vx-go">Commencer</button></div></div>';
+    '<div class="row" style="border:0"><button class="btn" id="vx-cancel">Annuler</button><button class="btn primary" id="vx-go">Commencer</button></div>' +
+    '<p class="hint">Ou, si la personne n\'est pas là : importe un enregistrement audio ou vidéo où elle est seule à parler (sans musique).</p>' +
+    '<button class="btn" id="vx-import">Importer un fichier audio ou vidéo</button><input type="file" id="vx-fic" accept="audio/*,video/*" hidden></div>';
   $('#sheet').hidden = false;
   let stop = false, encours = false;
   $('#vx-cancel').onclick = () => { stop = true; if (encours && P) P.cancelListening(); $('#sheet').hidden = true; };
+  $('#vx-import').onclick = () => {
+    if ($('#vx-nom').value.trim().length < 2) { $('#vx-nom').style.borderColor = '#ff6b6b'; $('#vx-etat').textContent = "Écris d'abord le prénom de la personne."; return; }
+    $('#vx-fic').click();
+  };
+  $('#vx-fic').onchange = e => {
+    const f = (e.target.files || [])[0]; e.target.value = '';
+    if (!f) return;
+    const nom = $('#vx-nom').value.trim().slice(0, 30);
+    if (f.size > 14 * 1024 * 1024) { $('#vx-etat').textContent = 'Ce fichier est trop gros (14 Mo maximum).'; return; }
+    $('#vx-etat').textContent = 'Lecture du fichier…';
+    const rd = new FileReader();
+    rd.onload = async () => {
+      try {
+        const s = String(rd.result), v = await fichierVersVecteur(s.slice(s.indexOf(',') + 1));
+        if (!v) { $('#vx-etat').textContent = "Je n'ai pas trouvé assez de voix nette dans ce fichier (il faut au moins une ou deux secondes de parole claire)."; return; }
+        enregistrerProfil(nom, v);
+        $('#sheet').hidden = true; sys('Voix de ' + nom + ' enregistrée à partir du fichier.');
+      } catch (err) { $('#vx-etat').textContent = err.message; }
+    };
+    rd.readAsDataURL(f);
+  };
   $('#vx-go').onclick = async () => {
     const nom = $('#vx-nom').value.trim().slice(0, 30);
     if (nom.length < 2) { $('#vx-nom').style.borderColor = '#ff6b6b'; return; }
@@ -323,10 +346,38 @@ function openVoix(){
     if (stop) return;
     if (vecs.length < PHRASES_VOIX.length) { $('#vx-etat').textContent = "Je n'ai pas réussi à enregistrer assez de phrases. Réessaie dans un endroit plus calme."; $('#vx-go').disabled = false; $('#vx-nom').disabled = false; return; }
     const moy = vecs[0].map((_, i) => vecs.reduce((s, v) => s + v[i], 0) / vecs.length);
-    const liste = profilsVoix().filter(p => norm(p.nom) !== norm(nom)); liste.push({nom, v:moy});
-    store.set('voix', liste);
+    enregistrerProfil(nom, moy);
     $('#sheet').hidden = true; sys('Voix de ' + nom + ' enregistrée.');
   };
+}
+function pcmVersWavB64(pcm){
+  const n = pcm.length, w = new Uint8Array(44 + 2 * n), dv = new DataView(w.buffer);
+  const ecrire = (o, s) => { for (let i = 0; i < s.length; i++) w[o + i] = s.charCodeAt(i); };
+  ecrire(0, 'RIFF'); dv.setUint32(4, 36 + 2 * n, true); ecrire(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, 16000, true); dv.setUint32(28, 32000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); ecrire(36, 'data'); dv.setUint32(40, 2 * n, true);
+  for (let i = 0; i < n; i++) dv.setInt16(44 + 2 * i, Math.max(-32768, Math.min(32767, Math.round(pcm[i] * 32767))), true);
+  let s = ''; for (let i = 0; i < w.length; i += 8192) s += String.fromCharCode.apply(null, w.subarray(i, i + 8192));
+  return btoa(s);
+}
+async function fichierVersVecteur(b64){
+  const bin = atob(b64), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx || !window.OfflineAudioContext) throw new Error("ce téléphone ne sait pas décoder le son d'un fichier");
+  const ctx = new Ctx();
+  let buf;
+  try { buf = await ctx.decodeAudioData(u.buffer.slice(0)); }
+  catch (e) { throw new Error("je n'arrive pas à lire le son de ce fichier (format non pris en charge)"); }
+  finally { try { ctx.close(); } catch (e) {} }
+  const dur = Math.min(buf.duration, 150);
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(dur * 16000)), 16000);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(0);
+  const rendu = await off.startRendering();
+  return vecteurVoix(pcmVersWavB64(rendu.getChannelData(0)));
+}
+function enregistrerProfil(nom, v){
+  const liste = profilsVoix().filter(p => norm(p.nom) !== norm(nom)); liste.push({nom, v});
+  store.set('voix', liste);
 }
 function supprimerVoix(nom){ store.set('voix', profilsVoix().filter(p => p.nom !== nom)); }
 
@@ -449,7 +500,7 @@ function systemPrompt(){
     "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
     "Ne propose jamais deux modifications de suite pour la même demande. Si une modification a échoué, explique l'échec et attends que l'utilisateur décide.\n" +
     "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture).\n" +
-    "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
+    "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, Word, Excel, PowerPoint, textes ; et audio ou vidéo quand ton cerveau est Gemini : tu peux écouter, transcrire ou résumer un enregistrement). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
     "L'utilisateur est ton propriétaire : tu fais toujours ce qu'il demande, tu restes respectueux, et s'il te demande de changer de ton ou de revenir à ton comportement normal, tu obéis immédiatement avec l'outil changer_reglage (réglage personnalite).\n" +
     "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
     "RÈGLE ABSOLUE : ne dis jamais que tu lances, démarres ou prépares une modification si tu n'appelles pas l'outil ameliorer_mon_code dans cette même réponse. Si tu ne l'appelles pas, dis clairement que rien n'est lancé.\n" +
@@ -498,7 +549,8 @@ function toolDefs(){
       input_schema:{type:'object', properties:{question:{type:'string'}}, required:['question']}},
     {name:'ameliorer_mon_code', description:"Modifie réellement le code de l'appli Poupous (interface, fonctionnalités, comportement) selon une demande détaillée. Démarre juste après ta réponse, prend une à trois minutes, puis l'appli se recharge. Une sauvegarde permet d'annuler.",
       input_schema:{type:'object', properties:{demande:{type:'string'}}, required:['demande']}},
-    {name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
+    {name:'apprendre_voix', description:"Apprend la voix d'une personne à partir du fichier audio ou vidéo que l'utilisateur vient de joindre (la personne doit être seule à parler). Ensuite Poupous saura la reconnaître. Utilise-le quand l'utilisateur envoie un enregistrement en disant que c'est la voix de quelqu'un.", input_schema:{type:'object', properties:{prenom:{type:'string'}}, required:['prenom']}},
+{name:'chercher_contact', description:"Cherche un contact du téléphone par son nom. Renvoie une liste JSON de {nom, numero}.",
       input_schema:{type:'object', properties:{nom:{type:'string'}}, required:['nom']}},
     {name:'appeler', description:"Ouvre l'appli Téléphone avec ce numéro composé ; l'utilisateur appuie sur Appeler.",
       input_schema:{type:'object', properties:{numero:{type:'string'}}, required:['numero']}},
@@ -634,6 +686,19 @@ async function runTool(name, input){
     if (name === 'ouvrir_appli') return P.openApp(String(input.nom || ''));
     if (name === 'itineraire') return P.navigate(String(input.destination || ''));
     if (name === 'preparer_mail') return P.email(String(input.destinataire || ''), String(input.objet || ''), String(input.texte || ''));
+    if (name === 'apprendre_voix') {
+      if (!hasVoix()) return "cette version de l'application ne sait pas encore reconnaître les voix : installe la dernière APK";
+      const prenom = String(input.prenom || '').trim().slice(0, 30);
+      if (prenom.length < 2) return "il me faut le prénom de la personne";
+      const f = (S.joints || []).find(x => typeMedia(x)) || S.dernierMedia;
+      if (!f) return "aucun fichier audio ou vidéo joint : dis à l'utilisateur de l'envoyer avec le trombone";
+      try {
+        const v = await fichierVersVecteur(f.base64);
+        if (!v) return "je n'ai pas trouvé assez de voix nette dans ce fichier";
+        enregistrerProfil(prenom, v);
+        return 'voix de ' + prenom + ' enregistrée à partir de ' + f.nom;
+      } catch (e) { return 'impossible : ' + e.message; }
+    }
     if (name === 'annuler_derniere_amelioration') { S.pendingRollback = true; return 'Accepté : retour à la version précédente juste après ta réponse.'; }
     return 'outil inconnu';
   } catch (e) { return 'Erreur : ' + (e.message || e); }
@@ -702,7 +767,7 @@ function geminiParts(content){
   if (typeof content === 'string') parts.push({text:content});
   else for (const b of content) {
     if (b.type === 'text') parts.push({text:b.text});
-    else if ((b.type === 'image' || b.type === 'document') && b.source) parts.push({inlineData:{mimeType:b.source.media_type, data:b.source.data}});
+    else if ((b.type === 'image' || b.type === 'document' || b.type === 'audio' || b.type === 'video') && b.source) parts.push({inlineData:{mimeType:b.source.media_type, data:b.source.data}});
   }
   return parts;
 }
@@ -922,16 +987,90 @@ function renderAttachments(){
   });
 }
 function addAttachment(nom, type, base64){
-  if (base64.length > 14000000) { sys('« ' + nom + ' » est trop gros (10 Mo maximum).'); return; }
+  const gros = typeMedia({nom, type: type || ''}) ? 19000000 : 14000000;
+  if (base64.length > gros) { sys('« ' + nom + ' » est trop gros (' + (gros > 15000000 ? '14' : '10') + ' Mo maximum).'); return; }
   S.attachments.push({nom, type: type || 'application/octet-stream', base64}); renderAttachments();
 }
-function attachmentBlocks(list){
+const MIME_AUDIO = {mp3:'audio/mp3', wav:'audio/wav', aac:'audio/aac', m4a:'audio/aac', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/ogg', flac:'audio/flac', aiff:'audio/aiff', amr:'audio/aac'};
+const MIME_VIDEO = {mp4:'video/mp4', mov:'video/mov', webm:'video/webm', mpeg:'video/mpeg', mpg:'video/mpg', avi:'video/avi', wmv:'video/wmv', flv:'video/x-flv', '3gp':'video/3gpp'};
+const extOf = nom => (String(nom).split('.').pop() || '').toLowerCase();
+function typeMedia(a){
+  const e = extOf(a.nom);
+  if (/^audio\//.test(a.type) || MIME_AUDIO[e]) return {genre:'audio', mime: MIME_AUDIO[e] || (a.type === 'audio/mpeg' ? 'audio/mp3' : a.type)};
+  if (/^video\//.test(a.type) || MIME_VIDEO[e]) return {genre:'video', mime: MIME_VIDEO[e] || a.type};
+  return null;
+}
+async function inflateBrut(octets){
+  const flux = new Blob([octets]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(flux).arrayBuffer());
+}
+async function lireZip(b64, voulus){
+  const bin = atob(b64), n = bin.length, u = new Uint8Array(n);
+  for (let i = 0; i < n; i++) u[i] = bin.charCodeAt(i);
+  const dv = new DataView(u.buffer);
+  let fin = -1; for (let i = n - 22; i >= Math.max(0, n - 65600); i--) if (dv.getUint32(i, true) === 0x06054b50) { fin = i; break; }
+  if (fin < 0) throw new Error('pas un fichier zip');
+  const nb = dv.getUint16(fin + 10, true); let p = dv.getUint32(fin + 16, true);
+  const dec = new TextDecoder(), sortie = {};
+  for (let k = 0; k < nb; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const meth = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), ln = dv.getUint16(p + 28, true), lx = dv.getUint16(p + 30, true), lc = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const nom = dec.decode(u.subarray(p + 46, p + 46 + ln));
+    p += 46 + ln + lx + lc;
+    if (!voulus(nom)) continue;
+    const debut = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true);
+    const brut = u.subarray(debut, debut + csz);
+    sortie[nom] = dec.decode(meth === 0 ? brut : await inflateBrut(brut));
+  }
+  return sortie;
+}
+const decoderXml = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, c) => String.fromCharCode(+c)).replace(/&amp;/g, '&');
+const numFin = s => +(s.match(/(\d+)\.xml$/) || [0, 0])[1];
+async function texteOffice(b64, ext){
+  if (ext === 'docx') {
+    const z = await lireZip(b64, n => n === 'word/document.xml');
+    return decoderXml((z['word/document.xml'] || '').replace(/<\/w:p>/g, '\n').replace(/<w:tab\/>/g, '\t').replace(/<w:br\/>/g, '\n').replace(/<[^>]+>/g, ''));
+  }
+  if (ext === 'pptx') {
+    const z = await lireZip(b64, n => /^ppt\/slides\/slide\d+\.xml$/.test(n));
+    return Object.keys(z).sort((x, y) => numFin(x) - numFin(y)).map((n, i) => 'Diapositive ' + (i + 1) + ' :\n' + decoderXml((z[n].match(/<a:t>[\s\S]*?<\/a:t>|<a:t [^>]*>[\s\S]*?<\/a:t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('\n'))).join('\n\n');
+  }
+  if (ext === 'xlsx') {
+    const z = await lireZip(b64, n => n === 'xl/sharedStrings.xml' || /^xl\/worksheets\/sheet\d+\.xml$/.test(n) || n === 'xl/workbook.xml');
+    const parts = (z['xl/sharedStrings.xml'] || '').split(/<si>|<si /).slice(1).map(si => decoderXml((si.match(/<t[^>]*>[\s\S]*?<\/t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('')));
+    const noms = ((z['xl/workbook.xml'] || '').match(/<sheet [^>]*name="[^"]*"/g) || []).map(s => decoderXml(s.replace(/.*name="/, '').replace(/"$/, '')));
+    return Object.keys(z).filter(n => /worksheets/.test(n)).sort((x, y) => numFin(x) - numFin(y)).map((n, i) => {
+      const lignes = (z[n].match(/<row[\s\S]*?<\/row>/g) || []).slice(0, 500).map(r => (r.match(/<c [^>]*?(?:\/>|>[\s\S]*?<\/c>)/g) || []).map(c => {
+        const t = (c.match(/ t="([^"]*)"/) || [])[1], v = (c.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        if (t === 's' && v != null) return parts[+v] || '';
+        if (t === 'inlineStr') return decoderXml((c.match(/<t[^>]*>([\s\S]*?)<\/t>/) || [])[1] || '');
+        return v == null ? '' : decoderXml(v);
+      }).join(' ; '));
+      return 'Feuille « ' + (noms[i] || (i + 1)) + ' » :\n' + lignes.join('\n');
+    }).join('\n\n');
+  }
+  if (ext === 'odt' || ext === 'ods' || ext === 'odp') {
+    const z = await lireZip(b64, n => n === 'content.xml');
+    return decoderXml((z['content.xml'] || '').replace(/<\/text:p>|<\/text:h>|<\/table:table-row>/g, '\n').replace(/<\/table:table-cell>/g, ' ; ').replace(/<text:tab\/>/g, '\t').replace(/<[^>]+>/g, ''));
+  }
+  throw new Error('format non pris en charge');
+}
+async function attachmentBlocks(list){
   const blocks = [];
   for (const a of list) {
+    const e = extOf(a.nom), media = typeMedia(a);
     if (/^image\/(jpeg|png|gif|webp)$/.test(a.type)) blocks.push({type:'image', source:{type:'base64', media_type:a.type, data:a.base64}});
-    else if (a.type === 'application/pdf') blocks.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:a.base64}});
-    else if (/^text\/|json|xml|csv|javascript/.test(a.type) || /\.(txt|md|csv|json|html?|xml|js|py|java|kt|log)$/i.test(a.nom)) blocks.push({type:'text', text:'Fichier « ' + a.nom + ' » :\n' + utf8b64(a.base64).slice(0, 100000)});
-    else blocks.push({type:'text', text:'(Fichier « ' + a.nom + ' » de type ' + a.type + ' reçu : je ne peux pas lire ce format.)'});
+    else if (a.type === 'application/pdf' || e === 'pdf') blocks.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:a.base64}});
+    else if (media) {
+      if (provider() === 'gemini') blocks.push({type:media.genre, source:{type:'base64', media_type:media.mime, data:a.base64}});
+      else blocks.push({type:'text', text:'(Fichier ' + media.genre + ' « ' + a.nom + ' » reçu : le cerveau actuel ne sait pas écouter l\u2019audio ni voir les vidéos. Dis à l\u2019utilisateur de passer sur Gemini dans les réglages, rubrique Cerveau.)'});
+    }
+    else if (['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp'].includes(e)) {
+      try { blocks.push({type:'text', text:'Contenu du fichier « ' + a.nom + ' » :\n' + (await texteOffice(a.base64, e)).slice(0, 100000)}); }
+      catch (err) { blocks.push({type:'text', text:'(Fichier « ' + a.nom + ' » reçu mais je n\u2019arrive pas à en lire le contenu : ' + err.message + '.)'}); }
+    }
+    else if (/^text\/|json|xml|csv|javascript/.test(a.type) || /\.(txt|md|csv|json|html?|xml|js|py|java|kt|log|ini|yml|yaml|sql|rtf|srt|vtt)$/i.test(a.nom)) blocks.push({type:'text', text:'Fichier « ' + a.nom + ' » :\n' + utf8b64(a.base64).slice(0, 100000)});
+    else blocks.push({type:'text', text:'(Fichier « ' + a.nom + ' » de type ' + (a.type || extOf(a.nom) || 'inconnu') + ' reçu : je ne sais pas lire ce format. Formats lus : images, PDF, Word, Excel, PowerPoint, textes, audio et vidéo avec Gemini.)'});
   }
   return blocks;
 }
@@ -986,7 +1125,8 @@ async function ask(text){
   const p = addMsg('poupous', '…');
   const messages = S.turns.slice(-20).map(x => ({role:x.role, content:x.content}));
   while (messages.length && messages[0].role !== 'user') messages.shift();
-  if (joints.length) messages[messages.length - 1] = {role:'user', content: attachmentBlocks(joints).concat([{type:'text', text}])};
+  S.joints = joints; { const m = joints.find(x => typeMedia(x)); if (m) S.dernierMedia = m; }
+  if (joints.length) messages[messages.length - 1] = {role:'user', content: (await attachmentBlocks(joints)).concat([{type:'text', text}])};
   let answer = '';
   try {
     if (provider() === 'gemini') {
@@ -1513,7 +1653,8 @@ $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
 $('#fichier').onchange = e => {
   for (const f of Array.from(e.target.files || [])) {
-    if (f.size > 10 * 1024 * 1024) { sys('« ' + f.name + ' » est trop gros (10 Mo maximum).'); continue; }
+    const maxi = typeMedia({nom:f.name, type:f.type || ''}) ? 14 : 10;
+    if (f.size > maxi * 1024 * 1024) { sys('« ' + f.name + ' » est trop gros (' + maxi + ' Mo maximum).'); continue; }
     const rd = new FileReader();
     rd.onload = () => { const s = String(rd.result); addAttachment(f.name, f.type, s.slice(s.indexOf(',') + 1)); };
     rd.readAsDataURL(f);
