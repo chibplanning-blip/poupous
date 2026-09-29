@@ -10,8 +10,8 @@ android {
         applicationId 'com.poupous.app'
         minSdk 26
         targetSdk 34
-        versionCode 107
-        versionName '2.7'
+        versionCode 108
+        versionName '2.8'
     }
 
     signingConfigs {
