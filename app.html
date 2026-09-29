@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=110 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=111 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -497,10 +497,10 @@ async function callClaude(body){
   throw err;
 }
 const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
-function provider(){ return S.reglages.cerveau === 'claude' ? 'claude' : 'gemini'; }
+function provider(){ const c = S.reglages.cerveau; return c === 'claude' ? 'claude' : (c === 'autre' ? 'autre' : 'gemini'); }
 function geminiKey(){ return store.get('geminiKey', ''); }
-function brainReady(){ return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
-function openBrainKey(){ if (provider() === 'gemini') openGeminiKey(); else openKey(); }
+function brainReady(){ if (provider() === 'autre') return oaReady(); return provider() === 'gemini' ? !!(geminiKey() && P && typeof P.github === 'function') : !!(P && P.hasKey()); }
+function openBrainKey(){ if (provider() === 'autre') openAutreIA(); else if (provider() === 'gemini') openGeminiKey(); else openKey(); }
 function toGeminiSchema(s){
   if (!s || typeof s !== 'object') return s;
   const o = {};
@@ -574,6 +574,11 @@ async function askGemini(messages, onText){
   return answer;
 }
 async function complete(system, user, maxTokens){
+  if (provider() === 'autre') {
+    const d = await oaCall({messages:[{role:'system', content:system}, {role:'user', content:user}]});
+    const ch = (d.choices || [])[0] || {};
+    return {text:(ch.message && typeof ch.message.content === 'string') ? ch.message.content : '', truncated: ch.finish_reason === 'length'};
+  }
   if (provider() === 'gemini') {
     const data = await geminiCall({systemInstruction:{parts:[{text:system}]}, contents:[{role:'user', parts:[{text:user}]}], generationConfig:{maxOutputTokens:65536}});
     const c = (data.candidates || [])[0] || {};
@@ -582,6 +587,88 @@ async function complete(system, user, maxTokens){
   }
   const data = await callClaude({model:UPGRADE_MODEL, max_tokens:maxTokens, system, messages:[{role:'user', content:user}]});
   return {text:(data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), truncated: data.stop_reason === 'max_tokens'};
+}
+
+/* ---------- Autre IA compatible OpenAI (Kimi, DeepSeek, Mistral, OpenAI, Groq, OpenRouter…) ---------- */
+const AUTRES_IA = {
+  kimi:{nom:'Kimi (Moonshot)', base:'https://api.moonshot.ai/v1', modele:'kimi-k2.6'},
+  deepseek:{nom:'DeepSeek', base:'https://api.deepseek.com/v1', modele:'deepseek-chat'},
+  mistral:{nom:'Mistral', base:'https://api.mistral.ai/v1', modele:'mistral-large-latest'},
+  openai:{nom:'OpenAI', base:'https://api.openai.com/v1', modele:'gpt-4o-mini'},
+  groq:{nom:'Groq', base:'https://api.groq.com/openai/v1', modele:'llama-3.3-70b-versatile'},
+  openrouter:{nom:'OpenRouter', base:'https://openrouter.ai/api/v1', modele:'moonshotai/kimi-k2'},
+  autre:{nom:'Autre (adresse à saisir)', base:'', modele:''}
+};
+const oaCfg = () => ({preset:store.get('oaPreset', 'kimi'), base:String(store.get('oaBase', '')).replace(/\/+$/, ''), key:store.get('oaKey', ''), model:store.get('oaModel', '')});
+function oaReady(){ const c = oaCfg(); return !!(c.base && c.key && c.model && P && typeof P.http === 'function'); }
+function oaNom(){ const c = oaCfg(); return (AUTRES_IA[c.preset] || AUTRES_IA.autre).nom; }
+async function oaCall(body){
+  const c = oaCfg();
+  if (!P || typeof P.http !== 'function') { const e = new Error("cette version de l'application ne sait pas encore appeler ce service"); e.status = 0; throw e; }
+  const r = await waitFor('h', id => P.http(id, 'POST', c.base + '/chat/completions',
+    JSON.stringify({'Authorization':'Bearer ' + c.key, 'Content-Type':'application/json'}), JSON.stringify(Object.assign({model:c.model}, body))));
+  let data = null; try { data = JSON.parse(r.text); } catch (e) {}
+  if (r.status === 200 && data && data.choices) return data;
+  const msg = data && data.error ? String(data.error.message || data.error) : String(r.text || '');
+  const err = new Error(msg); err.status = r.status; err.autre = true; throw err;
+}
+function oaTools(){
+  return toolDefs().map(t => ({type:'function', function:{name:t.name, description:t.description, parameters:t.input_schema || {type:'object', properties:{}}}}));
+}
+function oaContent(content){
+  if (typeof content === 'string') return content;
+  const parts = [];
+  for (const b of content) {
+    if (b.type === 'text') parts.push({type:'text', text:b.text});
+    else if (b.type === 'image' && b.source) parts.push({type:'image_url', image_url:{url:'data:' + b.source.media_type + ';base64,' + b.source.data}});
+  }
+  return parts.length ? parts : '';
+}
+async function askAutre(messages, onText){
+  const msgs = [{role:'system', content:systemPrompt()}].concat(messages.map(m => ({role:m.role, content:oaContent(m.content)})));
+  let answer = '';
+  for (let round = 0; round < 6; round++) {
+    const data = await oaCall({messages:msgs, tools:oaTools()});
+    const ch = (data.choices || [])[0];
+    if (!ch || !ch.message) break;
+    const m = ch.message;
+    const texte = typeof m.content === 'string' ? m.content.trim() : '';
+    if (texte) { answer = clean(texte); onText(answer); }
+    const calls = m.tool_calls || [];
+    if (!calls.length) break;
+    msgs.push(m);
+    for (const c of calls) {
+      let args = {}; try { args = JSON.parse((c.function && c.function.arguments) || '{}'); } catch (e) {}
+      const res = String(await runTool(c.function.name, args || {}));
+      msgs.push({role:'tool', tool_call_id:c.id, content:res});
+    }
+  }
+  return answer;
+}
+function openAutreIA(){
+  const c = oaCfg();
+  const opts = Object.keys(AUTRES_IA).map(k => '<option value="' + k + '"' + (k === c.preset ? ' selected' : '') + '>' + AUTRES_IA[k].nom + '</option>').join('');
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">AUTRE IA (KIMI, DEEPSEEK…)</span>' +
+    '<p class="hint">1. Choisis le service.<br>2. Colle ta clé API, créée sur le site du service.<br>3. Vérifie le nom du modèle (tu peux le changer). La clé reste uniquement sur ce téléphone.</p>' +
+    '<select id="oa-preset" aria-label="Service">' + opts + '</select>' +
+    '<input id="oa-base" type="text" autocomplete="off" placeholder="https://…/v1" aria-label="Adresse de l\'API" value="' + (c.base || '').replace(/"/g, '') + '">' +
+    '<input id="oa-model" type="text" autocomplete="off" placeholder="nom du modèle" aria-label="Modèle" value="' + (c.model || '').replace(/"/g, '') + '">' +
+    '<input id="oa-key" type="password" autocomplete="off" placeholder="' + (c.key ? 'clé enregistrée (laisse vide pour la garder)' : 'clé API') + '" aria-label="Clé API">' +
+    '<div class="row" style="border:0"><button class="btn" id="oa-cancel">Plus tard</button><button class="btn primary" id="oa-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#oa-preset').onchange = e => { const p = AUTRES_IA[e.target.value]; if (p && p.base) { $('#oa-base').value = p.base; $('#oa-model').value = p.modele; } };
+  $('#oa-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#oa-save').onclick = () => {
+    const preset = $('#oa-preset').value, base = $('#oa-base').value.trim().replace(/\/+$/, ''), model = $('#oa-model').value.trim();
+    const cle = $('#oa-key').value.replace(/\s+/g, '') || c.key;
+    if (!/^https:\/\//.test(base)) { sys("L'adresse doit commencer par https://"); return; }
+    if (!model) { sys('Il faut le nom du modèle.'); return; }
+    if (!cle || cle.length < 8) { sys('Il faut coller ta clé API.'); return; }
+    store.set('oaPreset', preset); store.set('oaBase', base); store.set('oaModel', model); store.set('oaKey', cle);
+    S.reglages.cerveau = 'autre'; store.set('reglages', S.reglages);
+    $('#sheet').hidden = true; sys('Cerveau : ' + oaNom() + ' (' + model + '). Je suis prêt !');
+  };
 }
 async function chercherInternet(q){
   const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1');
@@ -725,7 +812,7 @@ async function ask(text){
   }
   S.busy = true; S.lastOk = false;
   addMsg('toi', text);
-  if (!brainReady()) { const m = provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."; addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
+  if (!brainReady()) { const m = provider() === 'autre' ? "Il me faut la configuration de l'autre IA pour réfléchir." : (provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."); addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
   const joints = S.attachments.splice(0); renderAttachments();
   if (joints.length) sys('Fichiers joints : ' + joints.map(a => a.nom).join(', '));
   S.turns.push({role:'user', content: text + (joints.length ? '\n[Fichiers joints : ' + joints.map(a => a.nom).join(', ') + ']' : '')});
@@ -738,6 +825,8 @@ async function ask(text){
   try {
     if (provider() === 'gemini') {
       answer = await askGemini(messages, t => { p.textContent = t; scrollLog(); });
+    } else if (provider() === 'autre') {
+      answer = await askAutre(messages, t => { p.textContent = t; scrollLog(); });
     } else for (let round = 0; round < 6; round++) {
       const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, system:systemPrompt(), tools:toolDefs(), messages});
       const texts = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
@@ -753,6 +842,7 @@ async function ask(text){
   } catch (e) {
     answer = errCopy(e); p.textContent = answer; S.turns.pop();
     if (e.gemini && e.message) sys('Détail Gemini (' + e.status + ') : ' + String(e.message).slice(0, 200));
+    if (e.autre && e.message) sys('Détail ' + oaNom() + ' (' + e.status + ') : ' + String(e.message).slice(0, 200));
   }
   if (S.lastOk && !S.pendingUpgrade && /(je (la |te la )?lance|je démarre|je m'en occupe|je (vais )?modifi|lance (vraiment )?la modif|patiente quelques minutes|c'est parti)/i.test(answer) && /(amélior|modifi|ajout|apk|mise à jour|code)/i.test(text + ' ' + answer)) {
     sys("Attention : en réalité rien n'a été lancé. Pour une modification de son interface, passe par les réglages, rubrique Améliorer Poupous. Pour une fonction du téléphone, c'est Claude qui prépare la nouvelle version.");
@@ -1077,7 +1167,7 @@ async function runUpgrade(demande){
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
-  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'prix_carburants', 'actualites', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
+  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'prix_carburants', 'actualites', 'askAutre', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
   function verifier(html){
     for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
     const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -1186,7 +1276,8 @@ function renderSettings(){
     '<div class="row"><span>' + (accesNotifOk() ? 'Accès aux notifications : activé' : 'Accès aux notifications : à activer') + '</span><button class="btn" id="mention-acces">' + (accesNotifOk() ? 'Vérifier' : 'Activer') + '</button></div>' +
     '<div class="row"><button class="btn primary" id="mention-save">Enregistrer</button></div>' +
     '<h2>Cerveau</h2>' +
-    '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option></select></div>' +
+    '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option><option value="autre"' + (provider() === 'autre' ? ' selected' : '') + '>Autre IA (Kimi, DeepSeek…)</option></select></div>' +
+    '<div class="row"><span>Autre IA : ' + (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée') + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<h2>Images</h2>' +
@@ -1217,6 +1308,7 @@ function renderSettings(){
   $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
   $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
   $('#change-gem').onclick = openGeminiKey;
+  $('#change-oa').onclick = openAutreIA;
   $('#change-cf').onclick = openCloudflare;
   $('#change-px').onclick = openPixazo;
   $('#cerveau').onchange = e => { S.reglages.cerveau = e.target.value; store.set('reglages', S.reglages); renderSettings(); if (!brainReady()) openBrainKey(); };
