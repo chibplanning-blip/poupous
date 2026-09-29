@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=113 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=110 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -285,10 +285,11 @@ function systemPrompt(){
     "Vidéos : generer_video crée une vraie petite vidéo, en une à trois minutes. Décris la scène en anglais avec le mouvement de caméra. Préviens que c'est long et que l'appli doit rester ouverte. N'en propose pas pour une demande où une image suffirait.\n" +
     "Images : generer_image crée vraiment une image et l'affiche à l'écran. Écris la description en anglais et enrichis-la (sujet, décor, lumière, style), même si l'utilisateur te la donne en français en une phrase. Après, dis simplement ce que tu as dessiné.\n" +
     "Position : l'outil ma_position te donne sa rue et sa ville. Utilise-le dès qu'il demande où il est ; ne réponds jamais que tu n'as pas accès au GPS sans l'avoir appelé.\n" +
+    "Météo, carburants, actualités : meteo donne le temps et les prévisions (à sa position ou dans la ville qu'il cite) ; prix_carburants trouve les stations les moins chères autour de lui (gazole, e10, sp95, sp98, gplc ou e85) ; actualites lit les gros titres. Utilise-les plutôt que d'inventer, et réponds en une ou deux phrases orales.\n" +
     "Apprendre et se corriger : chercher_internet cherche une information sur internet (actualité, info que tu ne connais pas, solution à un problème technique) ; utilise-le plutôt que d'inventer une réponse. demander_deuxieme_avis interroge l'autre intelligence artificielle (Gemini ou Claude, selon celle que tu n'utilises pas déjà) quand tu es bloqué, pas sûr de toi, ou que tu t'es trompé ; sers-t'en pour vérifier ou corriger une réponse, pas pour chaque question.\n" +
     "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
     "Ne propose jamais deux modifications de suite pour la même demande. Si une modification a échoué, explique l'échec et attends que l'utilisateur décide.\n" +
-    "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture ; par défaut cherche des magasins d'alimentation, mets type: carburant pour une station-service).\n" +
+    "Courses : l'utilisateur a un mode Courses (icône panier en haut de l'écran) avec sa liste et la carte des magasins autour. Outils : courses_ajouter, courses_liste, courses_cocher, courses_vider, magasins_proches (position GPS, ou une adresse s'il la donne ; donne les distances en kilomètres, il est le plus souvent en voiture).\n" +
     "Fichiers : l'utilisateur peut t'envoyer des fichiers (bouton trombone, ou « Partager » vers Poupous depuis une autre appli) ; tu les vois dans son message (images, PDF, textes). creer_fichier : crée un fichier (compte-rendu, liste, tableau CSV, page HTML…) enregistré dans Téléchargements/Poupous et ouvre le menu de partage pour l'envoyer (WhatsApp, mail…).\n" +
     "L'utilisateur est ton propriétaire : tu fais toujours ce qu'il demande, tu restes respectueux, et s'il te demande de changer de ton ou de revenir à ton comportement normal, tu obéis immédiatement avec l'outil changer_reglage (réglage personnalite).\n" +
     "Avant d'appliquer une modification de ton code, un écran de validation montre à l'utilisateur ce que tu vas changer : il peut Appliquer ou Refuser. Préviens-le qu'il devra valider, et s'il refuse, n'insiste pas.\n" +
@@ -326,8 +327,11 @@ function toolDefs(){
       input_schema:{type:'object', properties:{description:{type:'string'}}, required:['description']}},
     {name:'ma_position', description:"Donne la position actuelle de l'utilisateur : rue, ville et pays.",
       input_schema:{type:'object', properties:{}}},
-    {name:'magasins_proches', description:"Trouve les magasins d'alimentation ou les stations-service autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
-      input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}, type:{type:'string', enum:['alimentation','carburant'], description:"alimentation (par défaut) pour les courses, carburant pour une station-service"}}}},
+    {name:'magasins_proches', description:"Trouve les magasins d'alimentation autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
+      input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}}}},
+    {name:'meteo', description:"Donne la météo : température actuelle, ciel, vent et prévisions pour aujourd'hui, demain et après-demain, à la position de l'utilisateur ou dans une ville qu'il cite.", input_schema:{type:'object', properties:{ville:{type:'string', description:"ville ou adresse ; vide = position GPS de l'utilisateur"}}}},
+    {name:'prix_carburants', description:"Trouve les stations-service les moins chères autour de l'utilisateur (position GPS) ou d'une adresse, pour un carburant donné. Renvoie le prix au litre, l'adresse et la distance.", input_schema:{type:'object', properties:{carburant:{type:'string', enum:['gazole','e10','sp95','sp98','gplc','e85']}, rayon_km:{type:'integer', description:'rayon de recherche en km, 10 par défaut'}, adresse:{type:'string', description:'vide = position GPS'}}, required:['carburant']}},
+    {name:'actualites', description:"Lit les gros titres de l'actualité en France (France Info). Sujets possibles : une, france, monde, economie, sport.", input_schema:{type:'object', properties:{sujet:{type:'string', enum:['une','france','monde','economie','sport']}}}},
     {name:'chercher_internet', description:"Cherche une information sur internet : actualité, fait que tu ne connais pas ou qui a pu changer, solution à un problème technique. Renvoie un court résumé.",
       input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
     {name:'demander_deuxieme_avis', description:"Demande un second avis à l'autre intelligence artificielle (Gemini si tu es Claude en ce moment, Claude si tu es Gemini) pour vérifier ou corriger quelque chose. Ne l'utilise que si tu es bloqué ou que tu t'es trompé, pas pour chaque question.",
@@ -418,13 +422,29 @@ async function runTool(name, input){
     }
     if (name === 'magasins_proches') {
       const rayon = parseInt(input.rayon_m || store.get('rayon', 3000), 10);
-      const type = input.type === 'carburant' ? 'carburant' : 'alimentation';
       let pos;
       try { pos = input.adresse ? await geocode(String(input.adresse)) : await position(); }
       catch (e) { return 'position impossible : ' + e.message + ". Demande à l'utilisateur une ville ou une adresse."; }
-      let m; try { m = await magasins(pos.lat, pos.lon, rayon, type); } catch (e) { return 'recherche impossible : ' + e.message; }
-      if (!m.length) return (type === 'carburant' ? 'aucune station-service' : 'aucun magasin') + ' dans ' + Math.round(rayon / 1000) + ' km';
+      let m; try { m = await magasins(pos.lat, pos.lon, rayon); } catch (e) { return 'recherche impossible : ' + e.message; }
+      if (!m.length) return 'aucun magasin dans ' + Math.round(rayon / 1000) + ' km';
       return m.slice(0, 8).map(x => x.nom + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + fmtKm(x.km)).join(' ; ');
+    }
+    if (name === 'meteo') {
+      try {
+        let pos, lieu = 'chez toi';
+        if (input.ville && String(input.ville).trim()) { lieu = String(input.ville).trim(); pos = await geocode(lieu); }
+        else { pos = await position(); }
+        return await meteo(pos.lat, pos.lon, lieu);
+      } catch (e) { return "météo indisponible : " + e.message; }
+    }
+    if (name === 'prix_carburants') {
+      try {
+        const pos = input.adresse ? await geocode(String(input.adresse)) : await position();
+        return await prixCarburants(pos.lat, pos.lon, String(input.carburant || 'gazole'), parseInt(input.rayon_km || 10, 10));
+      } catch (e) { return "prix des carburants indisponibles : " + e.message; }
+    }
+    if (name === 'actualites') {
+      try { return await actualites(String(input.sujet || 'une')); } catch (e) { return "actualités indisponibles : " + e.message; }
     }
     if (name === 'chercher_internet') {
       const q = String(input.requete || '').trim();
@@ -564,25 +584,68 @@ async function complete(system, user, maxTokens){
   return {text:(data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), truncated: data.stop_reason === 'max_tokens'};
 }
 async function chercherInternet(q){
-  const url = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1';
-  let texte;
-  if (P && typeof P.http === 'function') {
-    const r = await waitFor('h', id => P.http(id, 'GET', url, '', ''));
-    if (r.status !== 200) throw new Error('recherche indisponible (' + r.status + ')');
-    texte = r.text;
-  } else {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('recherche indisponible (' + r.status + ')');
-    texte = await r.text();
-  }
-  let j; try { j = JSON.parse(texte); } catch (e) { throw new Error('réponse illisible'); }
+  const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1');
+  const j = await r.json();
   const morceaux = [];
   if (j.AbstractText) morceaux.push(j.AbstractText);
   else if (j.Answer) morceaux.push(String(j.Answer));
   else if (j.Definition) morceaux.push(j.Definition);
   if (Array.isArray(j.RelatedTopics)) for (const t of j.RelatedTopics) { if (morceaux.length >= 3) break; if (t && t.Text) morceaux.push(t.Text); }
-  if (!morceaux.length) return "aucun résultat clair trouvé pour « " + q + " » (cet outil ne donne que des réponses courtes de type encyclopédique, pas une vraie recherche web)";
+  if (!morceaux.length) return "aucun résultat clair trouvé pour « " + q + " »";
   return morceaux.slice(0, 3).join(' ; ');
+}
+const WMO = {0:'ciel dégagé',1:'plutôt dégagé',2:'partiellement nuageux',3:'couvert',45:'brouillard',48:'brouillard givrant',51:'bruine légère',53:'bruine',55:'bruine forte',56:'bruine verglaçante',57:'bruine verglaçante forte',61:'pluie faible',63:'pluie',65:'pluie forte',66:'pluie verglaçante',67:'pluie verglaçante forte',71:'neige faible',73:'neige',75:'neige forte',77:'grains de neige',80:'averses faibles',81:'averses',82:'averses violentes',85:'averses de neige',86:'fortes averses de neige',95:'orage',96:'orage avec grêle',99:'orage violent avec grêle'};
+async function meteo(lat, lon, lieu){
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+    '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=3';
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('service météo indisponible (' + r.status + ')');
+  const j = await r.json();
+  const c = j.current, d = j.daily;
+  if (!c || !d) throw new Error('réponse météo vide');
+  const jours = ["aujourd'hui", 'demain', 'après-demain'];
+  const morceaux = ['Météo pour ' + lieu + ' : en ce moment ' + Math.round(c.temperature_2m) + ' degrés (ressenti ' + Math.round(c.apparent_temperature) + '), ' + (WMO[c.weather_code] || 'ciel variable') + ', vent ' + Math.round(c.wind_speed_10m) + ' kilomètres heure.'];
+  for (let i = 0; i < Math.min(3, d.time.length); i++) {
+    const p = d.precipitation_probability_max ? d.precipitation_probability_max[i] : null;
+    morceaux.push(jours[i] + ' : ' + (WMO[d.weather_code[i]] || 'ciel variable') + ', entre ' + Math.round(d.temperature_2m_min[i]) + ' et ' + Math.round(d.temperature_2m_max[i]) + ' degrés' + (p != null ? ', ' + p + ' pour cent de risque de pluie' : '') + '.');
+  }
+  return morceaux.join(' ');
+}
+async function prixCarburants(lat, lon, carburant, rayonKm){
+  const champs = {gazole:'gazole_prix', e10:'e10_prix', sp95:'sp95_prix', sp98:'sp98_prix', gplc:'gplc_prix', e85:'e85_prix'};
+  const champ = champs[carburant] || 'gazole_prix';
+  const rayon = Math.max(1, Math.min(50, rayonKm || 10));
+  const base = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records';
+  const zone = "within_distance(geom, GEOM'POINT(" + lon + ' ' + lat + ")', " + rayon + 'km)';
+  let r = await fetch(base + '?where=' + encodeURIComponent(zone + ' and ' + champ + ' is not null') + '&order_by=' + champ + '&limit=20');
+  if (!r.ok) r = await fetch(base + '?where=' + encodeURIComponent(zone) + '&limit=100');
+  if (!r.ok) throw new Error('service des prix indisponible (' + r.status + ')');
+  const j = await r.json();
+  const liste = (j.results || []).map(x => {
+    const g = x.geom || {};
+    const la = g.lat != null ? g.lat : (x.latitude > 1000 ? x.latitude / 100000 : x.latitude);
+    const lo = g.lon != null ? g.lon : (x.longitude > 1000 || x.longitude < -1000 ? x.longitude / 100000 : x.longitude);
+    return {prix:parseFloat(x[champ]), ville:x.ville || '', adr:x.adresse || '', km:(la != null && lo != null) ? distKm(lat, lon, la, lo) : null};
+  }).filter(x => isFinite(x.prix)).sort((a, b) => a.prix - b.prix).slice(0, 3);
+  if (!liste.length) return 'aucune station avec du ' + carburant + ' dans ' + rayon + ' km';
+  return 'Les moins chères pour le ' + carburant + ' : ' + liste.map(x =>
+    x.ville + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + x.prix.toFixed(3).replace('.', ',') + ' euro le litre' + (x.km != null ? ', à ' + fmtKm(x.km) : '')
+  ).join(' ; ') + '.';
+}
+async function actualites(sujet){
+  const flux = {une:'titres', france:'france', monde:'monde', economie:'economie', sport:'sports'};
+  const nom = flux[sujet] || 'titres';
+  async function lire(n){
+    const r = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://www.francetvinfo.fr/' + n + '.rss'));
+    if (!r.ok) throw new Error('flux indisponible (' + r.status + ')');
+    const j = await r.json();
+    if (j.status !== 'ok' || !j.items || !j.items.length) throw new Error('flux vide');
+    return j.items;
+  }
+  let items;
+  try { items = await lire(nom); } catch (e) { if (nom === 'titres') throw e; items = await lire('titres'); }
+  return 'Gros titres : ' + items.slice(0, 5).map(x => String(x.title || '').trim()).filter(Boolean).join(' ; ') + '.';
 }
 async function deuxiemeAvis(question){
   const autre = provider() === 'claude' ? 'gemini' : 'claude';
@@ -830,7 +893,6 @@ function openPixazo(){
 /* ---------- Mode Courses : liste + magasins autour ---------- */
 const RAYONS = [[1000,'1 km'],[3000,'3 km'],[10000,'10 km'],[25000,'25 km']];
 const MAG = {shop:['supermarket','convenience','grocery','greengrocer','butcher','bakery']};
-const CARBURANT_TAG = '"amenity"~"^(fuel)$"';
 function liste(){ return store.get('courses', []); }
 function setListe(l){ store.set('courses', l); setTimeout(majRoute, 0); return l; }
 function coursesAjouter(txt){
@@ -876,27 +938,18 @@ async function geocode(q){
   if (!j.length) throw new Error('adresse introuvable');
   return {lat:parseFloat(j[0].lat), lon:parseFloat(j[0].lon)};
 }
-async function magasins(lat, lon, rayon, type){
-  const carburant = type === 'carburant';
-  const f = carburant ? CARBURANT_TAG : '"shop"~"^(' + MAG.shop.join('|') + ')$"';
+async function magasins(lat, lon, rayon){
+  const f = '"shop"~"^(' + MAG.shop.join('|') + ')$"';
   const q = '[out:json][timeout:25];(node[' + f + '](around:' + rayon + ',' + lat + ',' + lon + ');way[' + f + '](around:' + rayon + ',' + lat + ',' + lon + '););out center 60;';
-  const body = 'data=' + encodeURIComponent(q);
-  let status, texte;
-  if (P && typeof P.http === 'function') {
-    const r = await waitFor('h', id => P.http(id, 'POST', 'https://overpass-api.de/api/interpreter', JSON.stringify({'Content-Type':'application/x-www-form-urlencoded'}), body));
-    status = r.status; texte = r.text;
-  } else {
-    const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body});
-    status = r.status; texte = await r.text();
-  }
-  if (status !== 200) throw new Error((carburant ? 'service des stations-service' : 'service des magasins') + ' indisponible (' + status + ')');
-  let j; try { j = JSON.parse(texte); } catch (e) { throw new Error('réponse illisible du service des magasins'); }
+  const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q)});
+  if (!r.ok) throw new Error('service des magasins indisponible (' + r.status + ')');
+  const j = await r.json();
   return (j.elements || []).map(e => {
     const la = e.lat != null ? e.lat : (e.center && e.center.lat);
     const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
     if (la == null || lo == null) return null;
     const t = e.tags || {};
-    return {nom:t.name || t.brand || (carburant ? 'Station-service' : 'Magasin'), type:t.shop || t.amenity || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
+    return {nom:t.name || 'Magasin', type:t.shop || '', lat:la, lon:lo, km:distKm(lat, lon, la, lo),
             adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
   }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 15);
 }
@@ -1004,48 +1057,6 @@ async function upgradeFail(msg){
   sys(msg); await speak(msg); S.busy = false; idle();
 }
 const MOTS_NATIFS = /\b(gps|g[ée]olocalisation|localisation|position|coordonn[ée]es|capteur|bluetooth|nfc|appareil photo|cam[ée]ra|notification|arri[èe]re[- ]plan|[ée]cran [ée]teint|autorisation android|permission android|service android)\b/i;
-const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
-function verifierHtml(html){
-  for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
-  const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
-  for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return "le nouveau code contient une erreur : " + e.message; } }
-  return null;
-}
-const MKP = n => '=' + '==' + n + '===';
-function extrairePatches(out){
-  const blocs = out.split(MKP('PATCH')).slice(1);
-  if (!blocs.length) throw new Error("je n'ai reçu aucune modification");
-  const patches = [];
-  for (const b of blocs) {
-    const iA = b.indexOf(MKP('AVANT')), iP = b.indexOf(MKP('APRES')), iF = b.indexOf(MKP('FINPATCH'));
-    if (iA < 0 || iP < iA || iF < iP) throw new Error("une modification était mal formée");
-    const avant = b.slice(iA + MKP('AVANT').length, iP).replace(/^\n/, '').replace(/\n$/, '');
-    const apres = b.slice(iP + MKP('APRES').length, iF).replace(/^\n/, '').replace(/\n$/, '');
-    patches.push({avant, apres});
-  }
-  return patches;
-}
-function echapperRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-function regexSouple(avant){
-  const parts = avant.split(/\s+/).filter(Boolean).map(echapperRegex);
-  if (!parts.length) return null;
-  return new RegExp(parts.join('\\s+'), 'g');
-}
-function appliquerPatches(source, patches){
-  let html = source;
-  for (const p of patches) {
-    const nExact = html.split(p.avant).length - 1;
-    if (nExact === 1) { html = html.replace(p.avant, p.apres); continue; }
-    if (nExact > 1) throw new Error("un passage à remplacer apparaît plusieurs fois, ce n'est pas assez précis");
-    const re = regexSouple(p.avant);
-    const matches = re ? [...html.matchAll(re)] : [];
-    if (matches.length === 0) throw new Error("un passage à remplacer est introuvable dans le fichier actuel");
-    if (matches.length > 1) throw new Error("un passage à remplacer apparaît plusieurs fois, ce n'est pas assez précis");
-    const m = matches[0];
-    html = html.slice(0, m.index) + p.apres + html.slice(m.index + m[0].length);
-  }
-  return html;
-}
 async function runUpgrade(demande){
   S.busy = true; setState('amelioration');
   if (MOTS_NATIFS.test(demande)) {
@@ -1054,45 +1065,51 @@ async function runUpgrade(demande){
   sys('Amélioration en cours : ' + demande);
   const source = P.getApp();
   if (!source) return upgradeFail("Je n'arrive pas à lire mon propre code.");
+  const version = (source.match(/POUPOUS_VERSION\s*=\s*(\d+)/) || [])[1] || '1';
   const rules = "Tu es un développeur web expert. Tu fais évoluer Poupous, un assistant vocal en français : un fichier HTML unique (CSS et JavaScript intégrés, sans framework ni ressource externe) affiché dans la WebView d'une appli Android.\n" +
     "L'appli Android fournit l'objet window.Poupous avec : hasKey(), setKey(k), get(k), set(k,v), claude(id, corpsJson) (réponse via window.__claudeDone(id, status, texte)), speak(id, texte) (fin via window.__ttsDone(id)), stopSpeaking(), setVoice(vitesse, hauteur, nom), voices(), listen(id) (résultat via window.__listenDone(id, texte, erreur), partiel via window.__listenPartial(texte)), stopListening(), cancelListening(), getApp(), saveApp(html), restoreBackup(), quit(), findContact(id, nom) (résultat JSON via window.__contactsDone(id, json)), dial(numero), sms(numero, texte), email(a, objet, texte), alarm(heure, minute, libelle), timer(secondes, libelle), navigate(destination), openApp(nom), takeShared(), saveFile(nom, mime, base64, partager), nativeVersion(), position(id) (résultat JSON via window.__posDone(id, json)), http(id, methode, url, entetesJson, corps) (réponse via window.__httpDone(id, status, texte)), telecharger(id, url, nom, mime, partager) (résultat via window.__telechargeDone(id, texte)), notifier(titre, texte), rappel(dansSecondes, titre, texte), surveillerRoute(actif). De nouvelles fonctions peuvent exister si l'APK a été améliorée : vérifie avec typeof avant de les appeler. Ces fonctions ne peuvent pas changer.\n" +
-    "MÉTHODE OBLIGATOIRE : tu ne renvoies JAMAIS le fichier complet. Tu proposes une série de PETITES modifications ciblées, chacune un remplacement exact d'un passage précis du fichier actuel par sa nouvelle version. Regroupe-les par blocs cohérents (une fonction, une section) plutôt qu'un patch géant.\n" +
-    "Format de réponse exact, un bloc par modification, autant de blocs que nécessaire :\n" +
-    MKP('PATCH') + "\n" + MKP('AVANT') + "\n(le texte EXACT à remplacer, copié caractère pour caractère depuis le fichier actuel, assez long pour être unique dans le fichier — au moins une ligne de contexte avant et après si besoin)\n" + MKP('APRES') + "\n(le texte de remplacement)\n" + MKP('FINPATCH') + "\n" +
     "Contraintes impératives :\n" +
-    "- Le texte AVANT doit correspondre mot pour mot à un passage qui existe une seule fois dans le fichier actuel : ni reformulé, ni résumé. Privilégie des extraits courts (quelques lignes) plutôt que de longs blocs, pour limiter le risque d'erreur de recopie.\n" +
-    "- Change seulement ce qui est nécessaire pour la demande ; ne touche à rien d'autre.\n" +
-    "- Ne touche jamais aux outils ameliorer_mon_code et annuler_derniere_amelioration, à la fonction runUpgrade, ni à la ligne window.__poupousOK = true.\n" +
+    "- Renvoie le fichier HTML COMPLET, jamais un extrait.\n" +
+    "- Garde exactement le commentaire POUPOUS_APP POUPOUS_VERSION=" + version + " dans le head.\n" +
+    "- Garde les outils ameliorer_mon_code et annuler_derniere_amelioration, la fonction runUpgrade, et la ligne window.__poupousOK = true.\n" +
     "- Tu ne peux pas ajouter de capacité du téléphone (GPS, capteurs, arrière-plan, autorisations Android) : ça se passe dans l'application Android, pas dans cette page.\n" +
-    "- SÉCURITÉ INTOUCHABLE : ne touche jamais à la fonction confirmChange et son appel dans runUpgrade, à la fonction renderSettings ni à l'objet DEFAUT, ni dans les réglages au bouton #open-settings, à la section Personnalité avec #perso-reset, à la liste des souvenirs avec data-del, ni au bouton #hard-reset. L'utilisateur doit toujours pouvoir valider ou refuser une modification et tout remettre à zéro.\n" +
+    "- SÉCURITÉ INTOUCHABLE : garde la fonction confirmChange et son appel dans runUpgrade, la fonction renderSettings et l'objet DEFAUT, ainsi que dans les réglages le bouton #open-settings, la section Personnalité avec #perso-reset, la liste des souvenirs avec data-del, et le bouton #hard-reset. L'utilisateur doit toujours pouvoir valider ou refuser une modification et tout remettre à zéro.\n" +
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
-    "- Avant le premier bloc " + MKP('PATCH') + ", écris une ligne " + MKP('RESUME') + " suivie d'une phrase en français résumant le changement. Pas de markdown.";
-  async function tenter(instructionsSupplementaires, base){
-    const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + instructionsSupplementaires + "\n\nFICHIER ACTUEL :\n" + base, 16000);
-    if (res.truncated) throw new Error("la réponse était trop longue et a été coupée");
-    const out = res.text;
-    const iR = out.indexOf(MKP('RESUME')), iP = out.indexOf(MKP('PATCH'));
-    if (iP < 0) throw new Error("je n'ai reçu aucune modification");
-    const resume = (iR >= 0 && iR < iP ? out.slice(iR + MKP('RESUME').length, iP) : demande).trim().slice(0, 300);
-    const patches = extrairePatches(out);
-    const html = appliquerPatches(base, patches);
-    const probleme = verifierHtml(html);
-    if (probleme) throw new Error(probleme);
+    "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
+    "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
+  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'prix_carburants', 'actualites', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
+  function verifier(html){
+    for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
+    const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+    for (const s of scripts) { try { new Function(s); } catch (e) { if (e instanceof SyntaxError) return "le nouveau code contient une erreur : " + e.message; } }
+    return null;
+  }
+  function extraire(out){
+    const iR = out.indexOf(MK('RESUME')), iH = out.indexOf(MK('HTML')), iF = out.lastIndexOf(MK('FIN'));
+    if (iH < 0 || iF < iH) throw new Error("je n'ai pas reçu un code complet");
+    const resume = (iR >= 0 && iR < iH ? out.slice(iR + MK('RESUME').length, iH) : demande).trim().slice(0, 300);
+    const html = out.slice(iH + MK('HTML').length, iF).replace(/^\s*```\w*\s*|\s*```\s*$/g, '').trim();
     return {resume, html};
   }
-  let resultat = null, derniereErreur = null;
+  let resume = '', html = '', probleme = null;
   try {
-    resultat = await tenter('', source);
-  } catch (e) { derniereErreur = e.message; }
-  if (!resultat) {
-    sys("Premier essai raté (" + derniereErreur + "). Je cherche à me corriger avant d'abandonner…");
+    const res = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source, 32000);
+    if (res.truncated) throw new Error("le nouveau code était trop long et a été coupé");
+    const t = extraire(res.text);
+    resume = t.resume; html = t.html;
+    probleme = verifier(html);
+  } catch (e) { probleme = e.message; }
+  if (probleme) {
+    sys("Premier essai raté (" + probleme + "). Je cherche à me corriger avant d'abandonner…");
     try {
-      resultat = await tenter("\n\nTON PREMIER ESSAI A ÉCHOUÉ POUR CETTE RAISON : " + derniereErreur + "\nRefais des modifications plus précises et plus petites, en copiant le texte AVANT bien exactement depuis le fichier actuel.", source);
-    } catch (e) {
-      return upgradeFail("Ma tentative de correction a aussi échoué (" + e.message + "). Je n'ai rien changé. Demande à Claude si tu veux que ce soit préparé autrement.");
-    }
+      const res2 = await complete(rules, "DEMANDE DE L'UTILISATEUR :\n" + demande + "\n\nFICHIER ACTUEL :\n" + source + "\n\nTON PREMIER ESSAI A ÉCHOUÉ POUR CETTE RAISON : " + probleme + "\nCorrige précisément ce problème, sans rien casser d'autre, et renvoie de nouveau le fichier complet.", 32000);
+      if (res2.truncated) throw new Error("le nouveau code était encore trop long");
+      const t2 = extraire(res2.text);
+      const probleme2 = verifier(t2.html);
+      if (probleme2) return upgradeFail("Ma tentative de correction a aussi échoué (" + probleme2 + "). Je n'ai rien changé. Demande à Claude si tu veux que ce soit préparé autrement.");
+      resume = t2.resume; html = t2.html;
+    } catch (e) { return upgradeFail("Ma tentative de correction a échoué (" + e.message + "). Je n'ai rien changé."); }
   }
-  const {resume, html} = resultat;
   setState('attente');
   if (!await confirmChange('MODIFICATION DE LA PAGE', resume, '')) return upgradeFail("Modification refusée. Je n'ai rien changé.");
   setState('amelioration');
