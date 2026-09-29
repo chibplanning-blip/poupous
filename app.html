@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=111 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=113 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -73,7 +73,7 @@ input[type=range]{accent-color:var(--cyan)}
 const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
-const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
+const DEFAUT = {cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, moteurVocal:'gemini', personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
 const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -105,6 +105,7 @@ window.__claudeDone = (id, status, text) => settle(id, {status, text});
 window.__ttsDone = id => settle(id, true);
 window.__listenDone = (id, text, err) => settle(id, {text, err});
 window.__listenPartial = t => { $('#live').textContent = t; };
+window.__captureDone = (id, b64, err) => settle(id, {b64, err});
 window.__listenReady = () => {};
 window.__contactsDone = (id, json) => settle(id, json);
 window.__posDone = (id, json) => settle(id, json);
@@ -114,6 +115,7 @@ window.__telechargeDone = (id, res) => settle(id, res);
 window.__installDone = (id, result) => settle(id, result);
 window.__sharedAvailable = () => loadShared();
 const hasFiles = () => !!(P && typeof P.saveFile === 'function');
+const hasVeille = () => !!(P && typeof P.veille === 'function');
 const hasPhone = () => !!(P && typeof P.dial === 'function');
 const NEED_APK = "Cette action demande une version plus récente de l\u2019application Poupous. Demande-la à Claude.";
 const OLD_APK = "Cette action demande la nouvelle version de l'APK Poupous : installe-la depuis la page Releases du dépôt GitHub.";
@@ -195,12 +197,34 @@ async function speak(text){
 function stopSpeaking(){ if (P) P.stopSpeaking(); }
 
 /* ---------- Écoute ---------- */
-async function listenOnce(){
+const hasCapture = () => !!(P && typeof P.capture === 'function' && typeof P.github === 'function' && geminiKey() && S.reglages.moteurVocal !== 'android');
+async function transcribe(b64){
+  const data = await geminiCall({
+    contents:[{role:'user', parts:[{inlineData:{mimeType:'audio/wav', data:b64}}, {text:"Transcris fidèlement cet enregistrement audio en français. Réponds uniquement par le texte prononcé, sans commentaire. S'il n'y a aucune parole humaine claire (bruit, silence, musique, télévision lointaine), réponds exactement : [rien]"}]}],
+    generationConfig:{temperature:0}
+  });
+  const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+  const t = parts.map(x => x.text || '').join(' ').trim();
+  return /\[rien\]/i.test(t) ? '' : t;
+}
+async function listenOnce(timeoutMs){
   if (!P) return {text:'', err:'unsupported'};
   S.listening = true; $('#live').textContent = '';
-  const r = await waitFor('l', id => P.listen(id));
+  let out;
+  if (hasCapture()) {
+    const c = await waitFor('c', id => P.capture(id, timeoutMs || 8000));
+    if (c.err || !c.b64) out = {text:'', err: c.err || 'no-speech'};
+    else {
+      $('#live').textContent = '…';
+      try { out = {text: await transcribe(c.b64), err:''}; }
+      catch (e) { out = {text:'', err: (e && e.status === 429) ? 'error-quota' : 'error-stt'}; }
+    }
+  } else {
+    const r = await waitFor('l', id => P.listen(id));
+    out = {text: (r.text || '').trim(), err: r.err || ''};
+  }
   S.listening = false; $('#live').textContent = '';
-  return {text: (r.text || '').trim(), err: r.err || ''};
+  return {text: (out.text || '').trim(), err: out.err || ''};
 }
 function micError(err){
   if (err === 'not-allowed') sys("Je n'ai pas accès au micro. Autorise le micro pour Poupous dans les paramètres Android, puis réessaie.");
@@ -254,7 +278,7 @@ async function handsFree(){
   while (S.reglages.mainsLibres) {
     if (S.busy || S.speaking || S.listening || !$('#sheet').hidden) { await sleep(400); continue; }
     setState('mainslibres');
-    const r = await listenOnce();
+    const r = await listenOnce(30000);
     if (!S.reglages.mainsLibres) break;
     if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
     if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { await sleep(1500); continue; }
@@ -1261,6 +1285,7 @@ function renderSettings(){
   $('#sheet-inner').innerHTML =
     '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">RÉGLAGES</span><button class="btn" id="close-settings">Fermer</button></div>' +
     '<h2>Écoute</h2>' +
+    '<div class="row"><label for="moteur">Reconnaissance vocale<br><span class="hint">« Gemini » est plus fiable, mais demande internet et la clé Gemini</span></label><select id="moteur"><option value="gemini"' + (r.moteurVocal !== 'android' ? ' selected' : '') + '>Gemini</option><option value="android"' + (r.moteurVocal === 'android' ? ' selected' : '') + '>Android (ancien)</option></select></div>' +
     '<div class="row"><label for="hf">Mains libres<br><span class="hint">Écoute « Poupous » en continu tant que l\'appli est ouverte</span></label><input type="checkbox" id="hf"' + (r.mainsLibres ? ' checked' : '') + '></div>' +
     '<h2>Voix</h2>' +
     '<div class="row"><label for="voix">Voix</label><select id="voix"><option value="">Automatique</option>' + vs.map(v => '<option value="' + esc(v) + '"' + (v === r.voix ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></div>' +
@@ -1280,6 +1305,9 @@ function renderSettings(){
     '<div class="row"><span>Autre IA : ' + (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée') + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<h2>Connexion</h2>' +
+    '<div class="row"><span>' + (hasVeille() ? (P.veilleActive() ? 'Reste connecté écran éteint : activé' : 'Reste connecté écran éteint : désactivé') : 'Connexion permanente : demande la nouvelle APK') + '</span>' + (hasVeille() ? '<button class="btn" id="veille-btn">' + (P.veilleActive() ? 'Arrêter' : 'Activer') + '</button>' : '') + '</div>' +
+    (hasVeille() ? '<div class="row"><span>' + (P.batterieLibre() ? 'Batterie : Poupous est autorisé' : 'Batterie : à autoriser') + '<br><span class="hint">Sans ça, le téléphone peut couper Poupous en veille</span></span><button class="btn" id="batt-btn">' + (P.batterieLibre() ? 'Vérifier' : 'Régler') + '</button></div>' : '') +
     '<h2>Images</h2>' +
     '<div class="row"><span>' + (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré') + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>' + (pxJeton() ? 'Vidéos configurées' : 'Vidéos non configurées') + '<br><span class="hint">Pixazo, gratuit en préversion</span></span><button class="btn" id="change-px">' + (pxJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
@@ -1296,6 +1324,7 @@ function renderSettings(){
     '<div class="row"><span>Historique de conversation</span><button class="btn" id="clear-conv">Effacer</button></div>' +
     '<div class="row"><span>Tout remettre à zéro<br><span class="hint">Personnalité, souvenirs et historique</span></span><button class="btn" id="hard-reset">Réinitialiser</button></div>';
   $('#close-settings').onclick = () => { $('#sheet').hidden = true; };
+  $('#moteur').onchange = e => { S.reglages.moteurVocal = e.target.value; store.set('reglages', S.reglages); };
   $('#hf').onchange = e => { setReglage('mainsLibres', String(e.target.checked)); if (!S.busy) idle(); };
   $('#voix').onchange = e => { S.reglages.voix = e.target.value; applyVoice(); store.set('reglages', S.reglages); };
   $('#vitesse').onchange = e => setReglage('vitesse', e.target.value);
@@ -1307,6 +1336,10 @@ function renderSettings(){
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
   $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
   $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
+  if (hasVeille()) {
+    $('#veille-btn').onclick = () => { P.veille(!P.veilleActive()); renderSettings(); };
+    $('#batt-btn').onclick = () => P.reglerBatterie();
+  }
   $('#change-gem').onclick = openGeminiKey;
   $('#change-oa').onclick = openAutreIA;
   $('#change-cf').onclick = openCloudflare;
