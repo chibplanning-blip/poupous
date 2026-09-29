@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.poupous.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.poupous.app'
+        minSdk 26
+        targetSdk 34
+        versionCode 107
+        versionName '2.7'
+    }
+
+    signingConfigs {
+        poupous {
+            storeFile file('poupous.keystore')
+            storePassword 'poupous-app'
+            keyAlias 'poupous'
+            keyPassword 'poupous-app'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.poupous
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
