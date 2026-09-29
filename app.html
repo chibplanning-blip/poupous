@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=120 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=121 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -1382,7 +1382,7 @@ async function genererImage(sujet){
   const r = await waitFor('h', id => P.http(id, 'POST', url, entetes, corps));
   if (r.text === 'trop-gros') throw new Error("l'image reçue était trop lourde");
   let data = null; try { data = JSON.parse(r.text); } catch (e) {}
-  if (r.status === 401 || r.status === 403) throw new Error('la clé Cloudflare est refusée : vérifie le jeton et l identifiant de compte');
+  if (r.status === 401 || r.status === 403) throw new Error('la clé Cloudflare est refusée' + (data && data.errors && data.errors[0] ? ' (' + data.errors[0].message + ')' : '') + ' : dis à l\'utilisateur d\'ouvrir les réglages, rubrique Images, et de toucher Tester pour voir ce qui ne va pas');
   if (r.status === 429) throw new Error('quota Cloudflare atteint pour aujourd hui, réessaie demain');
   if (!data || !data.result || !data.result.image) {
     const m = data && data.errors && data.errors[0] ? data.errors[0].message : (r.text || '').slice(0, 160);
@@ -1409,15 +1409,45 @@ function afficherImage(b64, sujet){
   row.appendChild(b); d.appendChild(row);
   $('#log').appendChild(d); scrollLog();
 }
+async function cfApi(methode, chemin, jeton, corps){
+  const r = await waitFor('h', id => P.http(id, methode, 'https://api.cloudflare.com/client/v4' + chemin, JSON.stringify({Authorization:'Bearer ' + jeton, 'Content-Type':'application/json'}), corps ? JSON.stringify(corps) : ''));
+  let d = null; try { d = JSON.parse(r.text); } catch (e) {}
+  const msg = d && d.errors && d.errors[0] ? d.errors[0].message + ' (code ' + d.errors[0].code + ')' : (r.text || '').slice(0, 120);
+  return {status:r.status, d, msg};
+}
+async function cfDiagnostic(compte, jeton){
+  const lignes = [];
+  compte = String(compte || '').replace(/\s+/g, ''); jeton = String(jeton || '').replace(/\s+/g, '');
+  if (!/^[0-9a-f]{32}$/i.test(compte)) return ["✗ L'identifiant de compte n'est pas valable : il doit faire exactement 32 caractères (chiffres et lettres a à f). C'est celui affiché sur la page d'accueil de ton compte Cloudflare (Account ID), pas ton e-mail ni le jeton. Tu as collé " + compte.length + " caractères."];
+  lignes.push('✓ Identifiant de compte : format correct.');
+  if (jeton.length < 30) return lignes.concat(["✗ Le jeton est trop court (" + jeton.length + " caractères). Un jeton Cloudflare fait environ 40 caractères : il a peut-être été coupé au copier-coller."]);
+  let v = await cfApi('GET', '/user/tokens/verify', jeton);
+  if (!(v.status === 200 && v.d && v.d.success)) v = await cfApi('GET', '/accounts/' + compte + '/tokens/verify', jeton);
+  if (!(v.status === 200 && v.d && v.d.success)) return lignes.concat(["✗ Cloudflare ne reconnaît pas ce jeton : " + v.msg + ". Crée un nouveau jeton (modèle « Workers AI ») et recopie-le en entier. Attention : la « Global API Key » ne convient pas, il faut un « API Token »."]);
+  const etat = v.d.result && v.d.result.status;
+  if (etat && etat !== 'active') return lignes.concat(["✗ Le jeton est reconnu mais son état est « " + etat + " » (désactivé ou expiré)."]);
+  lignes.push('✓ Jeton reconnu et actif.');
+  const g = await cfApi('POST', '/accounts/' + compte + '/ai/run/' + IMG_MODELE, jeton, {prompt:'a small blue circle', steps:1});
+  if (g.status === 200 && g.d && g.d.result && g.d.result.image) return lignes.concat(['✓ Test de dessin réussi : la génération d\u2019images fonctionne. Enregistre, puis redemande une image à Poupous.']);
+  return lignes.concat(["✗ Le jeton est bon mais le dessin est refusé : " + g.msg + (g.status === 403 || g.status === 401 || /authentication|permission|not authorized/i.test(g.msg) ? ". Le jeton n'a sans doute pas la permission « Workers AI », ou l'identifiant de compte n'est pas celui du compte qui a créé le jeton." : (g.status === 429 ? ". Le quota gratuit du jour est atteint : réessaie demain." : ""))]);
+}
 function openCloudflare(){
   $('#sheet-inner').innerHTML =
     '<div class="keybox"><span class="brand" style="font-size:14px">IMAGES (CLOUDFLARE, GRATUIT)</span>' +
     '<p class="hint">1. Crée un compte sur dash.cloudflare.com (sans carte bancaire).<br>2. Menu Workers AI → Use REST API → Create a Workers AI API Token.<br>3. Copie le jeton et l identifiant de compte affichés, puis colle-les ici. Ils restent sur ce téléphone.</p>' +
     '<input id="cfc" type="text" autocomplete="off" placeholder="Identifiant de compte" aria-label="Identifiant de compte Cloudflare" value="' + esc(cfCompte()) + '">' +
     '<input id="cfj" type="password" autocomplete="off" placeholder="Jeton" aria-label="Jeton Cloudflare">' +
-    '<div class="row" style="border:0"><button class="btn" id="cf-cancel">Plus tard</button><button class="btn primary" id="cf-save">Enregistrer</button></div></div>';
+    '<p class="hint" id="cf-etat" style="white-space:pre-wrap"></p>' +
+    '<div class="row" style="border:0"><button class="btn" id="cf-cancel">Plus tard</button><button class="btn" id="cf-test">Tester</button><button class="btn primary" id="cf-save">Enregistrer</button></div></div>';
   $('#sheet').hidden = false;
   $('#cf-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#cf-test').onclick = async () => {
+    const c = $('#cfc').value || cfCompte(), j = $('#cfj').value || cfJeton();
+    if (!P || typeof P.http !== 'function') { $('#cf-etat').textContent = "Il faut la nouvelle version de l'application."; return; }
+    $('#cf-test').disabled = true; $('#cf-etat').textContent = 'Test en cours…';
+    try { $('#cf-etat').textContent = (await cfDiagnostic(c, j)).join('\n'); } catch (e) { $('#cf-etat').textContent = 'Test impossible : ' + e.message; }
+    $('#cf-test').disabled = false;
+  };
   $('#cf-save').onclick = () => {
     const c = $('#cfc').value.replace(/\s+/g, ''), j = $('#cfj').value.replace(/\s+/g, '');
     if (c.length < 8) { $('#cfc').style.borderColor = '#ff6b6b'; return; }
