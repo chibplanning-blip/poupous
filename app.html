@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=132 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=133 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -2038,7 +2038,7 @@ function renderSettings(){
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
 /* ---------- Vue en direct (test) : Gemini Live, caméra 1 image/seconde, réponse vocale ---------- */
-const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0};
+const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0, mic:null, micNode:null, micSrc:null, entendu:'', nouveau:false};
 const LIVE_MODELE = 'models/gemini-3.8-live';
 const LIVE_CONSIGNE = "Tu es Poupous, un assistant qui parle français. Tu vois la caméra de l'utilisateur en direct (une image par seconde). Réponds toujours en français, en une ou deux phrases courtes, sans longue introduction.";
 const liveEtat = m => { const e = $('#live-etat'); if (e) e.textContent = m; };
@@ -2046,12 +2046,13 @@ function liveStop(msg){
   if (LIVE.timer) { clearInterval(LIVE.timer); LIVE.timer = null; }
   if (LIVE.ws) { try { LIVE.ws.onclose = null; LIVE.ws.close(); } catch (e) {} LIVE.ws = null; }
   if (LIVE.stream) { try { LIVE.stream.getTracks().forEach(t => t.stop()); } catch (e) {} LIVE.stream = null; }
+  liveMicStop();
   if (LIVE.ctx) { try { LIVE.ctx.close(); } catch (e) {} LIVE.ctx = null; }
   LIVE.src = []; LIVE.next = 0; LIVE.pret = false;
   if (msg) liveEtat(msg);
 }
 function liveSetup(forme){
-  const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:LIVE_CONSIGNE}]}, outputAudioTranscription:{}};
+  const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:LIVE_CONSIGNE}]}, outputAudioTranscription:{}, inputAudioTranscription:{}};
   if (forme === 0) s.responseModalities = ['AUDIO']; else s.generationConfig = {responseModalities:['AUDIO']};
   return {setup:s};
 }
@@ -2075,7 +2076,15 @@ function liveConnect(forme){
     const sc = m.serverContent; if (!sc) return;
     if (sc.interrupted) { LIVE.src.forEach(x => { try { x.stop(); } catch (e) {} }); LIVE.src = []; LIVE.next = 0; }
     if (sc.modelTurn && sc.modelTurn.parts) for (const p of sc.modelTurn.parts) if (p.inlineData && p.inlineData.data) liveJoue(p.inlineData.data);
-    if (sc.outputTranscription && sc.outputTranscription.text) { LIVE.texte += sc.outputTranscription.text; const e = $('#live-texte'); if (e) e.textContent = LIVE.texte; }
+    if (sc.inputTranscription && sc.inputTranscription.text) {
+      if (LIVE.nouveau) { LIVE.texte = ''; LIVE.entendu = ''; LIVE.nouveau = false; const e1 = $('#live-entendu'), e2 = $('#live-texte'); if (e1) e1.textContent = ''; if (e2) e2.textContent = ''; }
+      LIVE.entendu += sc.inputTranscription.text; const e = $('#live-entendu'); if (e) e.textContent = 'Tu as dit : ' + LIVE.entendu;
+    }
+    if (sc.outputTranscription && sc.outputTranscription.text) {
+      if (LIVE.nouveau) { LIVE.texte = ''; LIVE.entendu = ''; LIVE.nouveau = false; const e1 = $('#live-entendu'), e2 = $('#live-texte'); if (e1) e1.textContent = ''; if (e2) e2.textContent = ''; }
+      LIVE.texte += sc.outputTranscription.text; const e = $('#live-texte'); if (e) e.textContent = LIVE.texte;
+    }
+    if (sc.turnComplete) LIVE.nouveau = true;
   };
   ws.onerror = () => {};
   ws.onclose = ev => {
@@ -2102,6 +2111,39 @@ function liveDemande(q){
   LIVE.src.forEach(x => { try { x.stop(); } catch (er) {} }); LIVE.src = []; LIVE.next = 0;
   LIVE.tq = Date.now(); LIVE.ws.send(JSON.stringify({realtimeInput:{text:q}}));
 }
+function liveMicStop(){
+  if (LIVE.micNode) { try { LIVE.micNode.onaudioprocess = null; LIVE.micNode.disconnect(); } catch (e) {} LIVE.micNode = null; }
+  if (LIVE.micSrc) { try { LIVE.micSrc.disconnect(); } catch (e) {} LIVE.micSrc = null; }
+  if (LIVE.mic) { try { LIVE.mic.getTracks().forEach(t => t.stop()); } catch (e) {} LIVE.mic = null; }
+  const b = $('#live-micro'); if (b) b.textContent = 'Micro : coupé';
+}
+function liveEnvoieSon(d, taux){
+  const ratio = taux / 16000, n = Math.floor(d.length / ratio), pcm = new Int16Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = Math.floor(i * ratio), z = Math.min(d.length, Math.floor((i + 1) * ratio));
+    let s = 0, c = 0; for (let j = a; j < z; j++) { s += d[j]; c++; }
+    let v = c ? s / c : 0; v = Math.max(-1, Math.min(1, v)); pcm[i] = v < 0 ? v * 32768 : v * 32767;
+  }
+  const oct = new Uint8Array(pcm.buffer); let bin = '';
+  for (let i = 0; i < oct.length; i += 0x8000) bin += String.fromCharCode.apply(null, oct.subarray(i, i + 0x8000));
+  LIVE.ws.send(JSON.stringify({realtimeInput:{audio:{data:btoa(bin), mimeType:'audio/pcm;rate=16000'}}}));
+}
+async function liveMicToggle(){
+  if (LIVE.mic) { liveMicStop(); liveEtat('Micro coupé.'); return; }
+  if (!LIVE.ctx || !LIVE.pret) { liveEtat("Appuie d'abord sur Démarrer et attends « Connecté »."); return; }
+  try { LIVE.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}, video:false}); }
+  catch (e) { liveEtat('Micro refusé ou indisponible : ' + (e.name || '') + ' ' + (e.message || '')); return; }
+  LIVE.micSrc = LIVE.ctx.createMediaStreamSource(LIVE.mic);
+  LIVE.micNode = LIVE.ctx.createScriptProcessor(4096, 1, 1);
+  LIVE.micNode.onaudioprocess = e => {
+    if (!LIVE.pret || !LIVE.ws || LIVE.ws.readyState !== 1 || !LIVE.ctx) return;
+    if (LIVE.ctx.currentTime < LIVE.next - 0.05) return; // Poupous parle : on n'écoute pas (évite l'écho)
+    liveEnvoieSon(e.inputBuffer.getChannelData(0), LIVE.ctx.sampleRate);
+  };
+  LIVE.micSrc.connect(LIVE.micNode); LIVE.micNode.connect(LIVE.ctx.destination);
+  const b = $('#live-micro'); if (b) b.textContent = 'Micro : activé';
+  liveEtat('Micro activé : parle, puis attends la réponse. Un casque évite l\u2019écho.');
+}
 async function liveStart(){
   if (!geminiKey()) { liveEtat('Il faut la clé Gemini (réglages).'); return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { liveEtat("Cette version de l'appli ne permet pas la caméra en direct : installe l'APK 3.2."); return; }
@@ -2118,15 +2160,17 @@ function openLive(){
   $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">VUE EN DIRECT (TEST)</span>' +
     '<video id="live-video" playsinline muted style="width:100%;max-height:34vh;border-radius:12px;background:#000;object-fit:cover"></video>' +
     '<p class="hint" id="live-etat">Appuie sur Démarrer. La session dure environ 2 minutes.</p>' +
+    '<p class="hint" id="live-entendu" style="min-height:1.5em"></p>' +
     '<p class="hint" id="live-texte" style="min-height:2.5em"></p>' +
     '<div class="row" style="border:0"><button class="btn primary" id="live-go">Démarrer</button><button class="btn" id="live-stop">Arrêter</button></div>' +
-    '<div class="row" style="border:0"><button class="btn" id="live-decris">Décris ce que tu vois</button></div>' +
+    '<div class="row" style="border:0"><button class="btn" id="live-decris">Décris ce que tu vois</button><button class="btn" id="live-micro">Micro : coupé</button></div>' +
     '<input id="live-q" type="text" autocomplete="off" placeholder="Pose une question sur ce que tu vois" aria-label="Question">' +
     '<div class="row" style="border:0"><button class="btn" id="live-send">Envoyer la question</button></div></div>';
   $('#sheet').hidden = false;
   $('#live-go').onclick = liveStart;
   $('#live-stop').onclick = () => { liveStop('Arrêté.'); };
   $('#live-decris').onclick = () => liveDemande('Décris précisément ce que tu vois maintenant.');
+  $('#live-micro').onclick = liveMicToggle;
   $('#live-send').onclick = () => { const q = $('#live-q').value.trim(); if (q) { liveDemande(q); $('#live-q').value = ''; } };
 }
 $('#cam').onclick = () => {
