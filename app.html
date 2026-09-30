@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=130 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=131 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -161,7 +161,7 @@ $('#app').innerHTML =
 '<div class="tableau" id="tableau" hidden></div>' +
 '<div class="log" id="log" aria-live="polite"></div>' +
   '<div class="attach" id="attach"></div>' +
-  '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden><button class="clip" id="cam" aria-label="Prendre une photo">' + CAM + '</button><input type="file" id="photo" accept="image/*" capture="environment" hidden>' +
+  '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden><button class="clip" id="cam" aria-label="Prendre une photo">' + CAM + '</button><input type="file" id="photo" accept="image/*" capture="environment" hidden><input type="file" id="video" accept="video/*" capture="environment" hidden>' +
   '<input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
   '<button class="mic" id="mic" aria-label="Parler à Poupous">' + MIC + '</button></div>' +
   '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
@@ -2037,8 +2037,18 @@ function renderSettings(){
 /* ---------- Démarrage ---------- */
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
-$('#cam').onclick = () => $('#photo').click();
+$('#cam').onclick = () => {
+  $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">APPAREIL PHOTO</span>' +
+    '<p class="hint">Vidéo courte : 12 secondes maximum, pour rester légère.</p>' +
+    '<div class="row" style="border:0"><button class="btn primary" id="cam-photo">Photo</button><button class="btn primary" id="cam-video">Vidéo courte</button></div>' +
+    '<div class="row" style="border:0"><button class="btn" id="cam-annuler">Annuler</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#cam-photo').onclick = () => { $('#sheet').hidden = true; $('#photo').click(); };
+  $('#cam-video').onclick = () => { $('#sheet').hidden = true; $('#video').click(); };
+  $('#cam-annuler').onclick = () => { $('#sheet').hidden = true; };
+};
 $('#photo').onchange = e => $('#fichier').onchange(e);
+$('#video').onchange = e => $('#fichier').onchange(e);
 $('#fichier').onchange = e => {
   for (const f of Array.from(e.target.files || [])) {
     const maxi = typeMedia({nom:f.name, type:f.type || ''}) ? 14 : 10;
