@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=124 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=125 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -1171,21 +1171,54 @@ async function prixCarburantsFrance(lat, lon, carburant, rayonKm){
     x.ville + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + x.prix.toFixed(3).replace('.', ',') + ' euro le litre' + (x.km != null ? ', à ' + fmtKm(x.km) : '')
   ).join(' ; ') + '.';
 }
-async function stationsBelgique(lat, lon, carburant, rayonKm){
-  const rayon = Math.max(1, Math.min(20, rayonKm || 10)) * 1000;
-  const q = '[out:json][timeout:25];nwr["amenity"="fuel"](around:' + rayon + ',' + lat + ',' + lon + ');out center tags 80;';
-  const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q)});
-  if (!r.ok) throw new Error('service des stations indisponible (' + r.status + ')');
+async function fetchAvecDelai(url, opts, ms){
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  try { return await fetch(url, Object.assign({}, opts, {signal:c.signal})); } finally { clearTimeout(t); }
+}
+async function stationsOverpass(lat, lon, rayonM){
+  const q = '[out:json][timeout:20];nwr["amenity"="fuel"](around:' + rayonM + ',' + lat + ',' + lon + ');out center tags 80;';
+  const serveurs = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  let derniere = 'aucun serveur ne répond';
+  for (const u of serveurs) {
+    try {
+      const r = await fetchAvecDelai(u, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q)}, 8000);
+      if (!r.ok) { derniere = 'erreur ' + r.status; continue; }
+      const j = await r.json();
+      return (j.elements || []).map(e => {
+        const la = e.lat != null ? e.lat : (e.center && e.center.lat);
+        const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
+        if (la == null || lo == null) return null;
+        const t = e.tags || {};
+        return {nom:t.brand || t.name || 'Station', km:distKm(lat, lon, la, lo),
+                adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
+      }).filter(Boolean);
+    } catch (e) { derniere = e && e.name === 'AbortError' ? 'délai dépassé' : (e && e.message) || 'erreur réseau'; }
+  }
+  throw new Error(derniere);
+}
+async function stationsNominatim(lat, lon, rayonKm){
+  const dl = rayonKm / 111, dn = rayonKm / (111 * Math.cos(lat * Math.PI / 180));
+  const vb = (lon - dn) + ',' + (lat + dl) + ',' + (lon + dn) + ',' + (lat - dl);
+  const r = await fetchAvecDelai('https://nominatim.openstreetmap.org/search?format=json&limit=40&bounded=1&viewbox=' + vb + '&q=fuel', {}, 8000);
+  if (!r.ok) throw new Error('erreur ' + r.status);
   const j = await r.json();
-  const stations = (j.elements || []).map(e => {
-    const la = e.lat != null ? e.lat : (e.center && e.center.lat);
-    const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
-    if (la == null || lo == null) return null;
-    const t = e.tags || {};
-    return {nom:t.brand || t.name || 'Station', km:distKm(lat, lon, la, lo),
-            adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
-  }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 5);
-  if (!stations.length) return null;
+  return (j || []).filter(x => x.type === 'fuel' || x.class === 'amenity').map(x => {
+    const parts = String(x.display_name || '').split(', ');
+    return {nom:x.name || 'Station', km:distKm(lat, lon, parseFloat(x.lat), parseFloat(x.lon)), adr:parts.slice(x.name ? 1 : 0, x.name ? 3 : 2).join(' ')};
+  });
+}
+async function stationsBelgique(lat, lon, carburant, rayonKm){
+  const rayon = Math.max(1, Math.min(20, rayonKm || 10));
+  let brut, erreurs = [];
+  try { brut = await stationsOverpass(lat, lon, rayon * 1000); } catch (e) { erreurs.push('Overpass : ' + e.message); }
+  if (!brut || !brut.length) {
+    try { brut = await stationsNominatim(lat, lon, Math.min(rayon, 5)); } catch (e) { erreurs.push('Nominatim : ' + e.message); }
+  }
+  if (!brut || !brut.length) {
+    if (erreurs.length) throw new Error('recherche des stations impossible (' + erreurs.join(' ; ') + ')');
+    return null;
+  }
+  const stations = brut.sort((a, b) => a.km - b.km).slice(0, 5);
   let moy = '';
   try {
     const rp = await fetch('https://openvan.camp/api/fuel/prices?source=poupous');
@@ -1211,6 +1244,7 @@ async function prixCarburants(lat, lon, carburant, rayonKm){
   if (be.status === 'fulfilled' && be.value) morceaux.push(be.value);
   if (morceaux.length) return morceaux.join(' ');
   if (fr.status === 'rejected' && be.status === 'rejected') throw new Error(fr.reason && fr.reason.message ? fr.reason.message : 'services indisponibles');
+  if (be.status === 'rejected') throw new Error((be.reason && be.reason.message) || 'recherche des stations impossible');
   return 'aucune station trouvée dans ' + rayon + ' km, ni en France ni en Belgique';
 }
 async function actualites(sujet){
