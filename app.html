@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=123 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=124 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -714,7 +714,7 @@ function systemPrompt(){
     "Vidéos : generer_video crée une vraie petite vidéo, en une à trois minutes. Décris la scène en anglais avec le mouvement de caméra. Préviens que c'est long et que l'appli doit rester ouverte. N'en propose pas pour une demande où une image suffirait.\n" +
     "Images : generer_image crée vraiment une image et l'affiche à l'écran. Écris la description en anglais et enrichis-la (sujet, décor, lumière, style), même si l'utilisateur te la donne en français en une phrase. Après, dis simplement ce que tu as dessiné.\n" +
     "Position : l'outil ma_position te donne sa rue et sa ville. Utilise-le dès qu'il demande où il est ; ne réponds jamais que tu n'as pas accès au GPS sans l'avoir appelé.\n" +
-    "Météo, carburants, actualités : meteo donne le temps et les prévisions (à sa position ou dans la ville qu'il cite) ; prix_carburants trouve les stations les moins chères autour de lui (gazole, e10, sp95, sp98, gplc ou e85) ; actualites lit les gros titres. Utilise-les plutôt que d'inventer, et réponds en une ou deux phrases orales.\n" +
+    "Météo, carburants, actualités : meteo donne le temps et les prévisions (à sa position ou dans la ville qu'il cite) ; prix_carburants cherche les stations autour de lui en France et en Belgique (gazole, e10, sp95, sp98, gplc ou e85) : en France il a les prix par station, en Belgique seulement les stations proches et un prix moyen national, et tu ne présentes jamais ce prix moyen comme celui d'une station précise ; s'il te demande des stations ou des carburants, appelle toujours cet outil au lieu de dire que tu n'y as pas accès ; actualites lit les gros titres. Utilise-les plutôt que d'inventer, et réponds en une ou deux phrases orales.\n" +
     "Apprendre et se corriger : chercher_internet cherche une information sur internet (actualité, info que tu ne connais pas, solution à un problème technique) ; utilise-le plutôt que d'inventer une réponse. demander_deuxieme_avis interroge l'autre intelligence artificielle (Gemini ou Claude, selon celle que tu n'utilises pas déjà) quand tu es bloqué, pas sûr de toi, ou que tu t'es trompé ; sers-t'en pour vérifier ou corriger une réponse, pas pour chaque question.\n" +
     "ANTI-BOUCLE : une capacité du téléphone qui manque (GPS, capteurs, arrière-plan, notifications, autorisations Android) ne s'ajoute JAMAIS avec ameliorer_mon_code — la page n'y a pas accès, la réécrire ne changera rien. Tu ne modifies plus l'application Android toi-même : dans ce cas, dis-le simplement une fois et invite l'utilisateur à en parler à Claude, qui prépare le fichier. N'y reviens pas et continue avec ce que tu sais faire.\n" +
     "Ne propose jamais deux modifications de suite pour la même demande. Si une modification a échoué, explique l'échec et attends que l'utilisateur décide.\n" +
@@ -760,7 +760,7 @@ function toolDefs(){
     {name:'magasins_proches', description:"Trouve les magasins d'alimentation autour de l'utilisateur (position GPS) ou autour d'une adresse. Renvoie nom, adresse et distance.",
       input_schema:{type:'object', properties:{rayon_m:{type:'integer'}, adresse:{type:'string'}}}},
     {name:'meteo', description:"Donne la météo : température actuelle, ciel, vent et prévisions pour aujourd'hui, demain et après-demain, à la position de l'utilisateur ou dans une ville qu'il cite.", input_schema:{type:'object', properties:{ville:{type:'string', description:"ville ou adresse ; vide = position GPS de l'utilisateur"}}}},
-    {name:'prix_carburants', description:"Trouve les stations-service les moins chères autour de l'utilisateur (position GPS) ou d'une adresse, pour un carburant donné. Renvoie le prix au litre, l'adresse et la distance.", input_schema:{type:'object', properties:{carburant:{type:'string', enum:['gazole','e10','sp95','sp98','gplc','e85']}, rayon_km:{type:'integer', description:'rayon de recherche en km, 10 par défaut'}, adresse:{type:'string', description:'vide = position GPS'}}, required:['carburant']}},
+    {name:'prix_carburants', description:"Cherche les stations-service autour de l'utilisateur (position GPS) ou d'une adresse, pour un carburant donné, en France ET en Belgique. En France : les moins chères avec prix au litre, adresse et distance. En Belgique : les stations les plus proches et le prix moyen national (pas de prix par station).", input_schema:{type:'object', properties:{carburant:{type:'string', enum:['gazole','e10','sp95','sp98','gplc','e85']}, rayon_km:{type:'integer', description:'rayon de recherche en km, 10 par défaut'}, adresse:{type:'string', description:'vide = position GPS'}}, required:['carburant']}},
     {name:'actualites', description:"Lit les gros titres de l'actualité en France (France Info). Sujets possibles : une, france, monde, economie, sport.", input_schema:{type:'object', properties:{sujet:{type:'string', enum:['une','france','monde','economie','sport']}}}},
     {name:'chercher_internet', description:"Cherche une information sur internet : actualité, fait que tu ne connais pas ou qui a pu changer, solution à un problème technique. Renvoie un court résumé.",
       input_schema:{type:'object', properties:{requete:{type:'string'}}, required:['requete']}},
@@ -1150,7 +1150,7 @@ async function meteo(lat, lon, lieu){
   }
   return morceaux.join(' ');
 }
-async function prixCarburants(lat, lon, carburant, rayonKm){
+async function prixCarburantsFrance(lat, lon, carburant, rayonKm){
   const champs = {gazole:'gazole_prix', e10:'e10_prix', sp95:'sp95_prix', sp98:'sp98_prix', gplc:'gplc_prix', e85:'e85_prix'};
   const champ = champs[carburant] || 'gazole_prix';
   const rayon = Math.max(1, Math.min(50, rayonKm || 10));
@@ -1166,10 +1166,52 @@ async function prixCarburants(lat, lon, carburant, rayonKm){
     const lo = g.lon != null ? g.lon : (x.longitude > 1000 || x.longitude < -1000 ? x.longitude / 100000 : x.longitude);
     return {prix:parseFloat(x[champ]), ville:x.ville || '', adr:x.adresse || '', km:(la != null && lo != null) ? distKm(lat, lon, la, lo) : null};
   }).filter(x => isFinite(x.prix)).sort((a, b) => a.prix - b.prix).slice(0, 3);
-  if (!liste.length) return 'aucune station avec du ' + carburant + ' dans ' + rayon + ' km';
+  if (!liste.length) return null;
   return 'Les moins chères pour le ' + carburant + ' : ' + liste.map(x =>
     x.ville + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + x.prix.toFixed(3).replace('.', ',') + ' euro le litre' + (x.km != null ? ', à ' + fmtKm(x.km) : '')
   ).join(' ; ') + '.';
+}
+async function stationsBelgique(lat, lon, carburant, rayonKm){
+  const rayon = Math.max(1, Math.min(20, rayonKm || 10)) * 1000;
+  const q = '[out:json][timeout:25];nwr["amenity"="fuel"](around:' + rayon + ',' + lat + ',' + lon + ');out center tags 80;';
+  const r = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'data=' + encodeURIComponent(q)});
+  if (!r.ok) throw new Error('service des stations indisponible (' + r.status + ')');
+  const j = await r.json();
+  const stations = (j.elements || []).map(e => {
+    const la = e.lat != null ? e.lat : (e.center && e.center.lat);
+    const lo = e.lon != null ? e.lon : (e.center && e.center.lon);
+    if (la == null || lo == null) return null;
+    const t = e.tags || {};
+    return {nom:t.brand || t.name || 'Station', km:distKm(lat, lon, la, lo),
+            adr:[t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ')};
+  }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 5);
+  if (!stations.length) return null;
+  let moy = '';
+  try {
+    const rp = await fetch('https://openvan.camp/api/fuel/prices?source=poupous');
+    if (rp.ok) {
+      const jp = await rp.json();
+      const be = jp && jp.data && jp.data.BE && jp.data.BE.prices;
+      const cle = {gazole:'diesel', e10:'gasoline', sp95:'gasoline', sp98:'gasoline_premium', gplc:'lpg'}[carburant];
+      const p = be && cle ? be[cle] : null;
+      if (p != null && isFinite(p)) moy = ' Prix moyen en Belgique pour le ' + carburant + ' : environ ' + Number(p).toFixed(2).replace('.', ',') + ' euro le litre (moyenne nationale indicative, source OpenVan.camp, pas le prix affiché à la pompe).';
+    }
+  } catch (e) {}
+  return 'Stations proches en Belgique (le prix par station n\u2019existe pas en données ouvertes belges, ne donne donc aucun prix comme étant celui d\u2019une station précise) : ' +
+    stations.map(x => x.nom + (x.adr ? ' (' + x.adr + ')' : '') + ' à ' + fmtKm(x.km)).join(' ; ') + '.' + moy;
+}
+async function prixCarburants(lat, lon, carburant, rayonKm){
+  const rayon = Math.max(1, Math.min(50, rayonKm || 10));
+  const [fr, be] = await Promise.allSettled([
+    prixCarburantsFrance(lat, lon, carburant, rayon),
+    stationsBelgique(lat, lon, carburant, rayon)
+  ]);
+  const morceaux = [];
+  if (fr.status === 'fulfilled' && fr.value) morceaux.push('En France : ' + fr.value);
+  if (be.status === 'fulfilled' && be.value) morceaux.push(be.value);
+  if (morceaux.length) return morceaux.join(' ');
+  if (fr.status === 'rejected' && be.status === 'rejected') throw new Error(fr.reason && fr.reason.message ? fr.reason.message : 'services indisponibles');
+  return 'aucune station trouvée dans ' + rayon + ' km, ni en France ni en Belgique';
 }
 async function actualites(sujet){
   const flux = {une:'titres', france:'france', monde:'monde', economie:'economie', sport:'sports'};
