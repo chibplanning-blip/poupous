@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=127 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=128 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -639,12 +639,15 @@ async function listenOnce(timeoutMs){
   S.listening = true; $('#live').textContent = '';
   let out;
   if (hasCapture()) {
+    const t0 = Date.now();
     const c = await waitFor('c', id => P.capture(id, timeoutMs || 8000));
+    const t1 = Date.now();
     if (c.err || !c.b64) out = {text:'', err: c.err || 'no-speech'};
     else {
       $('#live').textContent = '…';
       try { noterLocuteur(identifierVoix(c.b64)); } catch (e) {}
-      try { out = {text: await transcribe(c.b64), err:''}; }
+      const t2 = Date.now();
+      try { out = {text: await transcribe(c.b64), err:''}; S.chrono = {ecoute:t1 - t0, voix:t2 - t1, transcription:Date.now() - t2, taille:Math.round(c.b64.length * 0.75 / 1024)}; }
       catch (e) { S.detailSTT = ((e && e.status ? e.status + ' ' : '') + (e && e.message ? e.message : '')).slice(0, 140); out = {text:'', err: (e && e.status === 429) ? 'error-quota' : 'error-stt'}; }
     }
   } else {
@@ -1442,7 +1445,7 @@ async function ask(text){
     }
     return;
   }
-  S.busy = true; S.lastOk = false;
+  S.busy = true; S.lastOk = false; const tCerveau = Date.now();
   addMsg('toi', text);
   if (hasFamille()) await syncFaits();
   if (!brainReady()) { const m = provider() === 'autre' ? "Il me faut la configuration de l'autre IA pour réfléchir." : (provider() === 'gemini' ? "Il me faut ta clé Gemini gratuite pour réfléchir." : "Il me faut ta clé API pour réfléchir."); addMsg('poupous', m); S.busy = false; idle(); openBrainKey(); return; }
@@ -1482,6 +1485,10 @@ async function ask(text){
     sys("Attention : en réalité rien n'a été lancé. Pour une modification de son interface, passe par les réglages, rubrique Améliorer Poupous. Pour une fonction du téléphone, c'est Claude qui prépare la nouvelle version.");
   }
   if (S.lastOk) { S.turns.push({role:'assistant', content:answer}); S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
+  try {
+    const ch = S.chrono; S.chrono = null;
+    if (ch) { const f = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s'; sys('Chrono : écoute ' + f(ch.ecoute) + ' · empreinte ' + f(ch.voix) + ' · transcription ' + f(ch.transcription) + ' · cerveau ' + f(Date.now() - tCerveau) + ' (audio ' + ch.taille + ' Ko)'); }
+  } catch (e) {}
   await speak(answer);
   S.busy = false;
   if (S.pendingUpgrade) { const d = S.pendingUpgrade; S.pendingUpgrade = null; await runUpgrade(d); }
