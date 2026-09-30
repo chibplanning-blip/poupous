@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=131 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=132 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -2037,15 +2037,108 @@ function renderSettings(){
 /* ---------- Démarrage ---------- */
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
+/* ---------- Vue en direct (test) : Gemini Live, caméra 1 image/seconde, réponse vocale ---------- */
+const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0};
+const LIVE_MODELE = 'models/gemini-3.8-live';
+const LIVE_CONSIGNE = "Tu es Poupous, un assistant qui parle français. Tu vois la caméra de l'utilisateur en direct (une image par seconde). Réponds toujours en français, en une ou deux phrases courtes, sans longue introduction.";
+const liveEtat = m => { const e = $('#live-etat'); if (e) e.textContent = m; };
+function liveStop(msg){
+  if (LIVE.timer) { clearInterval(LIVE.timer); LIVE.timer = null; }
+  if (LIVE.ws) { try { LIVE.ws.onclose = null; LIVE.ws.close(); } catch (e) {} LIVE.ws = null; }
+  if (LIVE.stream) { try { LIVE.stream.getTracks().forEach(t => t.stop()); } catch (e) {} LIVE.stream = null; }
+  if (LIVE.ctx) { try { LIVE.ctx.close(); } catch (e) {} LIVE.ctx = null; }
+  LIVE.src = []; LIVE.next = 0; LIVE.pret = false;
+  if (msg) liveEtat(msg);
+}
+function liveSetup(forme){
+  const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:LIVE_CONSIGNE}]}, outputAudioTranscription:{}};
+  if (forme === 0) s.responseModalities = ['AUDIO']; else s.generationConfig = {responseModalities:['AUDIO']};
+  return {setup:s};
+}
+function liveJoue(b64){
+  if (!LIVE.ctx) return;
+  if (LIVE.tq) { liveEtat('Premier son après ' + ((Date.now() - LIVE.tq) / 1000).toFixed(1) + ' s'); LIVE.tq = 0; }
+  const bin = atob(b64), n = bin.length >> 1, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; f[i] = v / 32768; }
+  const buf = LIVE.ctx.createBuffer(1, n, 24000); buf.getChannelData(0).set(f);
+  const src = LIVE.ctx.createBufferSource(); src.buffer = buf; src.connect(LIVE.ctx.destination);
+  const t = Math.max(LIVE.ctx.currentTime, LIVE.next); src.start(t); LIVE.next = t + buf.duration; LIVE.src.push(src);
+}
+function liveConnect(forme){
+  const ws = new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + encodeURIComponent(geminiKey()));
+  LIVE.ws = ws; LIVE.pret = false;
+  ws.onopen = () => ws.send(JSON.stringify(liveSetup(forme)));
+  ws.onmessage = async ev => {
+    let txt = ev.data; if (typeof txt !== 'string') txt = await ev.data.text();
+    let m; try { m = JSON.parse(txt); } catch (e) { return; }
+    if (m.setupComplete) { LIVE.pret = true; liveEtat('Connecté. Appuie sur « Décris ce que tu vois » ou pose une question.'); return; }
+    const sc = m.serverContent; if (!sc) return;
+    if (sc.interrupted) { LIVE.src.forEach(x => { try { x.stop(); } catch (e) {} }); LIVE.src = []; LIVE.next = 0; }
+    if (sc.modelTurn && sc.modelTurn.parts) for (const p of sc.modelTurn.parts) if (p.inlineData && p.inlineData.data) liveJoue(p.inlineData.data);
+    if (sc.outputTranscription && sc.outputTranscription.text) { LIVE.texte += sc.outputTranscription.text; const e = $('#live-texte'); if (e) e.textContent = LIVE.texte; }
+  };
+  ws.onerror = () => {};
+  ws.onclose = ev => {
+    const raison = (ev && ev.reason) || '';
+    if (!LIVE.pret && forme === 0 && /responseModalities|Unknown name|Invalid JSON|Cannot find field/i.test(raison)) { liveConnect(1); return; }
+    const duree = (Date.now() - LIVE.t0) / 1000;
+    liveStop('Connexion fermée (code ' + (ev ? ev.code : '?') + ')' + (raison ? ' : ' + raison.slice(0, 220) : '') + (LIVE.pret && duree > 100 ? ' — limite d\u2019environ 2 minutes atteinte.' : ''));
+  };
+}
+function liveImage(){
+  const v = $('#live-video'); if (!v || !v.videoWidth) return null;
+  const w = 768, h = Math.round(w * v.videoHeight / v.videoWidth), c = document.createElement('canvas');
+  c.width = w; c.height = h; c.getContext('2d').drawImage(v, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.7).split(',')[1];
+}
+function liveTic(){
+  if ($('#sheet').hidden || !$('#live-video')) { liveStop(); return; }
+  if (!LIVE.pret || !LIVE.ws || LIVE.ws.readyState !== 1) return;
+  const img = liveImage(); if (img) LIVE.ws.send(JSON.stringify({realtimeInput:{video:{data:img, mimeType:'image/jpeg'}}}));
+}
+function liveDemande(q){
+  if (!LIVE.pret || !LIVE.ws || LIVE.ws.readyState !== 1) { liveEtat("Pas encore connecté : appuie d'abord sur Démarrer."); return; }
+  LIVE.texte = ''; const e = $('#live-texte'); if (e) e.textContent = '';
+  LIVE.src.forEach(x => { try { x.stop(); } catch (er) {} }); LIVE.src = []; LIVE.next = 0;
+  LIVE.tq = Date.now(); LIVE.ws.send(JSON.stringify({realtimeInput:{text:q}}));
+}
+async function liveStart(){
+  if (!geminiKey()) { liveEtat('Il faut la clé Gemini (réglages).'); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { liveEtat("Cette version de l'appli ne permet pas la caméra en direct : installe l'APK 3.2."); return; }
+  liveStop(); LIVE.texte = '';
+  try { LIVE.ctx = new (window.AudioContext || window.webkitAudioContext)(); await LIVE.ctx.resume(); } catch (e) {}
+  try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false}); }
+  catch (e) { liveStop('Caméra refusée ou indisponible : ' + (e.name || '') + ' ' + (e.message || '')); return; }
+  const v = $('#live-video'); if (!v) { liveStop(); return; }
+  v.srcObject = LIVE.stream; try { await v.play(); } catch (e) {}
+  LIVE.t0 = Date.now(); liveEtat('Connexion à Gemini…'); liveConnect(0);
+  LIVE.timer = setInterval(liveTic, 1000);
+}
+function openLive(){
+  $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">VUE EN DIRECT (TEST)</span>' +
+    '<video id="live-video" playsinline muted style="width:100%;max-height:34vh;border-radius:12px;background:#000;object-fit:cover"></video>' +
+    '<p class="hint" id="live-etat">Appuie sur Démarrer. La session dure environ 2 minutes.</p>' +
+    '<p class="hint" id="live-texte" style="min-height:2.5em"></p>' +
+    '<div class="row" style="border:0"><button class="btn primary" id="live-go">Démarrer</button><button class="btn" id="live-stop">Arrêter</button></div>' +
+    '<div class="row" style="border:0"><button class="btn" id="live-decris">Décris ce que tu vois</button></div>' +
+    '<input id="live-q" type="text" autocomplete="off" placeholder="Pose une question sur ce que tu vois" aria-label="Question">' +
+    '<div class="row" style="border:0"><button class="btn" id="live-send">Envoyer la question</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#live-go').onclick = liveStart;
+  $('#live-stop').onclick = () => { liveStop('Arrêté.'); };
+  $('#live-decris').onclick = () => liveDemande('Décris précisément ce que tu vois maintenant.');
+  $('#live-send').onclick = () => { const q = $('#live-q').value.trim(); if (q) { liveDemande(q); $('#live-q').value = ''; } };
+}
 $('#cam').onclick = () => {
   $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">APPAREIL PHOTO</span>' +
     '<p class="hint">Vidéo courte : 12 secondes maximum, pour rester légère.</p>' +
     '<div class="row" style="border:0"><button class="btn primary" id="cam-photo">Photo</button><button class="btn primary" id="cam-video">Vidéo courte</button></div>' +
-    '<div class="row" style="border:0"><button class="btn" id="cam-annuler">Annuler</button></div></div>';
+    '<div class="row" style="border:0"><button class="btn" id="cam-live">Vue en direct (test)</button><button class="btn" id="cam-annuler">Annuler</button></div></div>';
   $('#sheet').hidden = false;
   $('#cam-photo').onclick = () => { $('#sheet').hidden = true; $('#photo').click(); };
   $('#cam-video').onclick = () => { $('#sheet').hidden = true; $('#video').click(); };
   $('#cam-annuler').onclick = () => { $('#sheet').hidden = true; };
+  $('#cam-live').onclick = openLive;
 };
 $('#photo').onchange = e => $('#fichier').onchange(e);
 $('#video').onchange = e => $('#fichier').onchange(e);
