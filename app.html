@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=129 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=130 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -117,6 +117,7 @@ const STATES = {
   erreur:['#ff6b6b','Un souci est survenu']
 };
 const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const CAM = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
 const CART = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L20.5 7H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>';
 const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
@@ -160,7 +161,7 @@ $('#app').innerHTML =
 '<div class="tableau" id="tableau" hidden></div>' +
 '<div class="log" id="log" aria-live="polite"></div>' +
   '<div class="attach" id="attach"></div>' +
-  '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden>' +
+  '<div class="bar"><button class="clip" id="clip" aria-label="Joindre un fichier">' + CLIP + '</button><input type="file" id="fichier" multiple hidden><button class="clip" id="cam" aria-label="Prendre une photo">' + CAM + '</button><input type="file" id="photo" accept="image/*" capture="environment" hidden>' +
   '<input id="texte" placeholder="Écris à Poupous…" autocomplete="off" enterkeyhint="send" aria-label="Message">' +
   '<button class="mic" id="mic" aria-label="Parler à Poupous">' + MIC + '</button></div>' +
   '<div class="sheet" id="sheet" hidden><div class="sheet-inner" id="sheet-inner" role="dialog"></div></div>';
@@ -2036,6 +2037,8 @@ function renderSettings(){
 /* ---------- Démarrage ---------- */
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
+$('#cam').onclick = () => $('#photo').click();
+$('#photo').onchange = e => $('#fichier').onchange(e);
 $('#fichier').onchange = e => {
   for (const f of Array.from(e.target.files || [])) {
     const maxi = typeMedia({nom:f.name, type:f.type || ''}) ? 14 : 10;
