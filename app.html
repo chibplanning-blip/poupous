@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=134 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=135 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -2114,7 +2114,7 @@ function liveDemande(q){
 function liveMicStop(){
   if (LIVE.micNode) { try { LIVE.micNode.onaudioprocess = null; LIVE.micNode.disconnect(); } catch (e) {} LIVE.micNode = null; }
   if (LIVE.micSrc) { try { LIVE.micSrc.disconnect(); } catch (e) {} LIVE.micSrc = null; }
-  if (LIVE.mic) { try { LIVE.mic.getTracks().forEach(t => t.stop()); } catch (e) {} LIVE.mic = null; }
+  if (LIVE.mic) { if (LIVE.mic !== LIVE.stream) { try { LIVE.mic.getTracks().forEach(t => t.stop()); } catch (e) {} } LIVE.mic = null; }
   const b = $('#live-micro'); if (b) b.textContent = 'Micro : coupé';
 }
 function liveEnvoieSon(d, taux){
@@ -2134,11 +2134,12 @@ async function liveMicToggle(){
   // L'écoute « mains libres » de Poupous peut occuper le micro : on la libère d'abord.
   if (P && typeof P.cancelListening === 'function') { try { P.cancelListening(); } catch (e) {} await sleep(900); }
   let derniere = null;
+  if (LIVE.stream && LIVE.stream.getAudioTracks && LIVE.stream.getAudioTracks().length) LIVE.mic = LIVE.stream;
   for (let essai = 0; essai < 3 && !LIVE.mic; essai++) {
     try { LIVE.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}, video:false}); }
     catch (e) { derniere = e; if (e && e.name === 'NotReadableError') await sleep(900); else break; }
   }
-  if (!LIVE.mic) { liveEtat('Micro refusé ou indisponible : ' + ((derniere && derniere.name) || '') + ' ' + ((derniere && derniere.message) || '') + ' (si le mode mains libres est activé, coupe-le dans les réglages et réessaie)'); return; }
+  if (!LIVE.mic) { liveEtat('Micro refusé ou indisponible : ' + ((derniere && derniere.name) || '') + ' ' + ((derniere && derniere.message) || '') + ' (le micro semble utilisé par autre chose : ferme les autres applis qui l\u2019utilisent, coupe le mode mains libres, puis touche Arrêter et Démarrer)'); return; }
   LIVE.micSrc = LIVE.ctx.createMediaStreamSource(LIVE.mic);
   LIVE.micNode = LIVE.ctx.createScriptProcessor(4096, 1, 1);
   LIVE.micNode.onaudioprocess = e => {
@@ -2155,8 +2156,11 @@ async function liveStart(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { liveEtat("Cette version de l'appli ne permet pas la caméra en direct : installe l'APK 3.2."); return; }
   liveStop(); LIVE.texte = '';
   try { LIVE.ctx = new (window.AudioContext || window.webkitAudioContext)(); await LIVE.ctx.resume(); } catch (e) {}
-  try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false}); }
-  catch (e) { liveStop('Caméra refusée ou indisponible : ' + (e.name || '') + ' ' + (e.message || '')); return; }
+  try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
+  catch (e0) {
+    try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false}); }
+    catch (e) { liveStop('Caméra refusée ou indisponible : ' + (e.name || '') + ' ' + (e.message || '')); return; }
+  }
   const v = $('#live-video'); if (!v) { liveStop(); return; }
   v.srcObject = LIVE.stream; try { await v.play(); } catch (e) {}
   LIVE.t0 = Date.now(); liveEtat('Connexion à Gemini…'); liveConnect(0);
