@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=133 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=134 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -2131,8 +2131,14 @@ function liveEnvoieSon(d, taux){
 async function liveMicToggle(){
   if (LIVE.mic) { liveMicStop(); liveEtat('Micro coupé.'); return; }
   if (!LIVE.ctx || !LIVE.pret) { liveEtat("Appuie d'abord sur Démarrer et attends « Connecté »."); return; }
-  try { LIVE.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}, video:false}); }
-  catch (e) { liveEtat('Micro refusé ou indisponible : ' + (e.name || '') + ' ' + (e.message || '')); return; }
+  // L'écoute « mains libres » de Poupous peut occuper le micro : on la libère d'abord.
+  if (P && typeof P.cancelListening === 'function') { try { P.cancelListening(); } catch (e) {} await sleep(900); }
+  let derniere = null;
+  for (let essai = 0; essai < 3 && !LIVE.mic; essai++) {
+    try { LIVE.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}, video:false}); }
+    catch (e) { derniere = e; if (e && e.name === 'NotReadableError') await sleep(900); else break; }
+  }
+  if (!LIVE.mic) { liveEtat('Micro refusé ou indisponible : ' + ((derniere && derniere.name) || '') + ' ' + ((derniere && derniere.message) || '') + ' (si le mode mains libres est activé, coupe-le dans les réglages et réessaie)'); return; }
   LIVE.micSrc = LIVE.ctx.createMediaStreamSource(LIVE.mic);
   LIVE.micNode = LIVE.ctx.createScriptProcessor(4096, 1, 1);
   LIVE.micNode.onaudioprocess = e => {
