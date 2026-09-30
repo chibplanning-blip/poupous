@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=125 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=127 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -601,8 +601,31 @@ function afficherTableau(titre, etapes){
 }
 
 /* ---------- Écoute ---------- */
-const hasCapture = () => !!(P && typeof P.capture === 'function' && typeof P.github === 'function' && (geminiKey() || hasFamille()) && S.reglages.moteurVocal !== 'android');
+const groqKey = () => store.get('groqKey', '');
+const hasCapture = () => !!(P && typeof P.capture === 'function' && (S.reglages.moteurVocal === 'groq' || typeof P.github === 'function') && (S.reglages.moteurVocal === 'groq' ? !!groqKey() : (geminiKey() || hasFamille())) && S.reglages.moteurVocal !== 'android');
+async function transcribeGroq(b64){
+  const bin = atob(b64), oct = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) oct[i] = bin.charCodeAt(i);
+  const fd = new FormData();
+  fd.append('file', new Blob([oct], {type:'audio/wav'}), 'voix.wav');
+  fd.append('model', 'whisper-large-v3-turbo');
+  fd.append('language', 'fr');
+  fd.append('temperature', '0');
+  fd.append('response_format', 'json');
+  fd.append('prompt', 'Poupous. Conversation en français avec un assistant vocal nommé Poupous.');
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 20000);
+  let r;
+  try { r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {method:'POST', headers:{Authorization:'Bearer ' + groqKey()}, body:fd, signal:c.signal}); }
+  catch (e) { const er = new Error(e && e.name === 'AbortError' ? 'délai dépassé' : 'pas de connexion à Groq'); er.status = 0; throw er; }
+  finally { clearTimeout(t); }
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const er = new Error((j && j.error && j.error.message) || ('erreur ' + r.status)); er.status = r.status; throw er; }
+  const txt = String((j && j.text) || '').trim();
+  if (!txt || /sous-?titr|amara\.org|merci d.avoir (regard|suivi)|abonnez-vous/i.test(txt)) return '';
+  return txt;
+}
 async function transcribe(b64){
+  if (S.reglages.moteurVocal === 'groq' && groqKey()) return await transcribeGroq(b64);
   const data = await geminiCall({
     contents:[{role:'user', parts:[{inlineData:{mimeType:'audio/wav', data:b64}}, {text:"Transcris fidèlement cet enregistrement audio en français. Réponds uniquement par le texte prononcé, sans commentaire. S'il n'y a aucune parole humaine claire (bruit, silence, musique, télévision lointaine), réponds exactement : [rien]"}]}],
     generationConfig:{temperature:0}
@@ -622,7 +645,7 @@ async function listenOnce(timeoutMs){
       $('#live').textContent = '…';
       try { noterLocuteur(identifierVoix(c.b64)); } catch (e) {}
       try { out = {text: await transcribe(c.b64), err:''}; }
-      catch (e) { out = {text:'', err: (e && e.status === 429) ? 'error-quota' : 'error-stt'}; }
+      catch (e) { S.detailSTT = ((e && e.status ? e.status + ' ' : '') + (e && e.message ? e.message : '')).slice(0, 140); out = {text:'', err: (e && e.status === 429) ? 'error-quota' : 'error-stt'}; }
     }
   } else {
     const r = await waitFor('l', id => P.listen(id));
@@ -634,6 +657,8 @@ async function listenOnce(timeoutMs){
 function micError(err){
   if (err === 'not-allowed') sys("Je n'ai pas accès au micro. Autorise le micro pour Poupous dans les paramètres Android, puis réessaie.");
   else if (err === 'unsupported') sys("La reconnaissance vocale n'est pas disponible sur ce téléphone. Installe ou active l'appli Google, puis réessaie.");
+  else if (err === 'error-quota') sys(S.reglages.moteurVocal === 'groq' ? "La transcription Groq est bloquée : limite gratuite atteinte. Réessaie dans quelques minutes." : "La transcription Gemini est bloquée : quota gratuit atteint. Passe la « Reconnaissance vocale » sur « Groq » ou « Android » dans les réglages, ou réessaie plus tard.");
+  else if (err === 'error-stt') sys("La transcription " + (S.reglages.moteurVocal === 'groq' ? 'Groq' : 'Gemini') + " a échoué" + (S.detailSTT ? ' (' + S.detailSTT + ')' : '') + ". Vérifie la clé et internet, ou change la « Reconnaissance vocale » dans les réglages.");
   else if (err && err !== 'no-speech' && err !== 'aborted') sys("Je n'ai pas bien capté (" + err + "). Réessaie.");
 }
 function lev(a, b){
@@ -686,7 +711,8 @@ async function handsFree(){
     const r = await listenOnce(30000);
     if (!S.reglages.mainsLibres) break;
     if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
-    if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { await sleep(1500); continue; }
+    if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { if (S.hfLastErr !== r.err) { S.hfLastErr = r.err; micError(r.err); } await sleep(1500); continue; }
+    S.hfLastErr = '';
     if (!r.text) continue;
     const w = findWake(r.text); if (!w) continue;
     if (/\p{L}{2,}/u.test(w.rest)) await ask(w.rest);
@@ -1894,12 +1920,27 @@ function openGeminiKey(){
     store.set('geminiKey', k); store.set('geminiModel', ''); $('#sheet').hidden = true; sys('Clé Gemini enregistrée. Je suis prêt !');
   };
 }
+function openGroqKey(){
+  $('#sheet-inner').innerHTML =
+    '<div class="keybox"><span class="brand" style="font-size:14px">CLÉ GROQ (VOIX, GRATUITE)</span>' +
+    '<p class="hint">1. Ouvre console.groq.com/keys dans Chrome et crée un compte (sans carte bancaire).<br>2. Touche « Create API Key » et copie la clé (elle commence par gsk_).<br>3. Colle-la ici. Elle reste enregistrée uniquement sur ce téléphone.</p>' +
+    '<input id="groqkey" type="password" autocomplete="off" placeholder="gsk_…" aria-label="Clé Groq">' +
+    '<div class="row" style="border:0"><button class="btn" id="groq-cancel">Plus tard</button><button class="btn primary" id="groq-save">Enregistrer</button></div></div>';
+  $('#sheet').hidden = false;
+  $('#groq-cancel').onclick = () => { $('#sheet').hidden = true; };
+  $('#groq-save').onclick = () => {
+    const k = $('#groqkey').value.replace(/\s+/g, '');
+    if (!/^gsk_/.test(k) || k.length < 20) { $('#groqkey').style.borderColor = '#ff6b6b'; return; }
+    store.set('groqKey', k); S.reglages.moteurVocal = 'groq'; store.set('reglages', S.reglages);
+    $('#sheet').hidden = true; sys('Clé Groq enregistrée. La reconnaissance vocale utilise maintenant Groq.');
+  };
+}
 function renderSettings(){
   const r = S.reglages, vs = voicesFr();
   $('#sheet-inner').innerHTML =
     '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">RÉGLAGES</span><button class="btn" id="close-settings">Fermer</button></div>' +
     '<h2>Écoute</h2>' +
-    '<div class="row"><label for="moteur">Reconnaissance vocale<br><span class="hint">« Gemini » est plus fiable, mais demande internet et la clé Gemini</span></label><select id="moteur"><option value="gemini"' + (r.moteurVocal !== 'android' ? ' selected' : '') + '>Gemini</option><option value="android"' + (r.moteurVocal === 'android' ? ' selected' : '') + '>Android (ancien)</option></select></div>' +
+    '<div class="row"><label for="moteur">Reconnaissance vocale<br><span class="hint">« Gemini » est plus fiable, mais demande internet et la clé Gemini</span></label><select id="moteur"><option value="gemini"' + (r.moteurVocal !== 'android' && r.moteurVocal !== 'groq' ? ' selected' : '') + '>Gemini</option><option value="groq"' + (r.moteurVocal === 'groq' ? ' selected' : '') + '>Groq (Whisper)</option><option value="android"' + (r.moteurVocal === 'android' ? ' selected' : '') + '>Android (ancien)</option></select></div>' +
     '<div class="row"><label for="hf">Mains libres<br><span class="hint">Écoute « Poupous » en continu tant que l\'appli est ouverte</span></label><input type="checkbox" id="hf"' + (r.mainsLibres ? ' checked' : '') + '></div>' +
     '<h2>Voix</h2>' +
     '<div class="row"><label for="voix">Voix</label><select id="voix"><option value="">Automatique</option>' + vs.map(v => '<option value="' + esc(v) + '"' + (v === r.voix ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></div>' +
@@ -1917,6 +1958,7 @@ function renderSettings(){
     '<h2>Cerveau</h2>' +
     '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option><option value="autre"' + (provider() === 'autre' ? ' selected' : '') + '>Autre IA (Kimi, DeepSeek…)</option></select></div>' +
     '<div class="row"><span>Autre IA : ' + (oaServeur() ? 'fournie par l\'ordinateur de la maison' + (svc().autre_model ? ' (' + esc(svc().autre_model) + ')' : '') : (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée')) + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>Clé Groq (voix) : ' + (groqKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-groq">' + (groqKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<h2>École</h2>' +
@@ -1967,6 +2009,7 @@ function renderSettings(){
     document.querySelectorAll('[data-vx]').forEach(b => { b.onclick = () => { const p = profilsVoix()[+b.dataset.vx]; if (p) { supprimerVoix(p.nom); renderSettings(); } }; });
   }
   $('#change-gem').onclick = openGeminiKey;
+  $('#change-groq').onclick = openGroqKey;
   $('#change-oa').onclick = openAutreIA;
   $('#change-cf').onclick = openCloudflare;
   $('#change-px').onclick = openPixazo;
