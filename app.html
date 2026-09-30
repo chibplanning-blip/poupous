@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=121 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=123 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -225,6 +225,7 @@ function stopSpeaking(){ if (P) P.stopSpeaking(); }
 
 /* ---------- Famille : ordinateur de la maison (cerveau + mémoire commune) ---------- */
 const famille = () => store.get('famille', null);
+const svc = () => (famille() && famille().services) || {};
 const hasFamille = () => !!(P && typeof P.http === 'function' && famille() && famille().u && famille().t);
 function decoderCode(code){
   try {
@@ -245,7 +246,7 @@ let syncPause = 0;
 async function syncFaits(force){
   if (!hasFamille() || (!force && Date.now() < syncPause)) return;
   try {
-    if (force) { const pg = await serveur('GET', '/ping'); if (pg.status === 200 && pg.data && pg.data.ok) { const f0 = famille(); if (!!f0.enfant !== !!pg.data.enfant || (f0.classe || '') !== (pg.data.classe || '')) store.set('famille', Object.assign({}, f0, {enfant:!!pg.data.enfant, classe:pg.data.classe || ''})); } }
+    if (force) { const pg = await serveur('GET', '/ping'); if (pg.status === 200 && pg.data && pg.data.ok) { const f0 = famille(); store.set('famille', Object.assign({}, f0, {enfant:!!pg.data.enfant, classe:pg.data.classe || '', admin:!!pg.data.admin, services:pg.data.services || {}})); } }
     const r = await serveur('GET', '/memoire');
     if (r.status !== 200 || !r.data || !Array.isArray(r.data.faits)) { syncPause = Date.now() + 120000; return; }
     const moi = famille().nom || '';
@@ -288,11 +289,28 @@ function openFamille(){
   $('#sheet-inner').innerHTML =
     '<div class="keybox"><span class="brand" style="font-size:14px">FAMILLE</span>' +
     '<p class="hint">' + (f ? 'Connecté à l\'ordinateur de la maison' + (f.nom ? ' en tant que ' + esc(f.nom) : '') + '.' : 'Colle ici le code famille donné par la personne qui gère l\'ordinateur de la maison. Le cerveau et les souvenirs viendront de cet ordinateur.') + '</p>' +
+    (f ? '<p class="hint">Sur l\'ordinateur de la maison : ' + [['Gemini','gemini'],['Claude','claude'],['Images','images'],['Vidéos','video'],['Autre IA','autre']].map(x => x[0] + (svc()[x[1]] ? ' ✓' : ' ✗')).join(' · ') + '</p>' : '') +
+    (f && f.admin ? '<div class="keybox"><p class="hint">Tu es l\'administrateur : tu peux envoyer à l\'ordinateur les clés enregistrées sur ce téléphone (Gemini, images, vidéos, autre IA). Toute la famille les utilisera sans jamais les voir. Elles voyagent en https et restent sur l\'ordinateur. L\'appli ne peut pas relire la clé Claude : recolle-la ici si tu veux l\'envoyer aussi.</p><input id="fam-claude" type="password" autocomplete="off" placeholder="Clé Claude (facultatif)" aria-label="Clé Claude"><button class="btn primary" id="fam-cles">Envoyer mes clés à l\'ordinateur</button></div>' : '') +
     '<input id="fam-code" type="text" autocomplete="off" placeholder="Code famille" aria-label="Code famille">' +
     '<p class="hint" id="fam-etat"></p>' +
     '<div class="row" style="border:0"><button class="btn" id="fam-cancel">Fermer</button>' + (f ? '<button class="btn" id="fam-off">Se déconnecter</button>' : '') + '<button class="btn primary" id="fam-ok">Connecter</button></div></div>';
   $('#sheet').hidden = false;
   $('#fam-cancel').onclick = () => { $('#sheet').hidden = true; };
+  if (f && f.admin) $('#fam-cles').onclick = async () => {
+    $('#fam-cles').disabled = true; $('#fam-etat').textContent = 'Envoi…';
+    const oa = oaCfg();
+    const corps = {gemini: geminiKey(), claude: $('#fam-claude').value, cloudflare: {compte: cfCompte(), jeton: cfJeton()}, pixazo: pxJeton(), autre: {preset: oa.preset, base: oa.base, key: oa.key, model: oa.model}};
+    try {
+      const r = await serveur('POST', '/cles', corps);
+      if (r.status === 200 && r.data && r.data.ok) {
+        store.set('famille', Object.assign({}, famille(), {services: r.data.services || {}}));
+        const noms = {gemini:'Gemini', claude:'Claude', images:'Images', video:'Vidéos', autre:'Autre IA'};
+        $('#fam-etat').textContent = r.data.recu.length ? 'Envoyé à l\'ordinateur : ' + r.data.recu.map(x => noms[x] || x).join(', ') + '.' : "Rien à envoyer : aucune clé valable n'est enregistrée sur ce téléphone.";
+        $('#fam-claude').value = '';
+      } else $('#fam-etat').textContent = r.status === 403 ? "L'ordinateur ne te reconnaît pas comme administrateur." : "Échec de l'envoi (" + r.status + ").";
+    } catch (e) { $('#fam-etat').textContent = "Je n'arrive pas à joindre l'ordinateur de la maison."; }
+    $('#fam-cles').disabled = false;
+  };
   if (f) $('#fam-off').onclick = () => { store.set('famille', null); $('#sheet').hidden = true; sys('Déconnecté de l\'ordinateur de la maison.'); };
   $('#fam-ok').onclick = async () => {
     const c = decoderCode($('#fam-code').value);
@@ -306,7 +324,7 @@ function openFamille(){
       $('#fam-etat').textContent = r.status === 401 ? "Le serveur refuse ce code." : "Je n'arrive pas à joindre l'ordinateur de la maison. Est-il allumé ?";
       return;
     }
-    store.set('famille', {u:c.u, t:c.t, nom:r.data.nom, enfant:!!r.data.enfant, classe:r.data.classe || ''});
+    store.set('famille', {u:c.u, t:c.t, nom:r.data.nom, enfant:!!r.data.enfant, classe:r.data.classe || '', admin:!!r.data.admin, services:r.data.services || {}});
     S.reglages.cerveau = r.data.gemini ? 'gemini' : 'claude'; store.set('reglages', S.reglages);
     await syncFaits(true);
     $('#sheet').hidden = true; sys('Connecté à l\'ordinateur de la maison en tant que ' + r.data.nom + '. Je suis prêt !');
@@ -816,7 +834,7 @@ async function runTool(name, input){
       const sujet = String(input.description || '').trim();
       if (sujet.length < 3) return 'décris la vidéo que je dois créer';
       if (!P || typeof P.http !== 'function') return "cette version de l'application ne sait pas encore appeler ce service";
-      if (!pxJeton()) return "il manque la clé Pixazo : réglages, rubrique Vidéos";
+      if (!pxJeton() && !(hasFamille() && svc().video)) return "il manque la clé Pixazo : réglages, rubrique Vidéos";
       const prog = sys('Vidéo en cours de création…');
       try {
         const poll = await pixazo('text-to-video', {prompt:sujet});
@@ -1032,12 +1050,13 @@ const AUTRES_IA = {
   autre:{nom:'Autre (adresse à saisir)', base:'', modele:''}
 };
 const oaCfg = () => ({preset:store.get('oaPreset', 'kimi'), base:String(store.get('oaBase', '')).replace(/\/+$/, ''), key:store.get('oaKey', ''), model:store.get('oaModel', '')});
-function oaReady(){ const c = oaCfg(); return !!(c.base && c.key && c.model && P && typeof P.http === 'function'); }
-function oaNom(){ const c = oaCfg(); return (AUTRES_IA[c.preset] || AUTRES_IA.autre).nom; }
+const oaServeur = () => !!(hasFamille() && svc().autre);
+function oaReady(){ const c = oaCfg(); return !!(oaServeur() || (c.base && c.key && c.model && P && typeof P.http === 'function')); }
+function oaNom(){ if (oaServeur()) return 'Autre IA de la maison'; const c = oaCfg(); return (AUTRES_IA[c.preset] || AUTRES_IA.autre).nom; }
 async function oaCall(body){
   const c = oaCfg();
   if (!P || typeof P.http !== 'function') { const e = new Error("cette version de l'application ne sait pas encore appeler ce service"); e.status = 0; throw e; }
-  const r = await waitFor('h', id => P.http(id, 'POST', c.base + '/chat/completions',
+  const r = oaServeur() ? await serveur('POST', '/autre', body) : await waitFor('h', id => P.http(id, 'POST', c.base + '/chat/completions',
     JSON.stringify({'Authorization':'Bearer ' + c.key, 'Content-Type':'application/json'}), JSON.stringify(Object.assign({model:c.model}, body))));
   let data = null; try { data = JSON.parse(r.text); } catch (e) {}
   if (r.status === 200 && data && data.choices) return data;
@@ -1169,7 +1188,7 @@ async function actualites(sujet){
 async function deuxiemeAvis(question){
   const autre = provider() === 'claude' ? 'gemini' : 'claude';
   if (autre === 'gemini') {
-    if (!geminiKey()) return "pas de clé Gemini enregistrée pour demander un second avis";
+    if (!geminiKey() && !hasFamille()) return "pas de clé Gemini enregistrée pour demander un second avis";
     const data = await geminiCall({contents:[{role:'user', parts:[{text:question}]}], generationConfig:{maxOutputTokens:2048}});
     const c = (data.candidates || [])[0] || {};
     const t = ((c.content && c.content.parts) || []).filter(x => x.text).map(x => x.text).join('');
@@ -1372,14 +1391,14 @@ async function ask(text){
 const IMG_MODELE = '@cf/black-forest-labs/flux-1-schnell';
 const cfCompte = () => store.get('cfCompte', '');
 const cfJeton = () => store.get('cfJeton', '');
-const imagesPretes = () => !!(cfCompte() && cfJeton() && P && typeof P.http === 'function');
+const imagesPretes = () => !!((hasFamille() && svc().images) || (cfCompte() && cfJeton() && P && typeof P.http === 'function'));
 async function genererImage(sujet){
   if (!P || typeof P.http !== 'function') throw new Error("cette version de l'application ne sait pas encore appeler ce service");
   if (!imagesPretes()) throw new Error("il manque la clé Cloudflare : réglages, rubrique Images");
   const url = 'https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(cfCompte()) + '/ai/run/' + IMG_MODELE;
   const entetes = JSON.stringify({Authorization:'Bearer ' + cfJeton(), 'Content-Type':'application/json'});
   const corps = JSON.stringify({prompt:String(sujet).slice(0, 2000), steps:6});
-  const r = await waitFor('h', id => P.http(id, 'POST', url, entetes, corps));
+  const r = (hasFamille() && svc().images) ? await serveur('POST', '/images', {prompt:String(sujet).slice(0, 2000), steps:6}) : await waitFor('h', id => P.http(id, 'POST', url, entetes, corps));
   if (r.text === 'trop-gros') throw new Error("l'image reçue était trop lourde");
   let data = null; try { data = JSON.parse(r.text); } catch (e) {}
   if (r.status === 401 || r.status === 403) throw new Error('la clé Cloudflare est refusée' + (data && data.errors && data.errors[0] ? ' (' + data.errors[0].message + ')' : '') + ' : dis à l\'utilisateur d\'ouvrir les réglages, rubrique Images, et de toucher Tester pour voir ce qui ne va pas');
@@ -1462,7 +1481,7 @@ function openCloudflare(){
 const VID_BASE = 'https://gateway.pixazo.ai/ltx-video/v1/';
 const pxJeton = () => store.get('pxJeton', '');
 async function pixazo(chemin, corps){
-  const r = await waitFor('h', id => P.http(id, 'POST', VID_BASE + chemin,
+  const r = (hasFamille() && svc().video) ? await serveur('POST', '/video/' + chemin, corps) : await waitFor('h', id => P.http(id, 'POST', VID_BASE + chemin,
     JSON.stringify({'Ocp-Apim-Subscription-Key': pxJeton(), 'Content-Type':'application/json'}), JSON.stringify(corps)));
   let d = null; try { d = JSON.parse(r.text); } catch (e) {}
   if (r.status === 401 || r.status === 403) throw new Error('la clé Pixazo est refusée');
@@ -1473,7 +1492,7 @@ async function pixazo(chemin, corps){
 async function attendreVideo(pollingUrl, prog){
   for (let i = 0; i < 60; i++) {
     await sleep(5000);
-    const r = await waitFor('h', id => P.http(id, 'GET', pollingUrl,
+    const r = (hasFamille() && svc().video) ? await serveur('GET', '/video/poll?u=' + encodeURIComponent(pollingUrl)) : await waitFor('h', id => P.http(id, 'GET', pollingUrl,
       JSON.stringify({'Ocp-Apim-Subscription-Key': pxJeton()}), ''));
     let d = null; try { d = JSON.parse(r.text); } catch (e) {}
     if (!d) continue;
@@ -1821,7 +1840,7 @@ function renderSettings(){
     '<div class="row"><button class="btn primary" id="mention-save">Enregistrer</button></div>' +
     '<h2>Cerveau</h2>' +
     '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option><option value="autre"' + (provider() === 'autre' ? ' selected' : '') + '>Autre IA (Kimi, DeepSeek…)</option></select></div>' +
-    '<div class="row"><span>Autre IA : ' + (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée') + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>Autre IA : ' + (oaServeur() ? 'fournie par l\'ordinateur de la maison' + (svc().autre_model ? ' (' + esc(svc().autre_model) + ')' : '') : (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée')) + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Gemini : ' + (geminiKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-gem">' + (geminiKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<div class="row"><span>Clé Claude : ' + (P && P.hasKey() ? 'enregistrée' : 'aucune') + '</span><button class="btn" id="change-key">' + (P && P.hasKey() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<h2>École</h2>' +
@@ -1834,8 +1853,8 @@ function renderSettings(){
     '<h2>Reconnaître qui parle</h2>' +
     (hasVoix() ? (profilsVoix().map((p, i) => '<div class="row"><span>' + esc(p.nom) + (p.enfant ? ' <span class="hint">(enfant' + (p.classe ? ', ' + esc(p.classe) : '') + ')</span>' : '') + '</span><button class="btn" data-vx="' + i + '">Supprimer</button></div>').join('') + '<div class="row"><span>' + (profilsVoix().length ? 'Ajouter une autre personne' : 'Aucune voix enregistrée') + '<br><span class="hint">Poupous reconnaît qui parle (approximatif)</span></span><button class="btn" id="voix-add">Ajouter</button></div>') : '<div class="row"><span>Empreintes vocales : demande la nouvelle APK</span></div>') +
     '<h2>Images</h2>' +
-    '<div class="row"><span>' + (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré') + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
-    '<div class="row"><span>' + (pxJeton() ? 'Vidéos configurées' : 'Vidéos non configurées') + '<br><span class="hint">Pixazo, gratuit en préversion</span></span><button class="btn" id="change-px">' + (pxJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>' + (hasFamille() && svc().images ? 'Fourni par l\'ordinateur de la maison' : (cfCompte() && cfJeton() ? 'Cloudflare configuré' : 'Pas encore configuré')) + '<br><span class="hint">Génération d images gratuite</span></span><button class="btn" id="change-cf">' + (cfCompte() && cfJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
+    '<div class="row"><span>' + (hasFamille() && svc().video ? 'Fournies par l\'ordinateur de la maison' : (pxJeton() ? 'Vidéos configurées' : 'Vidéos non configurées')) + '<br><span class="hint">Pixazo, gratuit en préversion</span></span><button class="btn" id="change-px">' + (pxJeton() ? 'Changer' : 'Ajouter') + '</button></div>' +
     '<h2>Personnalité</h2>' +
     '<textarea id="perso" rows="3" style="width:100%;box-sizing:border-box;border-radius:14px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:10px 14px;font:inherit">' + esc(r.personnalite) + '</textarea>' +
     '<div class="row"><button class="btn" id="perso-reset">Remettre par défaut</button><button class="btn primary" id="perso-save">Enregistrer</button></div>' +
