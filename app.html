@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=128 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=129 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;color-scheme:dark}
@@ -1134,14 +1134,14 @@ function openAutreIA(){
     '<select id="oa-preset" aria-label="Service">' + opts + '</select>' +
     '<input id="oa-base" type="text" autocomplete="off" placeholder="https://…/v1" aria-label="Adresse de l\'API" value="' + (c.base || '').replace(/"/g, '') + '">' +
     '<input id="oa-model" type="text" autocomplete="off" placeholder="nom du modèle" aria-label="Modèle" value="' + (c.model || '').replace(/"/g, '') + '">' +
-    '<input id="oa-key" type="password" autocomplete="off" placeholder="' + (c.key ? 'clé enregistrée (laisse vide pour la garder)' : 'clé API') + '" aria-label="Clé API">' +
+    '<input id="oa-key" type="password" autocomplete="off" placeholder="' + (c.key ? 'clé enregistrée (laisse vide pour la garder)' : (groqKey() ? 'clé API (vide = clé Groq de la voix pour Groq)' : 'clé API')) + '" aria-label="Clé API">' +
     '<div class="row" style="border:0"><button class="btn" id="oa-cancel">Plus tard</button><button class="btn primary" id="oa-save">Enregistrer</button></div></div>';
   $('#sheet').hidden = false;
   $('#oa-preset').onchange = e => { const p = AUTRES_IA[e.target.value]; if (p && p.base) { $('#oa-base').value = p.base; $('#oa-model').value = p.modele; } };
   $('#oa-cancel').onclick = () => { $('#sheet').hidden = true; };
   $('#oa-save').onclick = () => {
     const preset = $('#oa-preset').value, base = $('#oa-base').value.trim().replace(/\/+$/, ''), model = $('#oa-model').value.trim();
-    const cle = $('#oa-key').value.replace(/\s+/g, '') || c.key;
+    const cle = $('#oa-key').value.replace(/\s+/g, '') || c.key || (preset === 'groq' ? groqKey() : '');
     if (!/^https:\/\//.test(base)) { sys("L'adresse doit commencer par https://"); return; }
     if (!model) { sys('Il faut le nom du modèle.'); return; }
     if (!cle || cle.length < 8) { sys('Il faut coller ta clé API.'); return; }
