@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=143 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=144 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -218,7 +218,7 @@ body.ecole .orb-wrap{height:clamp(80px,13vh,120px)}
 const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
-const DEFAUT = {theme:'crep', mascotte:'chat', cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', voixParle:'gemini', mainsLibres:false, moteurVocal:'gemini', personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
+const DEFAUT = {theme:'crep', mascotte:'chat', cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', voixParle:'gemini', ecouteContinue:false, moteurVocal:'gemini', personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
 const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -229,7 +229,7 @@ const STATES = {
   chargement:['#38d6f5','Démarrage…'],
   veille:['#38d6f5','Appuie sur le micro ou écris-moi'],
   ecoute:['#38d6f5',"Je t'écoute…"],
-  mainslibres:['#2aa9c7','Mains libres · dis « Poupous »'],
+  mainslibres:['#2aa9c7','Écoute continue'],
   reflexion:['#9d8cff','Je réfléchis…'],
   parole:['#ffb547','Je parle…'],
   amelioration:['#4ee0a6','Je modifie mon code…'],
@@ -363,7 +363,7 @@ function setState(s){
     catSet('joie'); S.catT = setTimeout(() => catSet(CAT_MAP[S.state] || 'veille'), 2800);
   } else catSet(CAT_MAP[s] || 'veille');
 }
-function idle(){ try { majTheme(); } catch (e) {} setState(S.reglages.mainsLibres ? 'mainslibres' : 'veille'); }
+function idle(){ try { majTheme(); } catch (e) {} setState(S.reglages.ecouteContinue ? 'mainslibres' : 'veille'); }
 function scrollLog(){ const l = $('#log'); l.scrollTop = l.scrollHeight; }
 function addMsg(who, text){
   const d = document.createElement('div');
@@ -921,26 +921,6 @@ function micError(err){
   else if (err === 'error-stt') sys("La transcription " + (S.reglages.moteurVocal === 'groq' ? 'Groq' : 'Gemini') + " a échoué" + (S.detailSTT ? ' (' + S.detailSTT + ')' : '') + ". Vérifie la clé et internet, ou change la « Reconnaissance vocale » dans les réglages.");
   else if (err && err !== 'no-speech' && err !== 'aborted') sys("Je n'ai pas bien capté (" + err + "). Réessaie.");
 }
-function lev(a, b){
-  const m = Array.from({length: b.length + 1}, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    let prev = m[0]; m[0] = i;
-    for (let j = 1; j <= b.length; j++) { const tmp = m[j]; m[j] = Math.min(m[j] + 1, m[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = tmp; }
-  }
-  return m[b.length];
-}
-function findWake(text){
-  const tok = text.trim().split(/\s+/), n = tok.map(x => norm(x).replace(/[^a-z]/g, ''));
-  for (let i = n.length - 1; i >= 0; i--) {
-    for (const span of [2, 1]) {
-      if (i + span > n.length) continue;
-      const c = n.slice(i, i + span).join('');
-      if (c.length < 4 || c.length > 10) continue;
-      if (1 - lev(c, 'poupous') / Math.max(c.length, 7) >= 0.7) return {rest: tok.slice(i + span).join(' ').replace(/^[,.!?;:\s]+/, '')};
-    }
-  }
-  return null;
-}
 async function followUps(){
   while (S.lastOk && !S.pendingUpgrade && !S.pendingRollback) {
     setState('ecoute'); $('#mic').classList.add('on');
@@ -954,7 +934,7 @@ async function micTap(){
   if (S.speaking) { stopSpeaking(); return; }
   if (S.listening) { if (P) P.stopListening(); return; }
   if (S.busy) return;
-  if (S.reglages.mainsLibres && S.hfRunning) return;
+  if (EC.actif) return;
   setState('ecoute'); $('#mic').classList.add('on');
   const r = await listenOnce(); $('#mic').classList.remove('on');
   if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { micError(r.err); idle(); return; }
@@ -963,25 +943,99 @@ async function micTap(){
   await followUps();
   if (!S.busy) idle();
 }
-async function handsFree(){
-  if (S.hfRunning) return; S.hfRunning = true;
-  while (S.reglages.mainsLibres) {
-    if (S.busy || S.speaking || S.listening || !$('#sheet').hidden) { await sleep(400); continue; }
-    setState('mainslibres');
-    const r = await listenOnce(30000);
-    if (!S.reglages.mainsLibres) break;
-    if (r.err === 'not-allowed' || r.err === 'unsupported') { micError(r.err); S.reglages.mainsLibres = false; store.set('reglages', S.reglages); break; }
-    if (r.err && r.err !== 'no-speech' && r.err !== 'aborted') { if (S.hfLastErr !== r.err) { S.hfLastErr = r.err; micError(r.err); } await sleep(1500); continue; }
-    S.hfLastErr = '';
-    if (!r.text) continue;
-    const w = findWake(r.text); if (!w) continue;
-    catEveil();
-    if (/\p{L}{2,}/u.test(w.rest)) await ask(w.rest);
-    else { await speak('Oui ?'); setState('ecoute'); const q = await listenOnce(); if (q.text) await ask(q.text); }
-    await followUps();
+
+
+/* ---------- Conversation continue (écoute Gemini Live, sans mot de réveil) ---------- */
+const EC = {ws:null, pret:false, texte:'', mute:0, t0:0, essais:0, natif:false, mic:null, ctx:null, node:null, src:null, actif:false, rec:null};
+const EC_CONSIGNE = "Tu es une simple oreille. Quoi que dise l'utilisateur, réponds uniquement par le mot : OK.";
+function ecEnvoie(b64){
+  if (!EC.pret || !EC.ws || EC.ws.readyState !== 1) return;
+  if (S.busy || S.speaking) { EC.mute = Date.now() + 800; return; }
+  if (Date.now() < EC.mute) { EC.mute = Date.now() + 300; return; }
+  EC.ws.send(JSON.stringify({realtimeInput:{audio:{data:b64, mimeType:'audio/pcm;rate=16000'}}}));
+}
+function ecMicStop(){
+  if (EC.natif) { try { P.micStreamStop(); } catch (e) {} EC.natif = false; window.__micChunk = null; }
+  if (EC.node) { try { EC.node.onaudioprocess = null; EC.node.disconnect(); } catch (e) {} EC.node = null; }
+  if (EC.src) { try { EC.src.disconnect(); } catch (e) {} EC.src = null; }
+  if (EC.mic) { try { EC.mic.getTracks().forEach(t => t.stop()); } catch (e) {} EC.mic = null; }
+  if (EC.ctx) { try { EC.ctx.close(); } catch (e) {} EC.ctx = null; }
+}
+async function ecMicStart(){
+  if (EC.natif || EC.mic) return true;
+  if (P && typeof P.micStreamStart === 'function') {
+    EC.natif = true;
+    window.__micChunk = b64 => ecEnvoie(b64);
+    window.__micFluxPret = () => {};
+    window.__micFluxErreur = m => { ecMicStop(); sys('Micro de la conversation continue : ' + m); EC.actif = false; };
+    try { P.micStreamStart(); return true; } catch (e) { EC.natif = false; return false; }
   }
-  S.hfRunning = false;
-  if (!S.busy) idle();
+  try {
+    EC.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}, video:false});
+    EC.ctx = new (window.AudioContext || window.webkitAudioContext)(); await EC.ctx.resume();
+    EC.src = EC.ctx.createMediaStreamSource(EC.mic);
+    EC.node = EC.ctx.createScriptProcessor(4096, 1, 1);
+    EC.node.onaudioprocess = e => {
+      const d = e.inputBuffer.getChannelData(0), ratio = EC.ctx.sampleRate / 16000, n = Math.floor(d.length / ratio), pcm = new Int16Array(n);
+      for (let i = 0; i < n; i++) { const a = Math.floor(i * ratio), z = Math.min(d.length, Math.floor((i + 1) * ratio)); let s = 0, c = 0; for (let j = a; j < z; j++) { s += d[j]; c++; } let v = c ? s / c : 0; v = Math.max(-1, Math.min(1, v)); pcm[i] = v < 0 ? v * 32768 : v * 32767; }
+      const oct = new Uint8Array(pcm.buffer); let bin = ''; for (let i = 0; i < oct.length; i += 0x8000) bin += String.fromCharCode.apply(null, oct.subarray(i, i + 0x8000));
+      ecEnvoie(btoa(bin));
+    };
+    EC.src.connect(EC.node); EC.node.connect(EC.ctx.destination);
+    return true;
+  } catch (e) { ecMicStop(); sys('Micro refusé ou indisponible pour la conversation continue (' + ((e && e.name) || '') + ').'); return false; }
+}
+function ecFin(){
+  const t = (EC.texte || '').trim(); EC.texte = ''; const l = $('#live'); if (l) l.textContent = '';
+  if (!S.reglages.ecouteContinue || S.busy || S.speaking || !/\p{L}{2,}/u.test(t)) return;
+  stopSpeaking();
+  ask(t).then(() => { if (!S.busy) idle(); });
+}
+function ecConnecte(forme){
+  forme = forme || 0;
+  const ws = new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + encodeURIComponent(geminiKey()));
+  EC.ws = ws; EC.pret = false; EC.texte = ''; EC.t0 = Date.now();
+  const setup = forme => { const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:EC_CONSIGNE}]}, inputAudioTranscription:{}}; if (forme === 0) s.responseModalities = ['AUDIO']; else s.generationConfig = {responseModalities:['AUDIO']}; return {setup:s}; };
+  ws.onopen = () => ws.send(JSON.stringify(setup(forme)));
+  ws.onmessage = async ev => {
+    let txt = ev.data; if (typeof txt !== 'string') txt = await ev.data.text();
+    let m; try { m = JSON.parse(txt); } catch (e) { return; }
+    if (m.setupComplete) { EC.pret = true; EC.essais = 0; if (!S.busy && !S.speaking) setState('mainslibres'); return; }
+    const sc = m.serverContent; if (!sc) return;
+    if (sc.inputTranscription && sc.inputTranscription.text) {
+      EC.texte += sc.inputTranscription.text; const l = $('#live'); if (l) l.textContent = EC.texte;
+      if (!S.busy && !S.speaking && S.state !== 'ecoute') setState('ecoute');
+    }
+    // le modèle commence à répondre (ou termine) : la phrase de l'utilisateur est finie
+    if ((sc.modelTurn && sc.modelTurn.parts && sc.modelTurn.parts.length) || sc.outputTranscription || sc.generationComplete || sc.turnComplete) ecFin();
+  };
+  ws.onerror = () => {};
+  ws.onclose = ev => {
+    EC.ws = null; const etaitPret = EC.pret; EC.pret = false;
+    if (!EC.actif || !S.reglages.ecouteContinue) return;
+    if (!etaitPret && !EC.rec) {
+      const raison = (ev && ev.reason) || '';
+      if (forme === 0 && /responseModalities|Unknown name|Invalid JSON|Cannot find field/i.test(raison)) { ecConnecte(1); return; }
+      EC.essais++;
+      if (EC.essais >= 3) { sys('Conversation continue arrêtée : connexion à Gemini impossible' + (raison ? ' (' + raison.slice(0, 160) + ')' : ' (code ' + (ev ? ev.code : '?') + ')') + '. Réactive-la dans les réglages.'); ecouteContinueArreter(); S.reglages.ecouteContinue = false; store.set('reglages', S.reglages); idle(); return; }
+    }
+    EC.rec = setTimeout(() => { EC.rec = null; if (EC.actif && S.reglages.ecouteContinue && !EC.ws) ecConnecte(forme); }, etaitPret ? 300 : 2500);
+  };
+}
+async function ecouteContinueDemarrer(){
+  if (!S.reglages.ecouteContinue || EC.actif) return;
+  if (LIVE.ws || LIVE.ctx) return; // la Vue en direct utilise déjà le micro
+  if (!geminiKey()) { sys("La conversation continue a besoin de ta clé Gemini (réglages)."); S.reglages.ecouteContinue = false; store.set('reglages', S.reglages); return; }
+  EC.actif = true; EC.essais = 0;
+  if (!(await ecMicStart())) { EC.actif = false; S.reglages.ecouteContinue = false; store.set('reglages', S.reglages); idle(); return; }
+  setState('mainslibres'); ecConnecte();
+}
+function ecouteContinueArreter(garder){
+  EC.actif = false; if (EC.rec) { clearTimeout(EC.rec); EC.rec = null; }
+  if (EC.ws) { try { EC.ws.onclose = null; EC.ws.close(); } catch (e) {} EC.ws = null; }
+  EC.pret = false; EC.texte = ''; ecMicStop();
+  const l = $('#live'); if (l) l.textContent = '';
+  if (!garder && !S.busy) idle();
 }
 
 /* ---------- Cerveau (Claude) ---------- */
@@ -1022,8 +1076,8 @@ function toolDefs(){
       input_schema:{type:'object', properties:{fait:{type:'string'}}, required:['fait']}},
     {name:'oublier', description:"Supprime les souvenirs qui contiennent ce texte ('*' pour tout effacer). Renvoie le nombre supprimé.",
       input_schema:{type:'object', properties:{texte:{type:'string'}}, required:['texte']}},
-    {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. mainsLibres : true ou false (écoute continue du mot Poupous tant que l'appli est ouverte).",
-      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','mainsLibres']}, valeur:{type:'string'}}, required:['nom','valeur']}},
+    {name:'changer_reglage', description:"Change un réglage. vitesse : 0.5 à 2. hauteur : 0.5 à 2 (grave à aigu). voix : nom exact parmi " + noms + ". personnalite : texte. ecouteContinue : true ou false (conversation continue à la voix, sans mot pour réveiller, tant que l'appli est ouverte).",
+      input_schema:{type:'object', properties:{nom:{type:'string', enum:['vitesse','hauteur','voix','personnalite','ecouteContinue']}, valeur:{type:'string'}}, required:['nom','valeur']}},
     {name:'courses_ajouter', description:"Ajoute un ou plusieurs articles à la liste de courses (sépare-les par des virgules).",
       input_schema:{type:'object', properties:{articles:{type:'string'}}, required:['articles']}},
     {name:'courses_liste', description:"Renvoie la liste de courses : ce qu'il reste à prendre et ce qui est déjà pris.",
@@ -1220,7 +1274,7 @@ function setReglage(nom, valeur){
   if (nom === 'vitesse' || nom === 'hauteur') { const v = parseFloat(valeur.replace(',', '.')); if (!isFinite(v)) return 'nombre attendu'; r[nom] = Math.min(2, Math.max(.5, v)); applyVoice(); }
   else if (nom === 'voix') { const vs = voicesFr(); const v = vs.find(x => norm(x) === norm(valeur)) || vs.find(x => norm(x).includes(norm(valeur))); if (!v) return 'voix introuvable'; r.voix = v; applyVoice(); }
   else if (nom === 'personnalite') r.personnalite = valeur.slice(0, 600);
-  else if (nom === 'mainsLibres') { r.mainsLibres = /^(true|oui|1|on|vrai)$/i.test(valeur.trim()); if (r.mainsLibres) setTimeout(handsFree, 0); else if (P && S.listening) P.cancelListening(); }
+  else if (nom === 'ecouteContinue') { r.ecouteContinue = /^(true|oui|1|on|vrai)$/i.test(valeur.trim()); if (r.ecouteContinue) setTimeout(ecouteContinueDemarrer, 0); else ecouteContinueArreter(); }
   else return 'réglage inconnu';
   store.set('reglages', r);
   return nom + ' = ' + r[nom];
@@ -2206,7 +2260,7 @@ function renderSettings(){
     '<div class="row" style="padding-top:0"><span class="brand" style="font-size:14px">RÉGLAGES</span><button class="btn" id="close-settings">Fermer</button></div>' +
     '<h2>Écoute</h2>' +
     '<div class="row"><label for="moteur">Reconnaissance vocale<br><span class="hint">« Gemini » est plus fiable, mais demande internet et la clé Gemini</span></label><select id="moteur"><option value="gemini"' + (r.moteurVocal !== 'android' && r.moteurVocal !== 'groq' ? ' selected' : '') + '>Gemini</option><option value="groq"' + (r.moteurVocal === 'groq' ? ' selected' : '') + '>Groq (Whisper)</option><option value="android"' + (r.moteurVocal === 'android' ? ' selected' : '') + '>Android (ancien)</option></select></div>' +
-    '<div class="row"><label for="hf">Mains libres<br><span class="hint">Écoute « Poupous » en continu tant que l\'appli est ouverte</span></label><input type="checkbox" id="hf"' + (r.mainsLibres ? ' checked' : '') + '></div>' +
+    '<div class="row"><label for="hf">Conversation continue<br><span class="hint">Parle sans bouton ni mot de réveil, comme un appel. Demande internet.</span></label><input type="checkbox" id="hf"' + (r.ecouteContinue ? ' checked' : '') + '></div>' +
     '<h2>Voix</h2>' +
     '<div class="row"><label for="voixparle">Voix de Poupous<br><span class="hint">« Gemini » : toujours la même voix, demande internet</span></label><select id="voixparle"><option value="gemini"' + (r.voixParle !== 'android' ? ' selected' : '') + '>Gemini</option><option value="android"' + (r.voixParle === 'android' ? ' selected' : '') + '>Téléphone</option></select></div>' +
     '<div class="row"><label for="voixgem">Voix Gemini</label><select id="voixgem">' + LIVE_VOIX.map(v => '<option value="' + v + '"' + (voixGeminiNom() === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></div>' +
@@ -2256,7 +2310,7 @@ function renderSettings(){
     '<div class="row"><span>Tout remettre à zéro<br><span class="hint">Personnalité, souvenirs et historique</span></span><button class="btn" id="hard-reset">Réinitialiser</button></div>';
   $('#close-settings').onclick = () => { $('#sheet').hidden = true; };
   $('#moteur').onchange = e => { S.reglages.moteurVocal = e.target.value; store.set('reglages', S.reglages); };
-  $('#hf').onchange = e => { setReglage('mainsLibres', String(e.target.checked)); if (!S.busy) idle(); };
+  $('#hf').onchange = e => { setReglage('ecouteContinue', String(e.target.checked)); if (!S.busy) idle(); };
   $('#voixparle').onchange = e => { S.reglages.voixParle = e.target.value; store.set('reglages', S.reglages); TTS.avertie = false; };
   $('#voixgem').onchange = e => { S.reglages.voixLive = e.target.value; store.set('reglages', S.reglages); };
   $('#voix').onchange = e => { S.reglages.voix = e.target.value; applyVoice(); store.set('reglages', S.reglages); };
@@ -2326,6 +2380,7 @@ function liveStop(msg){
   if (LIVE.ctx) { try { LIVE.ctx.close(); } catch (e) {} LIVE.ctx = null; }
   LIVE.src = []; LIVE.next = 0; LIVE.pret = false;
   if (msg) liveEtat(msg);
+  if (S.reglages.ecouteContinue && !EC.actif) setTimeout(ecouteContinueDemarrer, 800);
 }
 function liveSetup(forme){
   const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:liveConsigne()}]}, outputAudioTranscription:{}, inputAudioTranscription:{}};
@@ -2447,7 +2502,7 @@ async function liveMicToggle(){
 async function liveStart(){
   if (!geminiKey()) { liveEtat('Il faut la clé Gemini (réglages).'); return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { liveEtat("Cette version de l'appli ne permet pas la caméra en direct : installe l'APK 3.2."); return; }
-  liveStop(); LIVE.texte = '';
+  ecouteContinueArreter(true); liveStop(); LIVE.texte = '';
   try { LIVE.ctx = new (window.AudioContext || window.webkitAudioContext)(); await LIVE.ctx.resume(); } catch (e) {}
   if (LIVE.mode !== 'cam') {
     LIVE.t0 = Date.now(); liveEtat('Connexion à Gemini…'); liveConnect(0);
@@ -2557,7 +2612,7 @@ if (S.turns.length) { sys('Suite de notre conversation'); S.turns.slice(-6).forE
 else addMsg('poupous', "Salut ! Appuie sur le micro et parle-moi, ou \u00e9cris en bas. Tu peux aussi me demander de m'am\u00e9liorer.");
 idle();
 if (P && !brainReady()) openBrainKey(); else announce();
-if (S.reglages.mainsLibres) handsFree();
+if (S.reglages.ecouteContinue) ecouteContinueDemarrer();
 loadShared();
 if (hasFamille()) syncFaits(true).then(majTheme);
 majTheme();
