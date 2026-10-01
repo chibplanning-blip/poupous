@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=144 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=145 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -16,6 +16,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{font-weight:800;letter-spacing:.2em;font-size:18px}
 .status{color:var(--muted);font-size:13px;margin-top:2px}
 .icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);display:grid;place-items:center;flex:none}
+.icon-btn.on{background:#2a8bff;border-color:#2a8bff;color:#fff;box-shadow:0 0 0 6px rgba(42,139,255,.25)}
 .orb-wrap{position:relative;height:clamp(170px,32vh,270px);flex:none}
 #orb{width:100%;height:100%;display:block}
 #cat{display:block;width:100%;height:100%}
@@ -240,6 +241,7 @@ const MIC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke=
 const CAM = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const CLIP = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>';
 const EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg>';
 const CART = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 10.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L20.5 7H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>';
 const GEAR = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>';
 
@@ -320,7 +322,7 @@ const CAT_SVG = `<svg id="cat" data-s="veille" viewBox="0 0 300 268" preserveAsp
 </svg>`;
 $('#app').innerHTML =
   '<header><div><div class="brand">POUPOUS</div><div class="status" id="status"></div></div>' +
-  '<div style="display:flex;gap:10px"><button class="icon-btn" id="open-live" aria-label="Vue en direct">' + EYE + '</button><button class="icon-btn" id="open-courses" aria-label="Courses">' + CART + '</button>' +
+  '<div style="display:flex;gap:10px"><button class="icon-btn" id="open-ec" aria-label="Conversation continue">' + EAR + '</button><button class="icon-btn" id="open-live" aria-label="Vue en direct">' + EYE + '</button><button class="icon-btn" id="open-courses" aria-label="Courses">' + CART + '</button>' +
   '<button class="icon-btn" id="open-settings" aria-label="Réglages">' + GEAR + '</button></div></header>' +
   '<div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas>' + CAT_SVG + '<div class="live" id="live"></div></div>' +
   '<canvas id="confetti" aria-hidden="true"></canvas>' +
@@ -363,7 +365,8 @@ function setState(s){
     catSet('joie'); S.catT = setTimeout(() => catSet(CAT_MAP[S.state] || 'veille'), 2800);
   } else catSet(CAT_MAP[s] || 'veille');
 }
-function idle(){ try { majTheme(); } catch (e) {} setState(S.reglages.ecouteContinue ? 'mainslibres' : 'veille'); }
+function majBoutonEC(){ const b = document.getElementById('open-ec'); if (b) { b.classList.toggle('on', !!S.reglages.ecouteContinue); b.setAttribute('aria-pressed', S.reglages.ecouteContinue ? 'true' : 'false'); } }
+function idle(){ try { majTheme(); } catch (e) {} majBoutonEC(); setState(S.reglages.ecouteContinue ? 'mainslibres' : 'veille'); }
 function scrollLog(){ const l = $('#log'); l.scrollTop = l.scrollHeight; }
 function addMsg(who, text){
   const d = document.createElement('div');
@@ -449,9 +452,15 @@ async function ttsAudio(texte){
 }
 function ttsMorceaux(t){
   const ph = t.match(/[^.!?…\n]+[.!?…]*\s*/g) || [t], out = []; let cur = '';
-  for (const p of ph) { if ((cur + p).length > 280 && cur) { out.push(cur.trim()); cur = p; } else cur += p; }
+  // la 1re phrase part seule (et courte) pour que le premier son arrive vite
+  if (ph.length) {
+    let p = ph.shift();
+    if (p.length > 130) { const k = p.lastIndexOf(' ', 130); const c = k > 40 ? k : 130; ph.unshift(p.slice(c)); p = p.slice(0, c); }
+    if (p.trim()) out.push(p.trim());
+  }
+  for (const p of ph) { if ((cur + p).length > 220 && cur) { out.push(cur.trim()); cur = p; } else cur += p; }
   if (cur.trim()) out.push(cur.trim());
-  return out;
+  return out.length ? out : [t];
 }
 function ttsJoue(a){
   const bin = atob(a.b64), n = bin.length >> 1, f = new Float32Array(n);
@@ -467,12 +476,13 @@ async function speakGemini(texte){
     if (TTS.ctx.state !== 'running') await TTS.ctx.resume();
     if (TTS.ctx.state !== 'running') { S.detailTTS = 'lecture audio bloquée'; return false; }
   } catch (e) { S.detailTTS = 'audio indisponible'; return false; }
-  const morceaux = ttsMorceaux(texte); let suivant = ttsAudio(morceaux[0]), joue = false;
+  const morceaux = ttsMorceaux(texte), tV = Date.now(); let suivant = ttsAudio(morceaux[0]), joue = false;
   for (let i = 0; i < morceaux.length; i++) {
     const a = await suivant;
     if (TTS.stop) return true;
     if (!a) return joue;
     suivant = i + 1 < morceaux.length ? ttsAudio(morceaux[i + 1]) : null;
+    if (!joue) sys('Voix Gemini : premier son après ' + ((Date.now() - tV) / 1000).toFixed(1).replace('.', ',') + ' s');
     await ttsJoue(a); joue = true;
     if (TTS.stop) return true;
   }
@@ -2595,6 +2605,8 @@ $('#texte').addEventListener('keydown', e => { if (e.key === 'Enter') { const v 
 $('#open-settings').onclick = () => { renderSettings(); $('#sheet').hidden = false; };
 $('#open-courses').onclick = () => { renderCourses(); $('#sheet').hidden = false; };
 $('#open-live').onclick = () => openLive();
+$('#open-ec').onclick = () => { setReglage('ecouteContinue', String(!S.reglages.ecouteContinue)); majBoutonEC(); if (!S.busy) idle(); };
+majBoutonEC();
 $('#sheet').onclick = e => { if (e.target.id !== 'sheet') return; if (S.confirmReject) { S.confirmReject(false); return; } $('#sheet').hidden = true; };
 setState('chargement');
 requestAnimationFrame(draw);
