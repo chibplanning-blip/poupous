@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=139 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=140 -->
 <title>Poupous</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--hi:#8ff3ff;--lo:#1289a8;--glow:rgba(56,214,245,.12);--on:#04202a;color-scheme:dark}
 [hidden]{display:none!important}
@@ -2397,18 +2398,23 @@ async function liveFlip(){
 }
 function openLive(){
   const G = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px';
-  const B = 'width:100%;min-height:46px;white-space:normal;padding:8px 10px';
+  const B = 'width:100%;min-height:52px;white-space:normal;padding:8px 10px;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px';
+  const I = t => '<i class="ti ti-' + t + '" style="font-size:20px" aria-hidden="true"></i>';
+  const modeCam = !LIVE.voixSeule;
   $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">VUE EN DIRECT</span>' +
-    '<video id="live-video" playsinline muted style="width:100%;height:30vh;margin-top:10px;border-radius:14px;background:#000;object-fit:cover"></video>' +
-    '<p class="hint" id="live-etat" style="margin:8px 0 2px">Appuie sur Démarrer. La session dure environ 2 minutes.</p>' +
+    '<div style="' + G + ';margin-top:10px"><button class="btn' + (modeCam ? ' primary' : '') + '" id="live-mode-cam" style="' + B + '">' + I('camera') + 'Caméra</button><button class="btn' + (modeCam ? '' : ' primary') + '" id="live-mode-voix" style="' + B + '">' + I('microphone') + 'Juste la voix</button></div>' +
+    '<video id="live-video" playsinline muted style="width:100%;height:30vh;margin-top:10px;border-radius:14px;background:#000;object-fit:cover"' + (modeCam ? '' : ' hidden') + '></video>' +
+    '<p class="hint" id="live-etat" style="margin:8px 0 2px">Appuie sur Démarrer' + (modeCam ? '.' : ' et parle, la conversation se fait à la voix.') + ' La session dure environ 2 minutes.</p>' +
     '<p class="hint" id="live-entendu" style="margin:0;min-height:1.4em"></p>' +
     '<p class="hint" id="live-texte" style="margin:0;min-height:2.6em"></p>' +
-    '<div style="' + G + '"><button class="btn primary" id="live-go" style="' + B + '">Démarrer</button><button class="btn" id="live-stop" style="' + B + '">Arrêter</button></div>' +
-    '<div style="' + G + '"><button class="btn" id="live-micro" style="' + B + '">Micro : coupé</button><button class="btn" id="live-decris" style="' + B + '">Décris ce que tu vois</button></div>' +
-    '<button class="btn" id="live-flip" style="' + B + ';margin-top:10px">Retourner la caméra</button>' +
+    '<div style="' + G + '"><button class="btn primary" id="live-go" style="' + B + '">' + I('player-play') + 'Démarrer</button><button class="btn" id="live-stop" style="' + B + '">' + I('player-stop') + 'Arrêter</button></div>' +
+    '<div style="' + G + '"><button class="btn" id="live-micro" style="' + B + '">' + I('microphone') + 'Micro : coupé</button><button class="btn" id="live-decris"' + (modeCam ? '' : ' hidden') + ' style="' + B + '">' + I('eye') + 'Décris ce que tu vois</button></div>' +
+    '<button class="btn" id="live-flip"' + (modeCam ? '' : ' hidden') + ' style="' + B + ';margin-top:10px">' + I('camera-rotate') + 'Retourner la caméra</button>' +
     '<input id="live-q" type="text" autocomplete="off" placeholder="Ou écris ta question ici" aria-label="Question" style="width:100%;margin-top:10px">' +
-    '<button class="btn" id="live-send" style="' + B + ';margin-top:10px">Envoyer la question</button></div>';
+    '<button class="btn" id="live-send" style="' + B + ';margin-top:10px">' + I('send') + 'Envoyer la question</button></div>';
   $('#sheet').hidden = false;
+  $('#live-mode-cam').onclick = () => { if (LIVE.voixSeule) { liveStop(); LIVE.voixSeule = false; openLive(); } };
+  $('#live-mode-voix').onclick = () => { if (!LIVE.voixSeule) { liveStop(); LIVE.voixSeule = true; openLive(); } };
   $('#live-go').onclick = liveStart;
   $('#live-stop').onclick = () => { liveStop('Arrêté.'); };
   $('#live-decris').onclick = () => liveDemande('Décris précisément ce que tu vois maintenant.');
