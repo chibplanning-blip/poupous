@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=140 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=141 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -2240,9 +2240,19 @@ function renderSettings(){
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
 /* ---------- Vue en direct (test) : Gemini Live, caméra 1 image/seconde, réponse vocale ---------- */
-const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0, mic:null, micNode:null, micSrc:null, micNative:false, entendu:'', nouveau:false, face:'environment'};
+const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0, mic:null, micNode:null, micSrc:null, micNative:false, entendu:'', nouveau:false, face:'environment', mode:'cam', langue:'darija'};
 const LIVE_MODELE = 'models/gemini-3.8-live';
 const LIVE_CONSIGNE = "Tu es Poupous, un assistant qui parle français. Tu vois la caméra de l'utilisateur en direct (une image par seconde). Réponds toujours en français, en une ou deux phrases courtes, sans longue introduction.";
+const LIVE_LANGUES = [['darija','Darija (arabe marocain)'],['rif','Tarifit (Rif, Al Hoceïma) – expérimental'],['anglais','Anglais'],['allemand','Allemand'],['roumain','Roumain'],['russe','Russe'],['espagnol','Espagnol']];
+function liveConsigne(){
+  if (LIVE.mode === 'trad') {
+    const l = LIVE_LANGUES.find(x => x[0] === LIVE.langue) || LIVE_LANGUES[0];
+    const nom = l[0] === 'rif' ? 'le tarifit (berbère du Rif, parlé à Al Hoceïma)' : l[0] === 'darija' ? 'le darija (arabe marocain)' : 'l\u2019' + l[1].toLowerCase();
+    return 'Tu es un interprète en temps réel entre le français et ' + nom + '. Quand la personne parle français, dis uniquement la traduction en ' + nom + '. Quand elle parle ' + nom + ', dis uniquement la traduction en français. Ne réponds à aucune question, ne commente pas, n\u2019ajoute rien. Si tu n\u2019as pas compris ou si tu n\u2019es pas sûr de ta traduction, dis-le brièvement en français plutôt que d\u2019inventer.';
+  }
+  if (LIVE.mode === 'voix') return 'Tu es Poupous, un assistant qui parle français. Tu discutes à la voix avec l\u2019utilisateur. Réponds toujours en français, en une ou deux phrases courtes, sans longue introduction.';
+  return LIVE_CONSIGNE;
+}
 const liveEtat = m => { const e = $('#live-etat'); if (e) e.textContent = m; };
 function liveStop(msg){
   if (LIVE.timer) { clearInterval(LIVE.timer); LIVE.timer = null; }
@@ -2254,7 +2264,7 @@ function liveStop(msg){
   if (msg) liveEtat(msg);
 }
 function liveSetup(forme){
-  const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:LIVE_CONSIGNE}]}, outputAudioTranscription:{}, inputAudioTranscription:{}};
+  const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:liveConsigne()}]}, outputAudioTranscription:{}, inputAudioTranscription:{}};
   if (forme === 0) s.responseModalities = ['AUDIO']; else s.generationConfig = {responseModalities:['AUDIO']};
   return {setup:s};
 }
@@ -2274,7 +2284,7 @@ function liveConnect(forme){
   ws.onmessage = async ev => {
     let txt = ev.data; if (typeof txt !== 'string') txt = await ev.data.text();
     let m; try { m = JSON.parse(txt); } catch (e) { return; }
-    if (m.setupComplete) { LIVE.pret = true; liveEtat('Connecté. Appuie sur « Décris ce que tu vois » ou pose une question.'); return; }
+    if (m.setupComplete) { LIVE.pret = true; if (LIVE.mode === 'cam') liveEtat('Connecté. Appuie sur « Décris ce que tu vois » ou pose une question.'); else { liveEtat('Connecté. Active le micro…'); if (!LIVE.mic && !LIVE.micNative) liveMicToggle(); } return; }
     const sc = m.serverContent; if (!sc) return;
     if (sc.interrupted) { LIVE.src.forEach(x => { try { x.stop(); } catch (e) {} }); LIVE.src = []; LIVE.next = 0; }
     if (sc.modelTurn && sc.modelTurn.parts) for (const p of sc.modelTurn.parts) if (p.inlineData && p.inlineData.data) liveJoue(p.inlineData.data);
@@ -2293,6 +2303,7 @@ function liveConnect(forme){
     const raison = (ev && ev.reason) || '';
     if (!LIVE.pret && forme === 0 && /responseModalities|Unknown name|Invalid JSON|Cannot find field/i.test(raison)) { liveConnect(1); return; }
     const duree = (Date.now() - LIVE.t0) / 1000;
+    if (LIVE.pret && duree > 100 && LIVE.mode !== 'cam') { liveStop('Reconnexion…'); setTimeout(liveStart, 400); return; }
     liveStop('Connexion fermée (code ' + (ev ? ev.code : '?') + ')' + (raison ? ' : ' + raison.slice(0, 220) : '') + (LIVE.pret && duree > 100 ? ' — limite d\u2019environ 2 minutes atteinte.' : ''));
   };
 }
@@ -2304,7 +2315,7 @@ function liveImage(){
 }
 function liveTic(){
   if ($('#sheet').hidden || !$('#live-video')) { liveStop(); return; }
-  if (!LIVE.pret || !LIVE.ws || LIVE.ws.readyState !== 1) return;
+  if (LIVE.mode !== 'cam' || !LIVE.pret || !LIVE.ws || LIVE.ws.readyState !== 1) return;
   const img = liveImage(); if (img) LIVE.ws.send(JSON.stringify({realtimeInput:{video:{data:img, mimeType:'image/jpeg'}}}));
 }
 function liveDemande(q){
@@ -2372,6 +2383,11 @@ async function liveStart(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { liveEtat("Cette version de l'appli ne permet pas la caméra en direct : installe l'APK 3.2."); return; }
   liveStop(); LIVE.texte = '';
   try { LIVE.ctx = new (window.AudioContext || window.webkitAudioContext)(); await LIVE.ctx.resume(); } catch (e) {}
+  if (LIVE.mode !== 'cam') {
+    LIVE.t0 = Date.now(); liveEtat('Connexion à Gemini…'); liveConnect(0);
+    LIVE.timer = setInterval(liveTic, 1000);
+    return;
+  }
   try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:LIVE.face}}, audio: liveMicNatif() ? false : {echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
   catch (e0) {
     try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:LIVE.face}}, audio:false}); }
@@ -2400,21 +2416,28 @@ function openLive(){
   const G = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px';
   const B = 'width:100%;min-height:52px;white-space:normal;padding:8px 10px;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px';
   const I = t => '<i class="ti ti-' + t + '" style="font-size:20px" aria-hidden="true"></i>';
-  const modeCam = !LIVE.voixSeule;
+  const mode = LIVE.mode, cam = mode === 'cam', trad = mode === 'trad';
+  const M = (id, m, ic, txt) => '<button class="btn' + (mode === m ? ' primary' : '') + '" id="' + id + '" style="' + B + ';padding:8px 4px;font-size:13px;flex-direction:column;gap:2px">' + I(ic) + txt + '</button>';
+  const opts = LIVE_LANGUES.map(l => '<option value="' + l[0] + '"' + (LIVE.langue === l[0] ? ' selected' : '') + '>' + l[1] + '</option>').join('');
+  const aide = cam ? 'Appuie sur Démarrer. La session dure environ 2 minutes.' : trad ? 'Choisis la langue, appuie sur Démarrer et parle : en français il traduit dans la langue choisie, et inversement.' : 'Appuie sur Démarrer et parle, la conversation se fait à la voix.';
   $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">VUE EN DIRECT</span>' +
-    '<div style="' + G + ';margin-top:10px"><button class="btn' + (modeCam ? ' primary' : '') + '" id="live-mode-cam" style="' + B + '">' + I('camera') + 'Caméra</button><button class="btn' + (modeCam ? '' : ' primary') + '" id="live-mode-voix" style="' + B + '">' + I('microphone') + 'Juste la voix</button></div>' +
-    '<video id="live-video" playsinline muted style="width:100%;height:30vh;margin-top:10px;border-radius:14px;background:#000;object-fit:cover"' + (modeCam ? '' : ' hidden') + '></video>' +
-    '<p class="hint" id="live-etat" style="margin:8px 0 2px">Appuie sur Démarrer' + (modeCam ? '.' : ' et parle, la conversation se fait à la voix.') + ' La session dure environ 2 minutes.</p>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">' + M('live-mode-cam', 'cam', 'camera', 'Caméra') + M('live-mode-voix', 'voix', 'microphone', 'Voix') + M('live-mode-trad', 'trad', 'language', 'Traducteur') + '</div>' +
+    (trad ? '<select id="live-langue" aria-label="Langue" style="width:100%;margin-top:10px;min-height:46px;font-size:15px">' + opts + '</select>' : '') +
+    '<video id="live-video" playsinline muted style="width:100%;height:30vh;margin-top:10px;border-radius:14px;background:#000;object-fit:cover"' + (cam ? '' : ' hidden') + '></video>' +
+    '<p class="hint" id="live-etat" style="margin:8px 0 2px">' + aide + '</p>' +
     '<p class="hint" id="live-entendu" style="margin:0;min-height:1.4em"></p>' +
     '<p class="hint" id="live-texte" style="margin:0;min-height:2.6em"></p>' +
     '<div style="' + G + '"><button class="btn primary" id="live-go" style="' + B + '">' + I('player-play') + 'Démarrer</button><button class="btn" id="live-stop" style="' + B + '">' + I('player-stop') + 'Arrêter</button></div>' +
-    '<div style="' + G + '"><button class="btn" id="live-micro" style="' + B + '">' + I('microphone') + 'Micro : coupé</button><button class="btn" id="live-decris"' + (modeCam ? '' : ' hidden') + ' style="' + B + '">' + I('eye') + 'Décris ce que tu vois</button></div>' +
-    '<button class="btn" id="live-flip"' + (modeCam ? '' : ' hidden') + ' style="' + B + ';margin-top:10px">' + I('camera-rotate') + 'Retourner la caméra</button>' +
-    '<input id="live-q" type="text" autocomplete="off" placeholder="Ou écris ta question ici" aria-label="Question" style="width:100%;margin-top:10px">' +
-    '<button class="btn" id="live-send" style="' + B + ';margin-top:10px">' + I('send') + 'Envoyer la question</button></div>';
+    '<div style="' + G + '"><button class="btn" id="live-micro" style="' + B + '">' + I('microphone') + 'Micro : coupé</button><button class="btn" id="live-decris"' + (cam ? '' : ' hidden') + ' style="' + B + '">' + I('eye') + 'Décris ce que tu vois</button></div>' +
+    '<button class="btn" id="live-flip"' + (cam ? '' : ' hidden') + ' style="' + B + ';margin-top:10px">' + I('camera-rotate') + 'Retourner la caméra</button>' +
+    '<input id="live-q" type="text" autocomplete="off" placeholder="Ou écris ta question ici" aria-label="Question" style="width:100%;margin-top:10px"' + (trad ? ' hidden' : '') + '>' +
+    '<button class="btn" id="live-send"' + (trad ? ' hidden' : '') + ' style="' + B + ';margin-top:10px">' + I('send') + 'Envoyer la question</button></div>';
   $('#sheet').hidden = false;
-  $('#live-mode-cam').onclick = () => { if (LIVE.voixSeule) { liveStop(); LIVE.voixSeule = false; openLive(); } };
-  $('#live-mode-voix').onclick = () => { if (!LIVE.voixSeule) { liveStop(); LIVE.voixSeule = true; openLive(); } };
+  const aller = m => () => { if (LIVE.mode !== m) { liveStop(); LIVE.mode = m; openLive(); } };
+  $('#live-mode-cam').onclick = aller('cam');
+  $('#live-mode-voix').onclick = aller('voix');
+  $('#live-mode-trad').onclick = aller('trad');
+  const sl = $('#live-langue'); if (sl) sl.onchange = () => { LIVE.langue = sl.value; liveStop('Langue changée : appuie sur Démarrer.'); };
   $('#live-go').onclick = liveStart;
   $('#live-stop').onclick = () => { liveStop('Arrêté.'); };
   $('#live-decris').onclick = () => liveDemande('Décris précisément ce que tu vois maintenant.');
