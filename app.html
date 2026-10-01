@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=145 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=147 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -956,11 +956,12 @@ async function micTap(){
 
 
 /* ---------- Conversation continue (écoute Gemini Live, sans mot de réveil) ---------- */
-const EC = {ws:null, pret:false, texte:'', mute:0, t0:0, essais:0, natif:false, mic:null, ctx:null, node:null, src:null, actif:false, rec:null};
+const EC = {ws:null, pret:false, entendu:'', dit:'', outil:false, pctx:null, next:0, sons:[], mute:0, t0:0, essais:0, natif:false, mic:null, ctx:null, node:null, src:null, actif:false, rec:null};
 const EC_CONSIGNE = "Tu es une simple oreille. Quoi que dise l'utilisateur, réponds uniquement par le mot : OK.";
+function ecParle(){ return !!(EC.pctx && EC.pctx.currentTime < EC.next); }
 function ecEnvoie(b64){
   if (!EC.pret || !EC.ws || EC.ws.readyState !== 1) return;
-  if (S.busy || S.speaking) { EC.mute = Date.now() + 800; return; }
+  if (S.busy || S.speaking || EC.outil || ecParle()) { EC.mute = Date.now() + 800; return; }
   if (Date.now() < EC.mute) { EC.mute = Date.now() + 300; return; }
   EC.ws.send(JSON.stringify({realtimeInput:{audio:{data:b64, mimeType:'audio/pcm;rate=16000'}}}));
 }
@@ -995,29 +996,75 @@ async function ecMicStart(){
     return true;
   } catch (e) { ecMicStop(); sys('Micro refusé ou indisponible pour la conversation continue (' + ((e && e.name) || '') + ').'); return false; }
 }
-function ecFin(){
-  const t = (EC.texte || '').trim(); EC.texte = ''; const l = $('#live'); if (l) l.textContent = '';
-  if (!S.reglages.ecouteContinue || S.busy || S.speaking || !/\p{L}{2,}/u.test(t)) return;
-  stopSpeaking();
-  ask(t).then(() => { if (!S.busy) idle(); });
+const EC_OUTILS_EXCLUS = ['generer_video','ameliorer_mon_code','annuler_derniere_amelioration','tableau','apprendre_voix','demander_deuxieme_avis'];
+function ecOutils(){
+  const t = geminiTools();
+  t[0].functionDeclarations = t[0].functionDeclarations.filter(d => !EC_OUTILS_EXCLUS.includes(d.name));
+  return t;
+}
+function ecConsigne(){
+  let c = systemPrompt() + "\n\nTu parles à voix haute, en direct, avec l'utilisateur : réponds en français, en phrases courtes et naturelles, sans liste ni mise en forme. Quand il te demande quelque chose que tu peux faire avec tes outils (agenda, rappel, courses, météo, SMS, mémoire…), utilise l'outil, puis dis le résultat.";
+  const recent = (S.turns || []).slice(-6).map(x => (x.role === 'user' ? 'Utilisateur : ' : 'Poupous : ') + String(x.content).slice(0, 300)).join('\n');
+  if (recent) c += "\n\nDébut de la conversation en cours :\n" + recent;
+  return c;
+}
+function ecJoue(b64){
+  if (!EC.pctx) { try { EC.pctx = new (window.AudioContext || window.webkitAudioContext)(); EC.pctx.resume(); } catch (e) { return; } }
+  const bin = atob(b64), n = bin.length >> 1, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; f[i] = v / 32768; }
+  const buf = EC.pctx.createBuffer(1, n, 24000); buf.getChannelData(0).set(f);
+  const src = EC.pctx.createBufferSource(); src.buffer = buf; src.connect(EC.pctx.destination);
+  const t = Math.max(EC.pctx.currentTime, EC.next); src.start(t); EC.next = t + buf.duration; EC.sons.push(src);
+  if (S.state !== 'parole') setState('parole');
+}
+function ecCoupeVoix(){ EC.sons.forEach(x => { try { x.stop(); } catch (e) {} }); EC.sons = []; EC.next = 0; }
+function ecTourFini(){
+  const q = (EC.entendu || '').trim(), r = (EC.dit || '').trim(); EC.entendu = ''; EC.dit = '';
+  const l = $('#live'); if (l) l.textContent = '';
+  if (q) { addMsg('toi', q); S.turns.push({role:'user', content:q}); }
+  if (r) { addMsg('poupous', r); S.turns.push({role:'assistant', content:r}); }
+  if (q || r) { S.turns = S.turns.slice(-20); store.set('conversation', S.turns); }
+  const fin = () => { if (EC.actif && !S.busy) setState('mainslibres'); };
+  const att = Math.max(200, (EC.next - (EC.pctx ? EC.pctx.currentTime : 0)) * 1000 + 300);
+  setTimeout(fin, att);
+}
+async function ecAppelOutils(m){
+  const calls = (m.toolCall && m.toolCall.functionCalls) || [];
+  if (!calls.length) return;
+  EC.outil = true; setState('reflexion');
+  const reps = [];
+  for (const fc of calls) {
+    let res; try { res = await runTool(fc.name, fc.args || {}); } catch (e) { res = 'Erreur : ' + (e.message || e); }
+    reps.push({id: fc.id, name: fc.name, response: {result: typeof res === 'string' ? res : JSON.stringify(res)}});
+  }
+  EC.outil = false;
+  if (EC.ws && EC.ws.readyState === 1) EC.ws.send(JSON.stringify({toolResponse:{functionResponses:reps}}));
 }
 function ecConnecte(forme){
   forme = forme || 0;
   const ws = new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + encodeURIComponent(geminiKey()));
-  EC.ws = ws; EC.pret = false; EC.texte = ''; EC.t0 = Date.now();
-  const setup = forme => { const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:EC_CONSIGNE}]}, inputAudioTranscription:{}}; if (forme === 0) s.responseModalities = ['AUDIO']; else s.generationConfig = {responseModalities:['AUDIO']}; return {setup:s}; };
+  EC.ws = ws; EC.pret = false; EC.entendu = ''; EC.dit = ''; EC.t0 = Date.now(); EC.outil = false;
+  const setup = forme => {
+    const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:ecConsigne()}]}, tools:ecOutils(), inputAudioTranscription:{}, outputAudioTranscription:{}};
+    const sp = {voiceConfig:{prebuiltVoiceConfig:{voiceName: S.reglages.voixLive || voixGeminiNom()}}};
+    if (forme === 0) { s.responseModalities = ['AUDIO']; s.speechConfig = sp; } else { s.generationConfig = {responseModalities:['AUDIO'], speechConfig:sp}; }
+    return {setup:s};
+  };
   ws.onopen = () => ws.send(JSON.stringify(setup(forme)));
   ws.onmessage = async ev => {
     let txt = ev.data; if (typeof txt !== 'string') txt = await ev.data.text();
     let m; try { m = JSON.parse(txt); } catch (e) { return; }
     if (m.setupComplete) { EC.pret = true; EC.essais = 0; if (!S.busy && !S.speaking) setState('mainslibres'); return; }
+    if (m.toolCall) { ecAppelOutils(m); return; }
     const sc = m.serverContent; if (!sc) return;
+    if (sc.interrupted) ecCoupeVoix();
+    if (sc.modelTurn && sc.modelTurn.parts) for (const p of sc.modelTurn.parts) if (p.inlineData && p.inlineData.data) ecJoue(p.inlineData.data);
     if (sc.inputTranscription && sc.inputTranscription.text) {
-      EC.texte += sc.inputTranscription.text; const l = $('#live'); if (l) l.textContent = EC.texte;
-      if (!S.busy && !S.speaking && S.state !== 'ecoute') setState('ecoute');
+      EC.entendu += sc.inputTranscription.text; const l = $('#live'); if (l) l.textContent = EC.entendu;
+      if (!S.busy && !S.speaking && !ecParle() && S.state !== 'ecoute') setState('ecoute');
     }
-    // le modèle commence à répondre (ou termine) : la phrase de l'utilisateur est finie
-    if ((sc.modelTurn && sc.modelTurn.parts && sc.modelTurn.parts.length) || sc.outputTranscription || sc.generationComplete || sc.turnComplete) ecFin();
+    if (sc.outputTranscription && sc.outputTranscription.text) EC.dit += sc.outputTranscription.text;
+    if (sc.turnComplete) ecTourFini();
   };
   ws.onerror = () => {};
   ws.onclose = ev => {
@@ -1043,7 +1090,7 @@ async function ecouteContinueDemarrer(){
 function ecouteContinueArreter(garder){
   EC.actif = false; if (EC.rec) { clearTimeout(EC.rec); EC.rec = null; }
   if (EC.ws) { try { EC.ws.onclose = null; EC.ws.close(); } catch (e) {} EC.ws = null; }
-  EC.pret = false; EC.texte = ''; ecMicStop();
+  EC.pret = false; EC.entendu = ''; EC.dit = ''; EC.outil = false; ecCoupeVoix(); if (EC.pctx) { try { EC.pctx.close(); } catch (e) {} EC.pctx = null; } ecMicStop();
   const l = $('#live'); if (l) l.textContent = '';
   if (!garder && !S.busy) idle();
 }
@@ -1347,7 +1394,7 @@ function geminiParts(content){
   }
   return parts;
 }
-async function askGemini(messages, onText){
+async function askGemini(messages, onText, onTour){
   const contents = [];
   for (const m of messages) {
     const role = m.role === 'assistant' ? 'model' : 'user';
@@ -1367,6 +1414,7 @@ async function askGemini(messages, onText){
     if (texts) { answer = clean(texts); onText(answer); }
     const calls = parts.filter(x => x.functionCall);
     if (!calls.length) break;
+    if (answer && onTour) await onTour(answer);
     contents.push({role:'model', parts});
     const responses = [];
     for (const c of calls) responses.push({functionResponse:{name:c.functionCall.name, response:{resultat:String(await runTool(c.functionCall.name, c.functionCall.args || {}))}}});
@@ -1426,7 +1474,7 @@ function oaContent(content){
   }
   return parts.length ? parts : '';
 }
-async function askAutre(messages, onText){
+async function askAutre(messages, onText, onTour){
   const msgs = [{role:'system', content:systemPrompt()}].concat(messages.map(m => ({role:m.role, content:oaContent(m.content)})));
   let answer = '';
   for (let round = 0; round < 6; round++) {
@@ -1438,6 +1486,7 @@ async function askAutre(messages, onText){
     if (texte) { answer = clean(texte); onText(answer); }
     const calls = m.tool_calls || [];
     if (!calls.length) break;
+    if (answer && onTour) await onTour(answer);
     msgs.push(m);
     for (const c of calls) {
       let args = {}; try { args = JSON.parse((c.function && c.function.arguments) || '{}'); } catch (e) {}
@@ -1781,16 +1830,19 @@ async function ask(text){
   S.joints = joints; { const m = joints.find(x => typeMedia(x)); if (m) S.dernierMedia = m; }
   if (joints.length) messages[messages.length - 1] = {role:'user', content: (await attachmentBlocks(joints)).concat([{type:'text', text}])};
   let answer = '';
+  const direLaFin = async () => { if (answer.trim()) await speak(answer); };
+  const surTour = async t => { answer = t; await direLaFin(); answer = ''; };
   try {
     if (provider() === 'gemini') {
-      answer = await askGemini(messages, t => { p.textContent = t; scrollLog(); });
+      answer = await askGemini(messages, t => { p.textContent = t; scrollLog(); }, surTour);
     } else if (provider() === 'autre') {
-      answer = await askAutre(messages, t => { p.textContent = t; scrollLog(); });
+      answer = await askAutre(messages, t => { p.textContent = t; scrollLog(); }, surTour);
     } else for (let round = 0; round < 6; round++) {
       const data = await callClaude({model:CHAT_MODEL, max_tokens:1024, system:systemPrompt(), tools:toolDefs(), messages});
       const texts = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
       if (texts) { answer = clean(texts); p.textContent = answer; scrollLog(); }
       if (data.stop_reason !== 'tool_use') break;
+      if (answer) await surTour(answer);
       messages.push({role:'assistant', content:data.content});
       const results = [];
       for (const b of data.content) if (b.type === 'tool_use') results.push({type:'tool_result', tool_use_id:b.id, content:String(await runTool(b.name, b.input || {}))});
@@ -1811,7 +1863,7 @@ async function ask(text){
     const ch = S.chrono; S.chrono = null;
     if (ch) { const f = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s'; sys('Chrono : écoute ' + f(ch.ecoute) + ' · empreinte ' + f(ch.voix) + ' · transcription ' + f(ch.transcription) + ' · cerveau ' + f(Date.now() - tCerveau) + ' (audio ' + ch.taille + ' Ko)'); }
   } catch (e) {}
-  await speak(answer);
+  if (S.lastOk) await direLaFin(); else await speak(answer);
   S.busy = false;
   if (S.pendingUpgrade) { const d = S.pendingUpgrade; S.pendingUpgrade = null; await runUpgrade(d); }
   else if (S.pendingRollback) { S.pendingRollback = false; rollback(); }
