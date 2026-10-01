@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=138 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=139 -->
 <title>Poupous</title>
 <style>
 :root{--ink:#070d1a;--panel:#0e1729;--line:#1c2a44;--text:#e6edf7;--muted:#7d8ba3;--cyan:#38d6f5;--amber:#ffb547;--hi:#8ff3ff;--lo:#1289a8;--glow:rgba(56,214,245,.12);--on:#04202a;color-scheme:dark}
@@ -2239,7 +2239,7 @@ function renderSettings(){
 $('#mic').onclick = micTap;
 $('#clip').onclick = () => $('#fichier').click();
 /* ---------- Vue en direct (test) : Gemini Live, caméra 1 image/seconde, réponse vocale ---------- */
-const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0, mic:null, micNode:null, micSrc:null, micNative:false, entendu:'', nouveau:false};
+const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0, mic:null, micNode:null, micSrc:null, micNative:false, entendu:'', nouveau:false, face:'environment'};
 const LIVE_MODELE = 'models/gemini-3.8-live';
 const LIVE_CONSIGNE = "Tu es Poupous, un assistant qui parle français. Tu vois la caméra de l'utilisateur en direct (une image par seconde). Réponds toujours en français, en une ou deux phrases courtes, sans longue introduction.";
 const liveEtat = m => { const e = $('#live-etat'); if (e) e.textContent = m; };
@@ -2371,15 +2371,29 @@ async function liveStart(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { liveEtat("Cette version de l'appli ne permet pas la caméra en direct : installe l'APK 3.2."); return; }
   liveStop(); LIVE.texte = '';
   try { LIVE.ctx = new (window.AudioContext || window.webkitAudioContext)(); await LIVE.ctx.resume(); } catch (e) {}
-  try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio: liveMicNatif() ? false : {echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
+  try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:LIVE.face}}, audio: liveMicNatif() ? false : {echoCancellation:true, noiseSuppression:true, autoGainControl:true}}); }
   catch (e0) {
-    try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false}); }
+    try { LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:LIVE.face}}, audio:false}); }
     catch (e) { liveStop('Caméra refusée ou indisponible : ' + (e.name || '') + ' ' + (e.message || '')); return; }
   }
   const v = $('#live-video'); if (!v) { liveStop(); return; }
+  v.style.transform = LIVE.face === 'user' ? 'scaleX(-1)' : '';
   v.srcObject = LIVE.stream; try { await v.play(); } catch (e) {}
   LIVE.t0 = Date.now(); liveEtat('Connexion à Gemini…'); liveConnect(0);
   LIVE.timer = setInterval(liveTic, 1000);
+}
+async function liveFlip(){
+  LIVE.face = LIVE.face === 'user' ? 'environment' : 'user';
+  const nom = LIVE.face === 'user' ? 'avant' : 'arrière', v = $('#live-video');
+  if (v) v.style.transform = LIVE.face === 'user' ? 'scaleX(-1)' : '';
+  if (!LIVE.stream) { liveEtat('Caméra ' + nom + ' choisie : appuie sur Démarrer.'); return; }
+  if (LIVE.mic && LIVE.mic === LIVE.stream) liveMicStop();
+  try { LIVE.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+  try {
+    LIVE.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:LIVE.face}}, audio:false});
+    if (v) { v.srcObject = LIVE.stream; try { await v.play(); } catch (e) {} }
+    liveEtat('Caméra ' + nom + '.');
+  } catch (e) { liveEtat('Impossible de changer de caméra : ' + (e.name || '') + ' ' + (e.message || '')); }
 }
 function openLive(){
   const G = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px';
@@ -2391,6 +2405,7 @@ function openLive(){
     '<p class="hint" id="live-texte" style="margin:0;min-height:2.6em"></p>' +
     '<div style="' + G + '"><button class="btn primary" id="live-go" style="' + B + '">Démarrer</button><button class="btn" id="live-stop" style="' + B + '">Arrêter</button></div>' +
     '<div style="' + G + '"><button class="btn" id="live-micro" style="' + B + '">Micro : coupé</button><button class="btn" id="live-decris" style="' + B + '">Décris ce que tu vois</button></div>' +
+    '<button class="btn" id="live-flip" style="' + B + ';margin-top:10px">Retourner la caméra</button>' +
     '<input id="live-q" type="text" autocomplete="off" placeholder="Ou écris ta question ici" aria-label="Question" style="width:100%;margin-top:10px">' +
     '<button class="btn" id="live-send" style="' + B + ';margin-top:10px">Envoyer la question</button></div>';
   $('#sheet').hidden = false;
@@ -2398,6 +2413,7 @@ function openLive(){
   $('#live-stop').onclick = () => { liveStop('Arrêté.'); };
   $('#live-decris').onclick = () => liveDemande('Décris précisément ce que tu vois maintenant.');
   $('#live-micro').onclick = liveMicToggle;
+  $('#live-flip').onclick = liveFlip;
   $('#live-send').onclick = () => { const q = $('#live-q').value.trim(); if (q) { liveDemande(q); $('#live-q').value = ''; } };
 }
 $('#cam').onclick = () => {
