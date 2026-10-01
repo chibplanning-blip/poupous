@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=141 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=142 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -2243,6 +2243,7 @@ $('#clip').onclick = () => $('#fichier').click();
 const LIVE = {ws:null, stream:null, timer:null, ctx:null, next:0, src:[], t0:0, pret:false, texte:'', tq:0, mic:null, micNode:null, micSrc:null, micNative:false, entendu:'', nouveau:false, face:'environment', mode:'cam', langue:'darija'};
 const LIVE_MODELE = 'models/gemini-3.8-live';
 const LIVE_CONSIGNE = "Tu es Poupous, un assistant qui parle français. Tu vois la caméra de l'utilisateur en direct (une image par seconde). Réponds toujours en français, en une ou deux phrases courtes, sans longue introduction.";
+const LIVE_VOIX = ['Kore','Puck','Zephyr','Orus','Autonoe','Umbriel','Erinome','Laomedeia','Schedar','Achird','Sadachbia'];
 const LIVE_LANGUES = [['darija','Darija (arabe marocain)'],['rif','Tarifit (Rif, Al Hoceïma) – expérimental'],['anglais','Anglais'],['allemand','Allemand'],['roumain','Roumain'],['russe','Russe'],['espagnol','Espagnol']];
 function liveConsigne(){
   if (LIVE.mode === 'trad') {
@@ -2266,6 +2267,8 @@ function liveStop(msg){
 function liveSetup(forme){
   const s = {model:LIVE_MODELE, systemInstruction:{parts:[{text:liveConsigne()}]}, outputAudioTranscription:{}, inputAudioTranscription:{}};
   if (forme === 0) s.responseModalities = ['AUDIO']; else s.generationConfig = {responseModalities:['AUDIO']};
+  const vx = S.reglages.voixLive;
+  if (vx) { const sp = {voiceConfig:{prebuiltVoiceConfig:{voiceName:vx}}}; if (forme === 0) s.speechConfig = sp; else s.generationConfig.speechConfig = sp; }
   return {setup:s};
 }
 function liveJoue(b64){
@@ -2419,9 +2422,11 @@ function openLive(){
   const mode = LIVE.mode, cam = mode === 'cam', trad = mode === 'trad';
   const M = (id, m, ic, txt) => '<button class="btn' + (mode === m ? ' primary' : '') + '" id="' + id + '" style="' + B + ';padding:8px 4px;font-size:13px;flex-direction:column;gap:2px">' + I(ic) + txt + '</button>';
   const opts = LIVE_LANGUES.map(l => '<option value="' + l[0] + '"' + (LIVE.langue === l[0] ? ' selected' : '') + '>' + l[1] + '</option>').join('');
+  const optv = '<option value="">Voix par défaut</option>' + LIVE_VOIX.map(v => '<option value="' + v + '"' + (S.reglages.voixLive === v ? ' selected' : '') + '>' + v + '</option>').join('');
   const aide = cam ? 'Appuie sur Démarrer. La session dure environ 2 minutes.' : trad ? 'Choisis la langue, appuie sur Démarrer et parle : en français il traduit dans la langue choisie, et inversement.' : 'Appuie sur Démarrer et parle, la conversation se fait à la voix.';
   $('#sheet-inner').innerHTML = '<div class="keybox"><span class="brand" style="font-size:14px">VUE EN DIRECT</span>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">' + M('live-mode-cam', 'cam', 'camera', 'Caméra') + M('live-mode-voix', 'voix', 'microphone', 'Voix') + M('live-mode-trad', 'trad', 'language', 'Traducteur') + '</div>' +
+    '<select id="live-voix" aria-label="Voix" style="width:100%;margin-top:10px;min-height:46px;font-size:15px">' + optv + '</select>' +
     (trad ? '<select id="live-langue" aria-label="Langue" style="width:100%;margin-top:10px;min-height:46px;font-size:15px">' + opts + '</select>' : '') +
     '<video id="live-video" playsinline muted style="width:100%;height:30vh;margin-top:10px;border-radius:14px;background:#000;object-fit:cover"' + (cam ? '' : ' hidden') + '></video>' +
     '<p class="hint" id="live-etat" style="margin:8px 0 2px">' + aide + '</p>' +
@@ -2437,6 +2442,7 @@ function openLive(){
   $('#live-mode-cam').onclick = aller('cam');
   $('#live-mode-voix').onclick = aller('voix');
   $('#live-mode-trad').onclick = aller('trad');
+  const sv = $('#live-voix'); sv.onchange = () => { S.reglages.voixLive = sv.value; store.set('reglages', S.reglages); liveStop('Voix changée : appuie sur Démarrer.'); };
   const sl = $('#live-langue'); if (sl) sl.onchange = () => { LIVE.langue = sl.value; liveStop('Langue changée : appuie sur Démarrer.'); };
   $('#live-go').onclick = liveStart;
   $('#live-stop').onclick = () => { liveStop('Arrêté.'); };
