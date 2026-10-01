@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=142 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=143 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -218,7 +218,7 @@ body.ecole .orb-wrap{height:clamp(80px,13vh,120px)}
 const P = window.Poupous;
 const CHAT_MODEL = 'claude-sonnet-5';
 const UPGRADE_MODEL = 'claude-opus-5';
-const DEFAUT = {theme:'crep', mascotte:'chat', cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', mainsLibres:false, moteurVocal:'gemini', personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
+const DEFAUT = {theme:'crep', mascotte:'chat', cerveau:'gemini', vitesse:1.0, hauteur:1.0, voix:'', voixParle:'gemini', mainsLibres:false, moteurVocal:'gemini', personnalite:"Chaleureux, vif, avec un brin d'humour, comme JARVIS dans Iron Man, mais tu tutoies et tu restes simple."};
 const S = {attachments:[], state:'chargement', turns:[], faits:[], reglages:Object.assign({}, DEFAUT), busy:false, speaking:false, lastOk:false, pendingUpgrade:null, pendingRollback:false, hfRunning:false, listening:false, stop:false};
 const $ = s => document.querySelector(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -416,10 +416,69 @@ async function speak(text){
   const c = clean(text);
   if (!c || !P) return;
   S.speaking = true; setState('parole');
-  await waitFor('t', id => P.speak(id, c));
+  let fait = false;
+  if (voixGeminiActive()) fait = await speakGemini(c);
+  if (!fait) {
+    if (voixGeminiActive() && !TTS.avertie) { TTS.avertie = true; sys('La voix Gemini ne répond pas' + (S.detailTTS ? ' (' + S.detailTTS + ')' : '') + ' : j\u2019utilise la voix du téléphone.'); }
+    await waitFor('t', id => P.speak(id, c));
+  }
   S.speaking = false;
 }
-function stopSpeaking(){ if (P) P.stopSpeaking(); }
+/* Voix Gemini (TTS) : même voix partout ; repli sur la voix du téléphone en cas d'échec */
+const TTS = {ctx:null, src:[], stop:false, avertie:false};
+const TTS_MODELES = ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
+const voixGeminiNom = () => S.reglages.voixLive || 'Laomedeia';
+const voixGeminiActive = () => S.reglages.voixParle !== 'android' && !!geminiKey();
+async function ttsAudio(texte){
+  const corps = JSON.stringify({contents:[{parts:[{text:texte}]}], generationConfig:{responseModalities:['AUDIO'], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voixGeminiNom()}}}}});
+  let derniere = '';
+  for (const m of TTS_MODELES) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 25000);
+    try {
+      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(geminiKey()), {method:'POST', headers:{'Content-Type':'application/json'}, body:corps, signal:ctl.signal});
+      if (!r.ok) { derniere = m + ' : code ' + r.status; continue; }
+      const j = await r.json();
+      const parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+      const p = parts.find(x => x.inlineData && x.inlineData.data);
+      if (p) { const mt = /rate=(\d+)/.exec(p.inlineData.mimeType || ''); return {b64:p.inlineData.data, rate:mt ? +mt[1] : 24000}; }
+      derniere = m + ' : pas d\u2019audio';
+    } catch (e) { derniere = m + ' : ' + (e && e.name === 'AbortError' ? 'trop long' : (e && e.message) || e); }
+    finally { clearTimeout(t); }
+  }
+  S.detailTTS = derniere; return null;
+}
+function ttsMorceaux(t){
+  const ph = t.match(/[^.!?…\n]+[.!?…]*\s*/g) || [t], out = []; let cur = '';
+  for (const p of ph) { if ((cur + p).length > 280 && cur) { out.push(cur.trim()); cur = p; } else cur += p; }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+function ttsJoue(a){
+  const bin = atob(a.b64), n = bin.length >> 1, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; f[i] = v / 32768; }
+  const buf = TTS.ctx.createBuffer(1, n, a.rate); buf.getChannelData(0).set(f);
+  const src = TTS.ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = +S.reglages.vitesse || 1; src.connect(TTS.ctx.destination);
+  return new Promise(res => { src.onended = () => { TTS.src = TTS.src.filter(x => x !== src); res(); }; TTS.src.push(src); src.start(); });
+}
+async function speakGemini(texte){
+  TTS.stop = false;
+  try {
+    if (!TTS.ctx || TTS.ctx.state === 'closed') TTS.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (TTS.ctx.state !== 'running') await TTS.ctx.resume();
+    if (TTS.ctx.state !== 'running') { S.detailTTS = 'lecture audio bloquée'; return false; }
+  } catch (e) { S.detailTTS = 'audio indisponible'; return false; }
+  const morceaux = ttsMorceaux(texte); let suivant = ttsAudio(morceaux[0]), joue = false;
+  for (let i = 0; i < morceaux.length; i++) {
+    const a = await suivant;
+    if (TTS.stop) return true;
+    if (!a) return joue;
+    suivant = i + 1 < morceaux.length ? ttsAudio(morceaux[i + 1]) : null;
+    await ttsJoue(a); joue = true;
+    if (TTS.stop) return true;
+  }
+  return true;
+}
+function stopSpeaking(){ TTS.stop = true; TTS.src.slice().forEach(s => { try { s.stop(); } catch (e) {} }); if (P) P.stopSpeaking(); }
 
 /* ---------- Famille : ordinateur de la maison (cerveau + mémoire commune) ---------- */
 const famille = () => store.get('famille', null);
@@ -2149,7 +2208,9 @@ function renderSettings(){
     '<div class="row"><label for="moteur">Reconnaissance vocale<br><span class="hint">« Gemini » est plus fiable, mais demande internet et la clé Gemini</span></label><select id="moteur"><option value="gemini"' + (r.moteurVocal !== 'android' && r.moteurVocal !== 'groq' ? ' selected' : '') + '>Gemini</option><option value="groq"' + (r.moteurVocal === 'groq' ? ' selected' : '') + '>Groq (Whisper)</option><option value="android"' + (r.moteurVocal === 'android' ? ' selected' : '') + '>Android (ancien)</option></select></div>' +
     '<div class="row"><label for="hf">Mains libres<br><span class="hint">Écoute « Poupous » en continu tant que l\'appli est ouverte</span></label><input type="checkbox" id="hf"' + (r.mainsLibres ? ' checked' : '') + '></div>' +
     '<h2>Voix</h2>' +
-    '<div class="row"><label for="voix">Voix</label><select id="voix"><option value="">Automatique</option>' + vs.map(v => '<option value="' + esc(v) + '"' + (v === r.voix ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></div>' +
+    '<div class="row"><label for="voixparle">Voix de Poupous<br><span class="hint">« Gemini » : toujours la même voix, demande internet</span></label><select id="voixparle"><option value="gemini"' + (r.voixParle !== 'android' ? ' selected' : '') + '>Gemini</option><option value="android"' + (r.voixParle === 'android' ? ' selected' : '') + '>Téléphone</option></select></div>' +
+    '<div class="row"><label for="voixgem">Voix Gemini</label><select id="voixgem">' + LIVE_VOIX.map(v => '<option value="' + v + '"' + (voixGeminiNom() === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></div>' +
+    '<div class="row"><label for="voix">Voix du téléphone</label><select id="voix"><option value="">Automatique</option>' + vs.map(v => '<option value="' + esc(v) + '"' + (v === r.voix ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></div>' +
     '<div class="row"><label for="vitesse">Vitesse</label><input type="range" id="vitesse" min="0.5" max="2" step="0.05" value="' + r.vitesse + '"></div>' +
     '<div class="row"><label for="hauteur">Hauteur</label><input type="range" id="hauteur" min="0.5" max="2" step="0.05" value="' + r.hauteur + '"></div>' +
     '<div class="row"><span class="hint">Écoute le résultat</span><button class="btn" id="test-voix">Tester la voix</button></div>' +
@@ -2196,6 +2257,8 @@ function renderSettings(){
   $('#close-settings').onclick = () => { $('#sheet').hidden = true; };
   $('#moteur').onchange = e => { S.reglages.moteurVocal = e.target.value; store.set('reglages', S.reglages); };
   $('#hf').onchange = e => { setReglage('mainsLibres', String(e.target.checked)); if (!S.busy) idle(); };
+  $('#voixparle').onchange = e => { S.reglages.voixParle = e.target.value; store.set('reglages', S.reglages); TTS.avertie = false; };
+  $('#voixgem').onchange = e => { S.reglages.voixLive = e.target.value; store.set('reglages', S.reglages); };
   $('#voix').onchange = e => { S.reglages.voix = e.target.value; applyVoice(); store.set('reglages', S.reglages); };
   $('#vitesse').onchange = e => setReglage('vitesse', e.target.value);
   $('#hauteur').onchange = e => setReglage('hauteur', e.target.value);
