@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- POUPOUS_APP  POUPOUS_VERSION=147 -->
+<!-- POUPOUS_APP  POUPOUS_VERSION=148 -->
 <title>Poupous</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -2212,7 +2212,7 @@ async function runUpgrade(demande){
     "- Aucune ressource externe (pas de CDN, pas de police en ligne).\n" +
     "- Change seulement ce qui est demandé ; garde tout le reste fonctionnel et en français.\n" +
     "Format de réponse exact : une ligne " + MK('RESUME') + ", une phrase en français résumant le changement, une ligne " + MK('HTML') + ", le fichier complet, une ligne " + MK('FIN') + ". Pas de markdown.";
-  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'prix_carburants', 'actualites', 'askAutre', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces'];
+  const ESSENTIELS = ['POUPOUS_APP', 'ameliorer_mon_code', 'annuler_derniere_amelioration', '__poupousOK', 'saveApp', 'confirmChange', 'renderSettings', 'open-settings', 'perso-reset', 'hard-reset', 'data-del', 'DEFAUT', 'renderCourses', 'open-courses', 'generer_image', 'change-cf', 'generer_video', 'change-px', 'notifier', 'rappel', 'surveiller_route', 'majRoute', 'chercher_internet', 'prix_carburants', 'actualites', 'askAutre', 'demander_deuxieme_avis', 'mentionActuelle', 'accesNotifOk', 'mention-save', 'mention-acces', 'alertesVerifier', 'ntfy-save'];
   function verifier(html){
     for (const k of ESSENTIELS) if (!html.includes(k)) return "le nouveau code perdait une partie essentielle (" + k + ")";
     const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -2338,6 +2338,10 @@ function renderSettings(){
     '<div class="row"><label for="mention">Nom ou pseudo à surveiller</label><input id="mention" style="width:45%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 10px;font:inherit" value="' + esc(mentionActuelle()) + '" placeholder="ex. Hamed"></div>' +
     '<div class="row"><span>' + (accesNotifOk() ? 'Accès aux notifications : activé' : 'Accès aux notifications : à activer') + '</span><button class="btn" id="mention-acces">' + (accesNotifOk() ? 'Vérifier' : 'Activer') + '</button></div>' +
     '<div class="row"><button class="btn primary" id="mention-save">Enregistrer</button></div>' +
+    '<h2>Alertes maison (ntfy)</h2>' +
+    '<p class="hint">Poupous affiche et notifie les alertes envoyées par ton PC (dispute, pleurs). Mets ici le même nom de canal que dans l\u2019appli ntfy.</p>' +
+    '<div class="row"><label for="ntfy-topic">Nom du canal</label><input id="ntfy-topic" style="width:55%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--ink);color:var(--text);padding:0 10px;font:inherit" value="' + esc(S.reglages.ntfyTopic || '') + '" placeholder="ex. maison-k3x9fq72" autocapitalize="none" autocomplete="off"></div>' +
+    '<div class="row"><button class="btn primary" id="ntfy-save">Enregistrer</button></div>' +
     '<h2>Cerveau</h2>' +
     '<div class="row"><label for="cerveau">Modèle</label><select id="cerveau"><option value="gemini"' + (provider() === 'gemini' ? ' selected' : '') + '>Gemini (gratuit)</option><option value="claude"' + (provider() === 'claude' ? ' selected' : '') + '>Claude (payant)</option><option value="autre"' + (provider() === 'autre' ? ' selected' : '') + '>Autre IA (Kimi, DeepSeek…)</option></select></div>' +
     '<div class="row"><span>Autre IA : ' + (oaServeur() ? 'fournie par l\'ordinateur de la maison' + (svc().autre_model ? ' (' + esc(svc().autre_model) + ')' : '') : (oaReady() ? oaNom() + ' (' + oaCfg().model + ')' : 'non configurée')) + '</span><button class="btn" id="change-oa">' + (oaReady() ? 'Changer' : 'Ajouter') + '</button></div>' +
@@ -2384,6 +2388,7 @@ function renderSettings(){
   $('#perso-reset').onclick = () => { S.reglages.personnalite = DEFAUT.personnalite; store.set('reglages', S.reglages); renderSettings(); sys('Personnalité remise par défaut.'); };
   $('#go-page').onclick = () => { const d = $('#amelio').value.trim(); if (d.length < 3 || S.busy) return; $('#sheet').hidden = true; ask('PAGE: ' + d); };
   $('#mention-save').onclick = () => { try { if (P && P.setMention) P.setMention($('#mention').value.trim()); sys('Nom à surveiller enregistré.'); } catch (e) {} };
+  $('#ntfy-save').onclick = () => { S.reglages.ntfyTopic = $('#ntfy-topic').value.trim(); store.set('reglages', S.reglages); store.set('ntfyDernier', ''); alertesDemarrer(); sys(S.reglages.ntfyTopic ? 'Canal d\u2019alertes enregistr\u00e9 : j\u2019\u00e9coute maintenant.' : 'Alertes maison d\u00e9sactiv\u00e9es.'); };
   $('#mention-acces').onclick = () => { try { if (P && P.ouvrirAccesNotifications) P.ouvrirAccesNotifications(); else sys("Cette version de l'application ne gère pas encore cette permission."); } catch (e) {} };
   $('#theme-sel').onchange = e => { S.reglages.theme = e.target.value; store.set('reglages', S.reglages); appliquerTheme(); };
   $('#mascotte-sel').onchange = e => { S.reglages.mascotte = e.target.value; store.set('reglages', S.reglages); appliquerTheme(); };
@@ -2666,9 +2671,34 @@ window.__poupousOK = true;
 
 S.faits = store.get('memoire', []);
 store.set('routeActive', false);
+/* ---------- Alertes maison (ntfy) : le PC envoie, Poupous notifie ---------- */
+let alertesTimer = null;
+async function alertesVerifier(){
+  const topic = String(S.reglages.ntfyTopic || '').trim();
+  if (!topic || !P || typeof P.http !== 'function') return;
+  let depuis = store.get('ntfyDernier', '');
+  if (!depuis) { depuis = String(Math.floor(Date.now() / 1000)); store.set('ntfyDernier', depuis); }
+  try {
+    const r = await waitFor('h', id => P.http(id, 'GET', 'https://ntfy.sh/' + encodeURIComponent(topic) + '/json?poll=1&since=' + encodeURIComponent(depuis), '{}', ''));
+    if (!r || r.status !== 200) return;
+    for (const l of String(r.text || '').split('\n').filter(Boolean)) {
+      let m; try { m = JSON.parse(l); } catch (e) { continue; }
+      if (m.event !== 'message') continue;
+      store.set('ntfyDernier', m.id);
+      const titre = m.title || 'Alerte maison', texte = m.message || '';
+      try { if (typeof P.notifier === 'function') P.notifier(titre, texte); } catch (e) {}
+      sys(titre + ' : ' + texte);
+    }
+  } catch (e) {}
+}
+function alertesDemarrer(){
+  if (alertesTimer) { clearInterval(alertesTimer); alertesTimer = null; }
+  if (String(S.reglages.ntfyTopic || '').trim() && P && typeof P.http === 'function') { alertesVerifier(); alertesTimer = setInterval(alertesVerifier, 20000); }
+}
 setTimeout(majRoute, 1500);
 Object.assign(S.reglages, store.get('reglages', {}));
 appliquerTheme(); catSet(CAT_MAP[S.state] || 'veille');
+setTimeout(alertesDemarrer, 2000);
 S.turns = store.get('conversation', []);
 setTimeout(applyVoice, 800);
 if (!P) { sys("Ouvre-moi depuis l'appli Poupous sur Android."); }
